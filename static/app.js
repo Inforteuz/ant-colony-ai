@@ -2285,6 +2285,10 @@ class AntColonyApp {
     const recRadio = document.querySelector(`input[name="recreation_mode_radio"][value="${savedRecMode}"]`);
     if (recRadio) recRadio.checked = true;
     document.getElementById('modal-setup-wizard').classList.remove('hidden');
+    const chatterToggle = document.getElementById('setup-ai-chatter-toggle');
+    if (chatterToggle) {
+      chatterToggle.checked = localStorage.getItem('ant_ai_chatter_enabled') !== 'false';
+    }
     // Workspace holatini yuklaymiz
     this.refreshWorkspaceStatus();
   }
@@ -2453,6 +2457,12 @@ class AntColonyApp {
       if (this.canvas && typeof this.canvas.setRecreationVisibility === 'function') {
         this.canvas.setRecreationVisibility(recRadio.value, this.isRunning);
       }
+    }
+
+    // Save AI Chatter Switch
+    const chatterToggle = document.getElementById('setup-ai-chatter-toggle');
+    if (chatterToggle) {
+      localStorage.setItem('ant_ai_chatter_enabled', chatterToggle.checked ? 'true' : 'false');
     }
 
     const payload = { mode };

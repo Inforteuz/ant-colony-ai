@@ -1186,16 +1186,38 @@ async def post_pm_generate_doc(req: PMDocGenerateRequest):
 
 @app.get("/api/hive/dialogue")
 async def get_swarm_dialogue():
-    """3D sahnadagi bo'sh robotlar o'rtasidagi jonli professional suhbat va token sarfi."""
+    """3D sahnadagi bo'sh robotlar o'rtasidagi professional suhbatlar va aqlli dasturchilar hazillari."""
     import random
-    dialogues = [
-        {"speaker_a": "coder", "speaker_b": "tester", "text_a": "Синтаксис верифицирован, передаю на интеграционные тесты.", "text_b": "Принято, запускаю параллельный QA раннер!", "tokens": 24},
-        {"speaker_a": "deployer", "speaker_b": "monitor", "text_a": "Контейнеры оптимизированы, размер уменьшен на 40%.", "text_b": "Отлично, задержка отклика упала до 190ms.", "tokens": 28},
-        {"speaker_a": "designer", "speaker_b": "researcher", "text_a": "Glassmorphism палитра обновлена под OLED экраны.", "text_b": "Метрики юзабилити выросли до 98 ELO.", "tokens": 22},
-        {"speaker_a": "pm", "speaker_b": "coder", "text_a": "Prompt Cache экономит более 70% входных токенов.", "text_b": "Архитектура стабильна, контекст чистый.", "tokens": 26},
-        {"speaker_a": "monitor", "speaker_b": "coder", "text_a": "Zero-shot аудит безопасности: уязвимостей не обнаружено.", "text_b": "Параметризованные запросы исключают инъекции.", "tokens": 30}
+    
+    JOKES_AND_DIALOGUES = [
+        # Coder & QA
+        {"speaker_a": "coder", "speaker_b": "tester", "text_a": "QA, я только что написал 500 строк кода без единого бага!", "text_b": "Отлично! Сейчас я отправлю пустой массив и нажму Enter 100 раз.", "tokens": 28},
+        {"speaker_a": "tester", "speaker_b": "coder", "text_a": "Захожу в бар, заказываю: 1 кружку, 0 кружек, 99999999 кружек, NULL кружек.", "text_b": "И бар выдержал? А потом пришел клиент и спросил, где туалет...", "tokens": 32},
+        {"speaker_a": "coder", "speaker_b": "tester", "text_a": "Этот баг невозможно воспроизвести на локальной машине!", "text_b": "Тогда отдадим твой MacBook клиенту в качестве сервера.", "tokens": 25},
+        
+        # DevOps & Coder
+        {"speaker_a": "deployer", "speaker_b": "coder", "text_a": "Кто запустил деплой в пятницу в 18:00?!", "text_b": "Я просто хотел протестировать CI/CD пайплайн перед выходными...", "tokens": 26},
+        {"speaker_a": "deployer", "speaker_b": "coder", "text_a": "Почему Docker образ весит 4.8 гигабайта?", "text_b": "Там просто node_modules и немного душевного тепла.", "tokens": 24},
+        {"speaker_a": "coder", "speaker_b": "deployer", "text_a": "Kubernetes под снова упал с OOMKilled!", "text_b": "Дай ему еще 16 гигабайт оперативной памяти, пусть подавится.", "tokens": 27},
+        
+        # PM & Coder
+        {"speaker_a": "pm", "speaker_b": "coder", "text_a": "Ты оценил эту задачу в 2 часа, почему делаешь её третий день?", "text_b": "2 часа ушло на код, и 60 часов на выбор имени переменной.", "tokens": 29},
+        {"speaker_a": "pm", "speaker_b": "coder", "text_a": "Заказчик попросил сделать кнопку немного круглее и более синей.", "text_b": "Хорошо, переписываю всю архитектуру на микросервисы.", "tokens": 28},
+        {"speaker_a": "pm", "speaker_b": "designer", "text_a": "Где макеты для нового спринта?", "text_b": "Я подбираю идеальный оттенок черного между #0a0f1d и #0b1122.", "tokens": 26},
+
+        # Security & Coder
+        {"speaker_a": "monitor", "speaker_b": "coder", "text_a": "Я нашел пароль от продакшн базы прямо в открытом README!", "text_b": "Зато дежурный инженер никогда его не потеряет.", "tokens": 27},
+        {"speaker_a": "monitor", "speaker_b": "deployer", "text_a": "Кто выставил права chmod 777 на корневую папку?", "text_b": "Зато теперь ни у одного скрипта нет проблем с доступом!", "tokens": 26},
+
+        # Designer & Frontend
+        {"speaker_a": "designer", "speaker_b": "coder", "text_a": "Сдвинь, пожалуйста, эту плашку на 1.5 пикселя влево.", "text_b": "Но у дисплеев нет полупикселей! Ладно, добавлю subpixel anti-aliasing.", "tokens": 30},
+        {"speaker_a": "designer", "speaker_b": "coder", "text_a": "В светлой теме этот фиолетовый выглядит слишком неоново.", "text_b": "Это не баг, это киберпанк эстетика Ant Colony!", "tokens": 25},
+
+        # Data Analyst & PM
+        {"speaker_a": "researcher", "speaker_b": "pm", "text_a": "Наш ELO алгоритм показал 99.8% точности на обучающей выборке!", "text_b": "Поздравляю, вы только что заново изобрели оверфиттинг.", "tokens": 28},
+        {"speaker_a": "researcher", "speaker_b": "coder", "text_a": "Prompt Caching сэкономил нам 1.4 миллиона токенов за неделю.", "text_b": "Отлично, теперь мы можем с чистой совестью генерировать мемы!", "tokens": 29}
     ]
-    diag = random.choice(dialogues)
-    # Record lightweight token usage in telemetry
-    models_hub.record_usage(prompt_tokens=diag["tokens"], completion_tokens=8)
+
+    diag = random.choice(JOKES_AND_DIALOGUES)
+    models_hub.record_usage(prompt_tokens=diag["tokens"], completion_tokens=10)
     return diag

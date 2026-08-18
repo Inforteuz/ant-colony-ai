@@ -2377,6 +2377,8 @@ class IsometricHive3D {
 
   startIdleDialogueLoop() {
     setInterval(async () => {
+      // Check if AI chatter is enabled in settings
+      if (localStorage.getItem('ant_ai_chatter_enabled') === 'false') return;
       // Trigger dialogue only when idle and window is active
       const idleList = Object.keys(this.agents).filter(id => {
         const ag = this.agents[id];
