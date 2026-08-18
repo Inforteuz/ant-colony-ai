@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/style.css?t=1787060000">
+  <link rel="stylesheet" href="/static/style.css?t=1787075500">
 </head>
 <body class="dark-theme full-3d-body">
 
@@ -65,7 +65,7 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px; height:13px;"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
             <span>Инструменты ▾</span>
           </button>
-          <div class="tools-dropdown-menu hidden glass-card" id="tools-dropdown-menu" style="position: absolute; top: calc(100% + 8px); right: 0; min-width: 210px; display: flex; flex-direction: column; gap: 4px; padding: 8px; border-radius: 12px; z-index: 150; box-shadow: 0 12px 35px rgba(0,0,0,0.5);">
+          <div class="tools-dropdown-menu hidden glass-card" id="tools-dropdown-menu" style="position: absolute; top: calc(100% + 8px); left: 0; right: auto; min-width: 220px; display: flex; flex-direction: column; gap: 4px; padding: 8px; border-radius: 12px; z-index: 150; box-shadow: 0 12px 35px rgba(0,0,0,0.5);">
             <button class="menu-dropdown-item" id="btn-open-skill-editor" style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: transparent; border: none; color: var(--text-main); font-size: 12px; font-weight: 600; cursor: pointer; border-radius: 8px; text-align: left;">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px; height:14px; color: var(--color-purple);"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
               <span>Редактор навыков</span>
@@ -463,6 +463,55 @@
           </div>
         </div>
 
+        <!-- GENERATION SETTINGS — temperature, max_tokens, vision, free-only -->
+        <div class="gen-settings-box">
+          <div class="ws-setup-head">
+            <div>
+              <div class="ws-setup-title">Параметры генерации LLM</div>
+              <div class="ws-setup-desc">Общие настройки для всех агентов: креативность, длина ответа, поддержка vision (изображения), режим только бесплатных моделей.</div>
+            </div>
+          </div>
+          <div class="gen-grid">
+            <div class="gen-field">
+              <label>
+                <span class="gen-label">Temperature <small id="gen-temp-val">0.2</small></span>
+                <input type="range" id="gen-temperature" min="0" max="1.5" step="0.05" value="0.2">
+              </label>
+              <div class="gen-hint">0 = детерминированно, 1 = креативно</div>
+            </div>
+            <div class="gen-field">
+              <label>
+                <span class="gen-label">Max tokens в ответе</span>
+                <input type="number" id="gen-max-tokens" min="256" max="65536" step="256" value="8192" class="ws-input">
+              </label>
+              <div class="gen-hint">Лимит длины ответа модели</div>
+            </div>
+            <div class="gen-field">
+              <label class="gen-toggle-row">
+                <input type="checkbox" id="gen-vision">
+                <span>
+                  <span class="gen-label">Vision (мультимодальность)</span>
+                  <div class="gen-hint">Разрешить отправку изображений моделям</div>
+                </span>
+              </label>
+            </div>
+            <div class="gen-field">
+              <label class="gen-toggle-row">
+                <input type="checkbox" id="gen-free-only">
+                <span>
+                  <span class="gen-label">Только бесплатные модели</span>
+                  <div class="gen-hint">Пропускать платные модели в фолбек-цепочке</div>
+                </span>
+              </label>
+            </div>
+          </div>
+          <div class="gen-actions">
+            <button class="btn-hive-action ws-btn-secondary" id="btn-fetch-free-openrouter" type="button">Загрузить бесплатные OpenRouter</button>
+            <button class="btn-hive-action ws-btn-primary" id="btn-save-gen-settings" type="button">Применить параметры</button>
+          </div>
+          <div class="gen-free-list hidden" id="gen-free-list"></div>
+        </div>
+
         <div class="leaderboard-filters-bar" id="setup-mode-tabs" style="margin-bottom: 18px;">
           <button class="lb-filter-btn active" data-mode="single">Единый API провайдер (Рекомендуется)</button>
           <button class="lb-filter-btn" data-mode="multi">Гибридный / Мульти-провайдер</button>
@@ -736,7 +785,7 @@
   <!-- SCRIPTS -->
   <script src="/static/three.min.js"></script>
   <script src="/static/OrbitControls.js"></script>
-  <script src="/static/hive3d.js?t=1787060000"></script>
-  <script src="/static/app.js?t=1787060000"></script>
+  <script src="/static/hive3d.js?t=1787075500"></script>
+  <script src="/static/app.js?t=1787075500"></script>
 </body>
 </html>

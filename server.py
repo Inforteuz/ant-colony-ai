@@ -24,6 +24,7 @@ from agent_engine import agent_engine
 from skill_matrix import skill_matrix
 from prompt_cache import prompt_cache
 from workspace_janitor import WorkspaceJanitor
+from pm_memory import PMMemory, init_memory, get_memory
 from tools import (
     AVAILABLE_TOOLS, get_tool_schemas, list_files, read_file, run_shell_command,
     get_active_project_dir, set_active_project_dir, AGENT_MEMORY, set_event_emitter,
@@ -53,6 +54,8 @@ async def on_startup():
         is_orchestration_active_getter=lambda: (CURRENT_JOB is not None and CURRENT_JOB.status == "running"),
     )
     _JANITOR.start()
+    # PM Memory — long-term xotira (fayl asosida)
+    init_memory(BASE_DIR / "pm_memory.json")
 
 
 _JANITOR: Optional[WorkspaceJanitor] = None
@@ -678,6 +681,144 @@ def _persist_env_key(key: str, value: str):
         pass
 
 
+class FreeModelsRequest(BaseModel):
+    provider: str = "openrouter"
+    api_key: Optional[str] = None
+
+
+@app.post("/api/setup/fetch-free-models")
+async def fetch_free_models(req: FreeModelsRequest):
+    """
+    Provayderdan faqat BEPUL modellarni yuklaydi (OpenRouter uchun `:free` suffix
+    yoki pricing == 0, boshqa provayderlar uchun ochiq katalog).
+    """
+    import aiohttp
+    prov = (req.provider or "").lower()
+    key = (req.api_key or CUSTOM_KEYS.get(prov, "")).strip()
+
+    if prov == "openrouter":
+        url = "https://openrouter.ai/api/v1/models"
+        headers = {"Authorization": f"Bearer {key}"} if key else {}
+    elif prov == "groq":
+        url = "https://api.groq.com/openai/v1/models"
+        headers = {"Authorization": f"Bearer {key}"}
+    elif prov == "gemini":
+        # Gemini free tier (gemini-2.5-flash-lite, gemini-1.5-flash-8b, gemini-2.5-pro-preview kabi)
+        url = f"https://generativelanguage.googleapis.com/v1beta/models?key={key}"
+        headers = {}
+    else:
+        raise HTTPException(status_code=400, detail=f"'{prov}' bepul model ro'yxatini qo'llamaydi")
+
+    try:
+        timeout = aiohttp.ClientTimeout(total=15)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.get(url, headers=headers) as resp:
+                if resp.status != 200:
+                    text = (await resp.text())[:300]
+                    return {"success": False, "error": f"HTTP {resp.status}: {text}"}
+                body = await resp.json()
+    except Exception as e:
+        return {"success": False, "error": f"{type(e).__name__}: {e}"}
+
+    free_models: List[Dict[str, Any]] = []
+    if prov == "openrouter":
+        for m in body.get("data", []):
+            mid = m.get("id", "")
+            pricing = m.get("pricing") or {}
+            prompt_cost = float(pricing.get("prompt") or 0)
+            completion_cost = float(pricing.get("completion") or 0)
+            is_free = mid.endswith(":free") or (prompt_cost == 0 and completion_cost == 0)
+            if is_free:
+                free_models.append({
+                    "id": mid,
+                    "name": m.get("name") or mid,
+                    "context_window": m.get("context_length") or 8192,
+                    "max_output": (m.get("top_provider") or {}).get("max_completion_tokens") or 4096,
+                    "features": [f for f in [
+                        "Vision" if (m.get("architecture") or {}).get("modality", "").startswith("multimodal") else None,
+                        "Free"
+                    ] if f],
+                    "supports_reasoning": bool(m.get("supported_parameters") and "reasoning" in (m.get("supported_parameters") or [])),
+                    "is_free": True,
+                    "pricing": pricing,
+                })
+    elif prov == "groq":
+        # Groq'da hozircha barcha modellar bepul (free tier limit bilan)
+        for m in body.get("data", []):
+            free_models.append({
+                "id": m.get("id"),
+                "name": m.get("id"),
+                "context_window": m.get("context_window") or 8192,
+                "is_free": True,
+            })
+    elif prov == "gemini":
+        # Gemini free tier — faqat "flash" va "flash-lite" bilan boshlangan modellar
+        for m in body.get("models", []):
+            name = m.get("name", "").replace("models/", "")
+            if "flash" in name.lower() or "flash-lite" in name.lower():
+                free_models.append({
+                    "id": name,
+                    "name": m.get("displayName") or name,
+                    "context_window": m.get("inputTokenLimit") or 32768,
+                    "max_output": m.get("outputTokenLimit") or 8192,
+                    "features": [t for t in (m.get("supportedGenerationMethods") or [])],
+                    "is_free": True,
+                })
+
+    return {
+        "success": True,
+        "provider": prov,
+        "count": len(free_models),
+        "models": free_models,
+    }
+
+
+class GenSettingsRequest(BaseModel):
+    default_temperature: Optional[float] = None
+    default_max_tokens: Optional[int] = None
+    enable_vision: Optional[bool] = None
+    free_models_only: Optional[bool] = None
+
+
+@app.post("/api/setup/generation-settings")
+async def update_generation_settings(req: GenSettingsRequest):
+    """Setup wizard'dan LLM generation defaults'ni jonli o'zgartiradi."""
+    applied = {}
+    if req.default_temperature is not None:
+        v = max(0.0, min(1.5, float(req.default_temperature)))
+        AGENT_CONFIG["default_temperature"] = v
+        applied["default_temperature"] = v
+    if req.default_max_tokens is not None:
+        v = max(256, min(65536, int(req.default_max_tokens)))
+        AGENT_CONFIG["default_max_tokens"] = v
+        applied["default_max_tokens"] = v
+    if req.enable_vision is not None:
+        AGENT_CONFIG["enable_vision"] = bool(req.enable_vision)
+        applied["enable_vision"] = bool(req.enable_vision)
+    if req.free_models_only is not None:
+        AGENT_CONFIG["free_models_only"] = bool(req.free_models_only)
+        applied["free_models_only"] = bool(req.free_models_only)
+
+    # .env'ga ham yozamiz
+    for k, v in applied.items():
+        _persist_env_key(f"AGENT_{k.upper()}", str(v))
+
+    return {"success": True, "applied": applied, "config": {
+        k: AGENT_CONFIG[k] for k in ["default_temperature", "default_max_tokens", "enable_vision", "free_models_only"]
+    }}
+
+
+@app.get("/api/setup/generation-settings")
+async def get_generation_settings():
+    """Setup wizard uchun joriy generation sozlamalari."""
+    return {
+        "default_temperature": AGENT_CONFIG.get("default_temperature", 0.2),
+        "default_max_tokens": AGENT_CONFIG.get("default_max_tokens", 8192),
+        "enable_vision": AGENT_CONFIG.get("enable_vision", True),
+        "free_models_only": AGENT_CONFIG.get("free_models_only", False),
+    }
+
+
 class BrowseDirRequest(BaseModel):
     path: str
 
@@ -744,6 +885,21 @@ class OrchestrationJob:
                 if event.get("type") == "orchestration_completed":
                     self.status = "completed"
                     self.final_event = event
+                    # PM xotirasiga yozamiz — keyingi sessiyalarda kontekst sifatida
+                    try:
+                        mem = get_memory()
+                        if mem:
+                            eval_summary = event.get("eval_summary") or {}
+                            mem.record_orchestration(
+                                task=self.task,
+                                project_dir=event.get("project_dir"),
+                                files=event.get("created_files") or [],
+                                score=event.get("final_score"),
+                                duration_s=event.get("duration_seconds") or (time.time() - self.created_at),
+                                summary=(eval_summary.get("summary") if isinstance(eval_summary, dict) else None),
+                            )
+                    except Exception:
+                        pass
 
             if self.status not in ("completed", "cancelled", "failed"):
                 self.status = "completed"
@@ -875,6 +1031,75 @@ async def stream_job_events(job: OrchestrationJob):
             "X-Accel-Buffering": "no"
         }
     )
+
+# --- PM Memory Endpoints ---
+
+@app.get("/api/pm/memory")
+async def pm_memory_get():
+    mem = get_memory()
+    if not mem:
+        return {"error": "memory not initialized"}
+    return mem.snapshot()
+
+
+@app.get("/api/pm/memory/greeting")
+async def pm_memory_greeting():
+    """Idle payt PM aytadigan dinamik xabar uchun ma'lumotlar."""
+    mem = get_memory()
+    if not mem:
+        return {"total_orchestrations": 0, "last_project": None, "pending_plans": []}
+    return mem.build_idle_greeting()
+
+
+class FuturePlanRequest(BaseModel):
+    text: str
+    source: str = "user"
+
+
+@app.post("/api/pm/memory/future-plan")
+async def pm_memory_add_plan(req: FuturePlanRequest):
+    mem = get_memory()
+    if not mem:
+        raise HTTPException(status_code=503, detail="memory not initialized")
+    mem.add_future_plan(req.text, req.source)
+    return {"success": True, "count": len(mem.snapshot()["future_plans"])}
+
+
+class RemovePlanRequest(BaseModel):
+    index: int
+
+
+@app.post("/api/pm/memory/remove-plan")
+async def pm_memory_remove_plan(req: RemovePlanRequest):
+    mem = get_memory()
+    if not mem:
+        raise HTTPException(status_code=503, detail="memory not initialized")
+    mem.remove_future_plan(req.index)
+    return {"success": True}
+
+
+class PreferenceRequest(BaseModel):
+    key: str
+    value: Any
+
+
+@app.post("/api/pm/memory/preference")
+async def pm_memory_pref(req: PreferenceRequest):
+    mem = get_memory()
+    if not mem:
+        raise HTTPException(status_code=503, detail="memory not initialized")
+    mem.set_preference(req.key, req.value)
+    return {"success": True}
+
+
+@app.post("/api/pm/memory/clear")
+async def pm_memory_clear():
+    mem = get_memory()
+    if not mem:
+        raise HTTPException(status_code=503, detail="memory not initialized")
+    mem.clear(keep_preferences=True)
+    return {"success": True}
+
 
 # --- Workspace Janitor Endpoints ---
 

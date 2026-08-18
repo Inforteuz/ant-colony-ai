@@ -81,6 +81,13 @@ AGENT_CONFIG = {
     "health_monitor_interval_s": int(os.getenv("AGENT_HEALTH_INTERVAL", "600")),
     # Bir raundda tekshiriladigan model soni (aylanma navbat bilan).
     "health_monitor_batch": int(os.getenv("AGENT_HEALTH_BATCH", "4")),
+    # LLM generation defaults — Setup wizard'dan o'zgartirilishi mumkin.
+    "default_temperature": float(os.getenv("AGENT_DEFAULT_TEMPERATURE", "0.2")),
+    "default_max_tokens": int(os.getenv("AGENT_DEFAULT_MAX_TOKENS", "8192")),
+    # Vision (rasm/video) qo'llab-quvvatlash — global feature flag.
+    "enable_vision": os.getenv("AGENT_ENABLE_VISION", "true").lower() in ("true", "1", "yes"),
+    # Faqat bepul modellar bilan ishlash rejimi (paid modellar chetlanadi).
+    "free_models_only": os.getenv("AGENT_FREE_ONLY", "false").lower() in ("true", "1", "yes"),
 }
 
 MODELS_CATALOG = [

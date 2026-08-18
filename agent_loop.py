@@ -34,7 +34,9 @@ _THINK_RE = re.compile(r"<think(?:ing)?>(.*?)</think(?:ing)?>", re.DOTALL)
 _COMPLETE_RE = re.compile(r"\bTASK[_\s]COMPLETE\b", re.IGNORECASE)
 
 # Bir xil chaqiruv necha marta takrorlansa sikl deb hisoblanadi.
-_LOOP_LIMIT = 3
+# Ilgari 3 edi — lekin `edit_file` xatosini tuzatib qayta urinsa ham chetlanardi.
+# Endi 4: birinchi urunish, birinchi tuzatish, ikkinchi tuzatish, va NEXT — sikl.
+_LOOP_LIMIT = 4
 
 
 def split_reasoning(text: str) -> tuple[str, str]:
@@ -59,20 +61,35 @@ def split_reasoning(text: str) -> tuple[str, str]:
     return "\n\n".join(thoughts).strip(), clean
 
 
+def _try_repair_tool_json(raw: str) -> Optional[Dict[str, Any]]:
+    """Tool call JSON'ini xato bo'lsa tuzatib qayta parselaydi (LLM'lar tez qiladigan xatolar)."""
+    try:
+        s = raw
+        s = re.sub(r'\bTrue\b', 'true', s)
+        s = re.sub(r'\bFalse\b', 'false', s)
+        s = re.sub(r'\bNone\b', 'null', s)
+        s = re.sub(r',(\s*[}\]])', r'\1', s)
+        return json.loads(s)
+    except Exception:
+        return None
+
+
 def parse_text_tool_calls(text: str) -> tuple[List[Dict[str, Any]], str]:
     """
     Matndagi ```tool_call bloklaridan asbob chaqiruvlarini ajratadi.
     Bir xabarda bir nechta chaqiruv bo'lishi mumkin. Qaytadi: (chaqiruvlar, tozalangan matn).
+    Broken JSON'ni ham qutqarishga urinadi.
     """
     calls: List[Dict[str, Any]] = []
     consumed: List[str] = []
 
     for idx, match in enumerate(_FENCED_TOOL_RE.finditer(text or "")):
         raw = match.group(1)
+        parsed = None
         try:
             parsed = json.loads(raw)
         except Exception:
-            continue
+            parsed = _try_repair_tool_json(raw)
         if not isinstance(parsed, dict):
             continue
         name = parsed.get("tool") or parsed.get("action") or parsed.get("name")
@@ -287,7 +304,9 @@ async def run_agent(
         # endpointlar o'zi generatsiya qilmagan tool_call_id'ni rad etishi mumkin.
         # Bunday holatda natijalarni oddiy `user` xabari sifatida qaytaramiz.
         if native_calls:
-            messages.append({"role": "assistant", "content": text, "tool_calls": tool_calls})
+            # OpenAI-compatible provayderlar tool_calls bilan bo'sh content'ni None ga aylantirishni istaydi
+            asst_content = text if (text and text.strip()) else None
+            messages.append({"role": "assistant", "content": asst_content, "tool_calls": tool_calls})
         else:
             calls_repr = "\n".join(
                 f'```tool_call\n{{"tool": "{c["name"]}", "params": {json.dumps(c.get("arguments", {}), ensure_ascii=False)}}}\n```'
@@ -429,6 +448,106 @@ async def run_agent(
                 w = write_file(default_filename, m.group(1).strip())
                 if w.get("success") and default_filename not in result.files_written:
                     result.files_written.append(default_filename)
+
+    # --- Post-completion sanity check ---
+    # Agar agent kod loyihasi (write_file'lar bo'lgan) yozgan bo'lsa,
+    # avtomatik sintaksis tekshiruvi yugurtiramiz. Xatolar topilsa — bitta
+    # tuzatish urinishi beramiz. Bu agent'ning "TASK_COMPLETE"'ini haqiqiy natijaga bog'laydi.
+    if result.files_written and not result.error:
+        try:
+            from tools import verify_code_syntax
+            check = verify_code_syntax()
+            if check.get("issues_count", 0) > 0:
+                issues = check.get("issues") or []
+                # Agentga sinov natijasini beramiz va bir yakuniy tuzatish urinishi
+                issues_txt = "\n".join(
+                    f"- **{i.get('file', '?')}**"
+                    + (f" (qator {i['line']})" if i.get('line') else "")
+                    + f": {i.get('message', '')[:200]}"
+                    for i in issues[:8]
+                )
+                yield {
+                    "type": "agent_warning", "station": station, "agent_name": agent_name,
+                    "message": f"Sintaksis tekshiruvi {check['issues_count']} xato topdi — avto-tuzatish urinishi",
+                }
+                messages.append({
+                    "role": "user",
+                    "content": (
+                        "**MAJBURIY TUZATISH**: TASK_COMPLETE yakunlandi, lekin avtomatik sintaksis "
+                        f"tekshiruvi quyidagi xatolarni aniqladi:\n\n{issues_txt}\n\n"
+                        "Har bir xatoni `read_file` bilan o'qib, `edit_file` yoki `write_file` bilan "
+                        "tuzating. Xatolar tugagach `TASK_COMPLETE` bilan yakunlang."
+                    )
+                })
+                # Tuzatish uchun 5 qadam beramiz
+                fix_max = min(5, AGENT_CONFIG.get("max_tool_steps", 12))
+                for fix_step in range(fix_max):
+                    result.steps += 1
+                    fix_resp = await llm_client.complete(
+                        current_model, messages,
+                        tools=schemas,
+                        temperature=0.1, max_tokens=max_tokens,
+                        custom_keys=custom_keys,
+                    )
+                    if not fix_resp["success"]:
+                        break
+                    fix_text = fix_resp["text"] or ""
+                    fix_calls = list(fix_resp.get("tool_calls") or [])
+                    if not fix_calls:
+                        fix_calls, fix_text = parse_text_tool_calls(fix_text)
+                    for key in ("prompt_tokens", "completion_tokens", "reasoning_tokens"):
+                        result.usage[key] += fix_resp.get("usage", {}).get(key, 0) or 0
+                    if not fix_calls:
+                        result.final_text = (result.final_text or "") + "\n\n" + fix_text
+                        break
+                    if fix_resp.get("tool_calls"):
+                        messages.append({"role": "assistant", "content": fix_text, "tool_calls": fix_calls})
+                    else:
+                        calls_repr = "\n".join(
+                            f'```tool_call\n{{"tool": "{c["name"]}", "params": {json.dumps(c.get("arguments", {}), ensure_ascii=False)}}}\n```'
+                            for c in fix_calls
+                        )
+                        messages.append({"role": "assistant", "content": (fix_text + "\n\n" + calls_repr).strip()})
+                    fix_text_results = []
+                    for fc in fix_calls:
+                        fn = fc["name"]; fa = fc.get("arguments", {})
+                        fo = execute_tool(fn, fa)
+                        result.tool_calls += 1
+                        if not (isinstance(fo, dict) and fo.get("success")):
+                            result.tool_failures += 1
+                        elif fn in ("write_file", "edit_file"):
+                            fname = fo.get("filename")
+                            if fname and fname not in result.files_written:
+                                result.files_written.append(fname)
+                        yield {
+                            "type": "station_action", "station": station, "agent_name": agent_name,
+                            "action_type": "tool_result", "tool": fn, "output": fo,
+                            "success": bool(fo.get("success")), "step": result.steps,
+                        }
+                        fs = _summarize_for_model(fn, fo)
+                        if fix_resp.get("tool_calls"):
+                            messages.append({"role": "tool", "tool_call_id": fc.get("id", "call_0"),
+                                             "name": fn, "content": fs})
+                        else:
+                            fix_text_results.append(f"### `{fn}` natijasi\n{fs}")
+                    if fix_text_results:
+                        messages.append({"role": "user",
+                                         "content": "Asboblar natijasi:\n\n" + "\n\n".join(fix_text_results)})
+                    if _COMPLETE_RE.search(fix_text):
+                        break
+                # Oxirgi tekshiruv
+                final_check = verify_code_syntax()
+                if final_check.get("issues_count", 0) == 0:
+                    yield {
+                        "type": "agent_message", "station": station, "agent_name": agent_name,
+                        "content": "✓ Sintaksis xatolari avtomatik tuzatildi.",
+                        "step": result.steps,
+                    }
+        except Exception as e:
+            yield {
+                "type": "agent_warning", "station": station, "agent_name": agent_name,
+                "message": f"Post-completion tekshiruvi xatosi (fatal emas): {e}",
+            }
 
     result.duration_s = time.time() - t_start
     yield {"type": "agent_done", "station": station, "agent_name": agent_name,

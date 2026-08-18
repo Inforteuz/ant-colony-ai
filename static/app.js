@@ -1045,12 +1045,44 @@ class AntColonyApp {
     }, 5000);
   }
 
-  triggerPMIdleInquiry() {
+  async triggerPMIdleInquiry() {
     const feed = document.getElementById('pm-feed-list');
     if (!feed) return;
 
     const ph = document.getElementById('pm-empty-placeholder');
     if (ph) ph.remove();
+
+    // Xotiradan dinamik ma'lumot olamiz — PM real gapirsin, statik shablon emas
+    let greeting = null;
+    try {
+      const res = await fetch('/api/pm/memory/greeting');
+      greeting = await res.json();
+    } catch (e) {}
+
+    let bodyHtml;
+    if (greeting && greeting.total_orchestrations > 0) {
+      const lp = greeting.last_project;
+      const plans = greeting.pending_plans || [];
+      const stats = `${greeting.total_orchestrations} loyiha (o'rt. ball ${greeting.avg_score || '—'})`;
+      const lpBlock = lp
+        ? `<p><strong>So'nggi loyiha:</strong> «${this.esc((lp.task || '').slice(0, 120))}» — ${lp.files_count || 0} fayl, ${lp.score !== null ? `ball ${lp.score}` : 'baholanmagan'} <span style="opacity:0.7">(${lp.iso || ''})</span></p>`
+        : '';
+      const plansBlock = plans.length
+        ? `<p><strong>Kelajakdagi rejalar (${greeting.pending_plans_total}):</strong></p><ul style="margin:4px 0 8px 20px;">${plans.map(p => `<li>${this.esc(p.text)}</li>`).join('')}</ul>`
+        : '';
+      bodyHtml = `
+        <p><strong>Уважаемый CEO,</strong> команда закончила текущие задачи. За всё время я обработал ${this.esc(stats)}.</p>
+        ${lpBlock}
+        ${plansBlock}
+        <p>Продолжим один из отложенных планов, или у вас новая идея? Скажите слово — начнём.</p>
+      `;
+    } else {
+      bodyHtml = `
+        <p><strong>Уважаемый CEO!</strong> Команда разработчиков (7 AI специалистов) готова к работе.</p>
+        <p>Дайте первую задачу — я разложу её на этапы, назначу лучшую модель на каждую роль и организую полный цикл: разработка → тесты → безопасность → деплой.</p>
+        <p style="opacity:0.75;font-size:11.5px;">💡 Совет: скажите «запомни, что…» — и я буду держать это в долговременной памяти между сессиями.</p>
+      `;
+    }
 
     const pmMsg = document.createElement('div');
     pmMsg.className = 'chat-card chat-card-pm';
@@ -1059,14 +1091,11 @@ class AntColonyApp {
         <div class="chat-sender">
           <span class="sender-avatar avatar-pm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></span>
           <strong>Project Manager & Master Orchestrator</strong>
-          <span class="role-badge badge-pm">Центральное управление</span>
+          <span class="role-badge badge-pm">Проактивный запрос к CEO</span>
         </div>
         <span class="chat-time">${new Date().toLocaleTimeString()}</span>
       </div>
-      <div class="chat-body formatted-markdown">
-        <p><strong>Уважаемый CEO!</strong> Команда разработчиков (все 7 AI специалистов) завершила все текущие задачи и находится в режиме ожидания.</p>
-        <p>Готовы приступить к новым проектам, созданию интерактивных веб-приложений, скриптов автоматизации или анализу кода. Есть ли новые задачи для выполнения?</p>
-      </div>
+      <div class="chat-body formatted-markdown">${bodyHtml}</div>
     `;
     feed.appendChild(pmMsg);
     feed.scrollTop = feed.scrollHeight;
@@ -1074,6 +1103,31 @@ class AntColonyApp {
     if (this.canvas && typeof this.canvas.updateStationModel === 'function') {
       this.canvas.updateStationModel('pm', 'DeepSeek V4 Flash', 'Ожидаем задачи от CEO');
     }
+  }
+
+  // Foydalanuvchi "запомни / eslab qol" desa — future plan sifatida saqlaymiz
+  async detectAndSaveFuturePlan(text) {
+    const t = (text || '').trim();
+    const patterns = [
+      /^(?:запомни|запомните|запомнить)[,\s:]+(.+)$/i,
+      /^(?:eslab qol|eslab qoling|eslab qolish)[,\s:]+(.+)$/i,
+      /^(?:remember|remember that)[,\s:]+(.+)$/i,
+      /^(?:keyinroq|позже|later)[,\s:]+(.+)$/i,
+    ];
+    for (const rx of patterns) {
+      const m = t.match(rx);
+      if (m && m[1]) {
+        try {
+          const res = await fetch('/api/pm/memory/future-plan', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({text: m[1].trim(), source: 'user'}),
+          });
+          const data = await res.json();
+          return data.success ? m[1].trim() : null;
+        } catch(e) { return null; }
+      }
+    }
+    return null;
   }
 
   async loadRolesOnStartup() {
@@ -1100,6 +1154,74 @@ class AntColonyApp {
     if (fillEl && progressPct !== undefined) fillEl.style.width = `${progressPct}%`;
   }
 
+  // Toast notification stack — o'ng yuqori burchakda vaqtinchalik xabarlar
+  toast(title, desc = '', type = 'info', duration = 3500) {
+    let stack = document.getElementById('ant-toast-stack');
+    if (!stack) {
+      stack = document.createElement('div');
+      stack.id = 'ant-toast-stack';
+      document.body.appendChild(stack);
+    }
+    const icons = { ok: '✓', info: 'ℹ', warn: '⚠', error: '✕' };
+    const t = document.createElement('div');
+    t.className = `ant-toast type-${type}`;
+    t.innerHTML = `
+      <span class="toast-ico">${icons[type] || 'ℹ'}</span>
+      <div class="toast-body">
+        <div class="toast-title">${this.esc(title)}</div>
+        ${desc ? `<div class="toast-desc">${this.esc(desc)}</div>` : ''}
+      </div>
+      <button class="toast-close" title="Закрыть">✕</button>
+    `;
+    stack.appendChild(t);
+    const dismiss = () => {
+      if (t._done) return;
+      t._done = true;
+      t.classList.add('leaving');
+      setTimeout(() => t.remove(), 320);
+    };
+    t.querySelector('.toast-close').addEventListener('click', dismiss);
+    if (duration > 0) setTimeout(dismiss, duration);
+    return t;
+  }
+
+  // Smooth number rollup animation for KPI values — matnda raqam bo'lsa
+  // undan oldingi qiymatdan yangi qiymatga ~300ms davomida sanaydi.
+  _tweenNumber(el, newText) {
+    if (!el) return;
+    const oldText = el.textContent || '';
+    // Raqam va qo'shimchani ajratamiz (masalan "1.5 GB", "234 tkn", "850 ms", "42")
+    const rx = /^([\-\+]?[\d]+(?:[.,]\d+)?)([KMGT]?)\s*(.*)$/;
+    const nm = String(newText).match(rx);
+    const om = oldText.match(rx);
+    if (!nm || !om) {
+      el.textContent = newText;
+      return;
+    }
+    const newNum = parseFloat(nm[1].replace(',', '.'));
+    const oldNum = parseFloat(om[1].replace(',', '.'));
+    if (isNaN(newNum) || isNaN(oldNum) || newNum === oldNum) {
+      el.textContent = newText;
+      return;
+    }
+    // Suffix va decimal formati saqlanadi
+    const decimals = (nm[1].split('.')[1] || '').length;
+    const suffix = (nm[2] || '') + (nm[3] ? ' ' + nm[3] : '');
+    const t0 = performance.now();
+    const dur = 400;
+    if (el._tweenRaf) cancelAnimationFrame(el._tweenRaf);
+    const step = (t) => {
+      const p = Math.min(1, (t - t0) / dur);
+      // ease-out cubic
+      const e = 1 - Math.pow(1 - p, 3);
+      const v = oldNum + (newNum - oldNum) * e;
+      el.textContent = v.toFixed(decimals) + suffix;
+      if (p < 1) el._tweenRaf = requestAnimationFrame(step);
+      else el.textContent = newText;
+    };
+    el._tweenRaf = requestAnimationFrame(step);
+  }
+
   async fetchRealStats() {
     try {
       const res = await fetch('/api/hive/real-stats');
@@ -1107,7 +1229,8 @@ class AntColonyApp {
 
       const setEl = (id, val) => {
         const el = document.getElementById(id);
-        if (el) el.textContent = val;
+        if (!el) return;
+        this._tweenNumber(el, val);
       };
 
       setEl('val-total-models', data.total_models || '21');
@@ -1226,12 +1349,19 @@ class AntColonyApp {
       feed.innerHTML = ''; // Clear placeholder
       this.activeThinkingCard = null;
 
-      // Replay all events from server
-      data.events.forEach(ev => {
-        this.handleOrchestratorEvent(ev, feed);
-      });
+      // Replay all events from server — replay paytida toast'lar CHIQMAYDI,
+      // aks holda har reload'da eski "Задача выполнена" toast qayta chiqadi
+      this._isReplay = true;
+      try {
+        data.events.forEach(ev => {
+          this.handleOrchestratorEvent(ev, feed);
+        });
+      } finally {
+        this._isReplay = false;
+      }
 
-      // If still running on server, reconnect live stream
+      // If still running on server, reconnect live stream — endi toast'lar
+      // faqat yangi (live) event'lar uchun ishlaydi
       if (data.status === 'running') {
         const response = await fetch(`/api/orchestrator/stream/${data.job_id}`);
         if (response.ok) {
@@ -1277,6 +1407,18 @@ class AntColonyApp {
     const feed = document.getElementById('pm-feed-list');
     const emptyPlaceholder = document.getElementById('pm-empty-placeholder');
     if (emptyPlaceholder) emptyPlaceholder.style.display = 'none';
+
+    // "Запомни..." naqshini aniqlab, orkestratsiya boshlanmasdan xotiraga yozamiz
+    const remembered = await this.detectAndSaveFuturePlan(taskText);
+    if (remembered) {
+      const info = document.createElement('div');
+      info.className = 'pm-feed-item';
+      info.innerHTML = `<div class="pm-feed-title" style="color:#22c55e;">💾 Запомнено в долговременной памяти</div><div>${this.esc(remembered)}</div><div style="font-size:11px;opacity:0.7;margin-top:4px;">Я буду учитывать это при планировании будущих задач.</div>`;
+      feed.appendChild(info);
+      feed.scrollTop = feed.scrollHeight;
+      this.toast('Запомнено в памяти PM', remembered.slice(0, 80), 'ok');
+      return;
+    }
 
     this.isRunning = true;
     this.lastUserActivity = Date.now();
@@ -1514,6 +1656,31 @@ class AntColonyApp {
     card.className = 'exec-summary-card';
 
     const createdFiles = event.created_files || [];
+
+    // Conversational javob (oddiy salomlashish yoki savol) — bu haqiqiy loyiha emas.
+    // Coder umuman ishlamagan va fayl yaratilmagan → "Задача выполнена 100/100" ko'rsatmaymiz.
+    const isConversational = (
+      createdFiles.length === 0
+      && !event.coder_summary
+      && !event.coder_role
+      && (event.total_duration_sec || 999) < 30
+    );
+    if (isConversational) {
+      // Kompakt "Ответ дан" ko'rinishi — 100/100 va "Созданные файлы (0)" bo'lmaydi.
+      const compact = document.createElement('div');
+      compact.className = 'exec-summary-card';
+      compact.style.padding = '10px 14px';
+      compact.innerHTML = `
+        <div style="display:flex; align-items:center; gap:10px; font-size:12px; color:var(--text-muted);">
+          <svg style="width:16px; height:16px; color:#22d3ee;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span>Ответ дан · ${event.total_duration_sec || 0}s</span>
+        </div>
+      `;
+      feed.appendChild(compact);
+      feed.scrollTop = feed.scrollHeight;
+      return;
+    }
+
     let filesHtml = '';
     if (createdFiles.length > 0) {
       filesHtml = createdFiles.map(f => `
@@ -1645,6 +1812,33 @@ class AntColonyApp {
       if (this.liveWorkspace) {
         this.liveWorkspace.setLive(false, type === 'orchestration_completed' ? 'Готово' : 'Остановлено');
         this.liveWorkspace.refreshTree();
+      }
+      // Toast faqat LIVE event uchun — replay/reload'da qayta chiqmasin.
+      // Bundan tashqari conversational (0 fayl + immediate) uchun ham chiqmasin.
+      if (!this._isReplay) {
+        if (type === 'orchestration_completed') {
+          const files = (event.created_files || []).length;
+          const isConversational = files === 0 && (event.duration_seconds || 999) < 30;
+          if (!isConversational) {
+            const score = event.final_score;
+            this.toast(
+              `Задача выполнена · балл ${score ?? '—'}`,
+              `${files} файл${files === 1 ? '' : (files < 5 ? 'а' : 'ов')} создано за ${Math.round(event.duration_seconds || 0)}s`,
+              'ok', 5000
+            );
+          }
+        } else {
+          this.toast('Оркестрация остановлена', event.error || '', 'error', 6000);
+        }
+      }
+    }
+    if (type === 'fs_change' && event.op === 'write' && !this._isReplay) {
+      // Faqat oxirgi 700ms da bir toast (spam bo'lmasin)
+      const now = Date.now();
+      this._lastToastTs = this._lastToastTs || 0;
+      if (now - this._lastToastTs > 700) {
+        this.toast('Файл записан', event.filename || '', 'info', 2000);
+        this._lastToastTs = now;
       }
     }
     if (type === 'user_task' && this.liveWorkspace) {
@@ -1892,6 +2086,23 @@ class AntColonyApp {
       const res = await fetch('/api/leaderboard');
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       this.leaderboardData = await res.json();
+
+      // 0. "Самый быстрый отклик" bannerini yangilaymiz — avval "Загрузка…"'da qolib qolgan edi
+      const fastestNameEl = document.getElementById('lb-fastest-model-name');
+      const fastestBadgeEl = document.getElementById('lb-fastest-badge');
+      const fm = this.leaderboardData.fastest_model;
+      if (fastestNameEl && fastestBadgeEl) {
+        if (fm && (fm.model_name || fm.model_id)) {
+          fastestNameEl.textContent = fm.model_name || fm.model_id;
+          const lat = fm.latency_ms || 0;
+          fastestBadgeEl.textContent = `${lat} ms`;
+          // Latency rangi
+          fastestBadgeEl.className = 'latency-pill ' + (lat < 500 ? 'lat-fast' : lat < 1500 ? 'lat-med' : 'lat-slow');
+        } else {
+          fastestNameEl.textContent = 'Нет данных';
+          fastestBadgeEl.textContent = '— ms';
+        }
+      }
 
       // 1. Render Top 3 Podium
       const top3 = this.leaderboardData.top_podium || [];
@@ -2304,14 +2515,88 @@ class AntColonyApp {
     if (chatterToggle) {
       chatterToggle.checked = localStorage.getItem('ant_ai_chatter_enabled') !== 'false';
     }
-    // Workspace holatini yuklaymiz
+    // Workspace va generation sozlamalarni yuklaymiz
     this.refreshWorkspaceStatus();
+    this.refreshGenSettings();
   }
 
   closeSetupModal() {
     document.getElementById('modal-setup-wizard').classList.add('hidden');
     const br = document.getElementById('ws-browser');
     if (br) br.classList.add('hidden');
+  }
+
+  async refreshGenSettings() {
+    try {
+      const res = await fetch('/api/setup/generation-settings');
+      const g = await res.json();
+      const tEl = document.getElementById('gen-temperature');
+      const tVal = document.getElementById('gen-temp-val');
+      const mEl = document.getElementById('gen-max-tokens');
+      const vEl = document.getElementById('gen-vision');
+      const fEl = document.getElementById('gen-free-only');
+      if (tEl) tEl.value = g.default_temperature;
+      if (tVal) tVal.textContent = Number(g.default_temperature).toFixed(2);
+      if (mEl) mEl.value = g.default_max_tokens;
+      if (vEl) vEl.checked = !!g.enable_vision;
+      if (fEl) fEl.checked = !!g.free_models_only;
+    } catch (e) {}
+  }
+
+  async saveGenSettings() {
+    const t = parseFloat(document.getElementById('gen-temperature').value);
+    const m = parseInt(document.getElementById('gen-max-tokens').value, 10);
+    const v = document.getElementById('gen-vision').checked;
+    const f = document.getElementById('gen-free-only').checked;
+    try {
+      const res = await fetch('/api/setup/generation-settings', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({default_temperature: t, default_max_tokens: m, enable_vision: v, free_models_only: f}),
+      });
+      const data = await res.json();
+      if (data.success) {
+        this.toast('Параметры сохранены', `temp=${t}, max_tokens=${m}, vision=${v ? 'вкл' : 'выкл'}, free=${f ? 'да' : 'нет'}`, 'ok');
+      } else {
+        this.toast('Ошибка', data.error || '—', 'error');
+      }
+    } catch (e) {
+      this.toast('Сеть', e.message, 'error');
+    }
+  }
+
+  async fetchFreeModels() {
+    const listEl = document.getElementById('gen-free-list');
+    if (!listEl) return;
+    listEl.classList.remove('hidden');
+    listEl.innerHTML = '<div style="text-align:center; color:#22d3ee;">Загрузка бесплатных моделей…</div>';
+    try {
+      const res = await fetch('/api/setup/fetch-free-models', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({provider: 'openrouter'}),
+      });
+      const data = await res.json();
+      if (data.success && data.models) {
+        if (data.models.length === 0) {
+          listEl.innerHTML = '<div style="color:var(--text-muted); text-align:center;">Бесплатных моделей не найдено</div>';
+          return;
+        }
+        listEl.innerHTML = `
+          <div style="margin-bottom:8px; font-weight:700; color:#22d3ee;">Найдено бесплатных моделей: ${data.count}</div>
+          ${data.models.slice(0, 40).map(m => `
+            <div class="free-model-row">
+              <span>${this.esc(m.name || m.id)}</span>
+              <span class="model-ctx">${m.context_window ? (m.context_window / 1000).toFixed(0) + 'K' : '—'}</span>
+            </div>
+          `).join('')}
+          ${data.models.length > 40 ? `<div style="color:var(--text-muted); text-align:center; margin-top:6px;">… и ещё ${data.models.length - 40}</div>` : ''}
+        `;
+        this.toast('Бесплатные модели', `Загружено ${data.count} моделей от OpenRouter`, 'ok');
+      } else {
+        listEl.innerHTML = `<div style="color:#ef4444;">Ошибка: ${this.esc(data.error || '?')}</div>`;
+      }
+    } catch (e) {
+      listEl.innerHTML = `<div style="color:#ef4444;">Сеть: ${this.esc(e.message)}</div>`;
+    }
   }
 
   async refreshWorkspaceStatus() {
@@ -2888,9 +3173,18 @@ window.addEventListener('DOMContentLoaded', () => {
   const btnToolsDropdown = document.getElementById('btn-top-tools-dropdown');
   const toolsMenu = document.getElementById('tools-dropdown-menu');
   if (btnToolsDropdown && toolsMenu) {
+    // Menu'ni body'ga ko'chiramiz — topbar overflow bilan kesilib qolmasin
+    if (toolsMenu.parentElement !== document.body) {
+      document.body.appendChild(toolsMenu);
+    }
     btnToolsDropdown.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
+      // Menu'ning fixed pozitsiyasini tugma tagida joylashtiramiz
+      const rect = btnToolsDropdown.getBoundingClientRect();
+      toolsMenu.style.top = (rect.bottom + 6) + 'px';
+      toolsMenu.style.right = (window.innerWidth - rect.right) + 'px';
+      toolsMenu.style.left = 'auto';
       toolsMenu.classList.toggle('hidden');
     });
 
@@ -2947,6 +3241,19 @@ window.addEventListener('DOMContentLoaded', () => {
       window.antApp.testProviderKey(scope);
     });
   });
+
+  // Generation settings controls
+  const genTemp = document.getElementById('gen-temperature');
+  const genTempVal = document.getElementById('gen-temp-val');
+  if (genTemp && genTempVal) {
+    genTemp.addEventListener('input', () => {
+      genTempVal.textContent = Number(genTemp.value).toFixed(2);
+    });
+  }
+  const btnSaveGen = document.getElementById('btn-save-gen-settings');
+  if (btnSaveGen) btnSaveGen.addEventListener('click', () => window.antApp.saveGenSettings());
+  const btnFreeModels = document.getElementById('btn-fetch-free-openrouter');
+  if (btnFreeModels) btnFreeModels.addEventListener('click', () => window.antApp.fetchFreeModels());
 
   // Custom provider fetch & import
   const btnFetchModels = document.getElementById('btn-fetch-custom-models');

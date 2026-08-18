@@ -230,24 +230,89 @@ def select_specialist_role(task_prompt: str) -> str:
     return max(scores.items(), key=_rank)[0]
 
 
+def _try_repair_json(raw: str) -> Optional[Dict[str, Any]]:
+    """
+    LLM'lar tez-tez qiladigan xatolarni tuzatib JSON'ni qayta parselaydi:
+      * yakuniy vergul: `{"a": 1,}` → `{"a": 1}`
+      * bir tirnoqli kalitlar: `{'a': 1}` → `{"a": 1}`  (faqat ehtiyot bilan)
+      * ortiqcha kod izohlari `// ...` va `# ...`
+      * `True`/`False`/`None` (Python) → `true`/`false`/`null`
+    """
+    try:
+        s = raw
+        # Python bool/None → JSON
+        s = re.sub(r'\bTrue\b', 'true', s)
+        s = re.sub(r'\bFalse\b', 'false', s)
+        s = re.sub(r'\bNone\b', 'null', s)
+        # Yakuniy vergullarni olib tashlaymiz (obyekt yoki massiv oxirida)
+        s = re.sub(r',(\s*[}\]])', r'\1', s)
+        # `// ...` izohlar (bir qatorli). Diqqat: url ichidagi `//` ga tegmaslik uchun oldida bo'sh joy talab qilamiz.
+        s = re.sub(r'(?m)(^|\s)//[^\n]*', r'\1', s)
+        # `# ...` izohlar (bir qatorli, faqat qator boshida)
+        s = re.sub(r'(?m)^\s*#[^\n]*', '', s)
+        parsed = json.loads(s)
+        return parsed if isinstance(parsed, dict) else None
+    except Exception:
+        return None
+
+
 def extract_json_block(text: str) -> Optional[Dict[str, Any]]:
-    """Javob matnidan birinchi to'g'ri JSON obyektini ajratadi."""
-    for match in _JSON_BLOCK_RE.finditer(text or ""):
+    """
+    Javob matnidan birinchi to'g'ri JSON obyektini ajratadi.
+    Bir necha strategiya bo'yicha urinadi: fenced blok, matndagi balanced brace,
+    keyin xatoli JSON'ni tuzatib qayta urinadi.
+    """
+    text = text or ""
+
+    # 1. Fenced ```json bloklari (barcha topilganlar tekshiriladi)
+    for match in _JSON_BLOCK_RE.finditer(text):
+        raw = match.group(1)
         try:
-            parsed = json.loads(match.group(1))
+            parsed = json.loads(raw)
             if isinstance(parsed, dict):
                 return parsed
         except Exception:
+            repaired = _try_repair_json(raw)
+            if repaired:
+                return repaired
+
+    # 2. Balanced brace scanner — string va escape'larni hisobga oladi
+    #    (`text.find("{")` ... `text.rfind("}")` string ichidagi `}` da xato beradi)
+    depth = 0
+    start = -1
+    in_str = False
+    esc = False
+    for i, ch in enumerate(text):
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == '\\':
+                esc = True
+            elif ch == '"':
+                in_str = False
             continue
-    # Fenced blok bo'lmasa — matndagi eng katta {...} bo'lagini sinaymiz.
-    start, end = (text or "").find("{"), (text or "").rfind("}")
-    if start != -1 and end > start:
-        try:
-            parsed = json.loads(text[start:end + 1])
-            if isinstance(parsed, dict):
-                return parsed
-        except Exception:
-            pass
+        if ch == '"':
+            in_str = True
+            continue
+        if ch == '{':
+            if depth == 0:
+                start = i
+            depth += 1
+        elif ch == '}':
+            if depth > 0:
+                depth -= 1
+                if depth == 0 and start != -1:
+                    candidate = text[start:i + 1]
+                    try:
+                        parsed = json.loads(candidate)
+                        if isinstance(parsed, dict):
+                            return parsed
+                    except Exception:
+                        repaired = _try_repair_json(candidate)
+                        if repaired:
+                            return repaired
+                    start = -1  # keyingi obyektni sinaymiz
+
     return None
 
 
@@ -348,10 +413,24 @@ class AgentEngine:
         )
 
         ws_summary = get_workspace_projects_summary()
+
+        # PM uzoq muddatli xotira konteksti — oldingi loyihalar, kelajakdagi rejalar
+        pm_mem_context = ""
+        try:
+            from pm_memory import get_memory
+            mem = get_memory()
+            if mem:
+                snippet = mem.as_context_snippet(max_projects=5)
+                if snippet:
+                    pm_mem_context = f"\n## MENIN UZOQ MUDDATLI XOTIRAM (avvalgi sessiyalardan):\n{snippet}\n\n"
+        except Exception:
+            pass
+
         prompt = (
             f"Foydalanuvchi topshirig'i / Запрос пользователя: \"{task_prompt}\"\n\n"
             "Siz Ant Colony AI universal agentlar platformasining Bosh Project Managerisiz.\n"
             f"## ISHCHI MUHIT VA MAVJUD LOYIHALAR TARIXI (FAQAT HAQIQIY FAKTLAR):\n{ws_summary}\n\n"
+            + pm_mem_context +
             "Mavjud mutaxassis rollar:\n"
             f"{role_menu}\n\n"
             "TALABLAR / ТРЕБОВАНИЯ:\n"

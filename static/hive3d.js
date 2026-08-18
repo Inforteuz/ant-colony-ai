@@ -321,29 +321,73 @@ class IsometricHive3D {
         group.add(leg);
       });
 
-      // 3. Ergonomic Cyber Chair
+      // 3. Ergonomic Cyber Chair — endi rangi kontrast (avval fon bilan qo'shilib ketardi)
       const chairGroup = new THREE.Group();
       chairGroup.position.set(0, 0, st.id === 'pm' ? 2.1 : (st.pos.z > 0 ? 1.9 : -1.9));
       if (st.pos.z < 0 && st.id !== 'pm') chairGroup.rotation.y = Math.PI;
 
-      const seatGeo = new THREE.BoxGeometry(0.65, 0.08, 0.65);
+      // Stul rangi station color'idan olinadi — har mutaxassis o'zining rangida
+      const chairAccent = new THREE.Color(st.color || 0x8b5cf6);
+      const chairBaseCol = isLight ? 0xf1f5f9 : 0x334155; // kontrast: light theme oq, dark theme kulrang
       const chairMat = new THREE.MeshStandardMaterial({
-        color: isLight ? 0xe2e8f0 : 0x0f172a,
-        roughness: 0.5
+        color: chairBaseCol,
+        roughness: 0.45,
+        metalness: 0.25,
+        emissive: chairAccent,
+        emissiveIntensity: isLight ? 0.05 : 0.15,
       });
+      const seatGeo = new THREE.BoxGeometry(0.65, 0.08, 0.65);
       const seat = new THREE.Mesh(seatGeo, chairMat);
       seat.position.y = 0.55;
+      seat.castShadow = true;
       chairGroup.add(seat);
       group.chairMat = chairMat;
 
+      // Suyanchiq — station rangida glowing accent qatlam bilan
       const backGeo = new THREE.BoxGeometry(0.6, 0.7, 0.08);
       const back = new THREE.Mesh(backGeo, chairMat);
       back.position.set(0, 0.95, 0.3);
+      back.castShadow = true;
       chairGroup.add(back);
 
-      const chairLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.55, 8), legMat);
+      // Suyanchiq oldingi tomonida stantsiya rangida yorug' chiziq
+      const accentStripe = new THREE.Mesh(
+        new THREE.BoxGeometry(0.5, 0.6, 0.02),
+        new THREE.MeshBasicMaterial({ color: chairAccent })
+      );
+      accentStripe.position.set(0, 0.95, 0.255);
+      chairGroup.add(accentStripe);
+
+      // Stul poyasi — chrome ko'rinishida
+      const chairLegMat = new THREE.MeshStandardMaterial({
+        color: 0x94a3b8, metalness: 0.85, roughness: 0.25
+      });
+      const chairLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.55, 10), chairLegMat);
       chairLeg.position.y = 0.275;
+      chairLeg.castShadow = true;
       chairGroup.add(chairLeg);
+
+      // 5-oyoqli asos (haqiqiy ofis stuli kabi)
+      for (let a = 0; a < 5; a++) {
+        const angle = (a / 5) * Math.PI * 2;
+        const baseLeg = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.02, 0.02, 0.25, 6),
+          chairLegMat
+        );
+        baseLeg.position.set(Math.cos(angle) * 0.16, 0.06, Math.sin(angle) * 0.16);
+        baseLeg.rotation.z = Math.cos(angle) * 0.6;
+        baseLeg.rotation.x = Math.sin(angle) * 0.6;
+        chairGroup.add(baseLeg);
+
+        // Har oyoq oxirida g'ildirak
+        const wheel = new THREE.Mesh(
+          new THREE.SphereGeometry(0.03, 8, 6),
+          chairLegMat
+        );
+        wheel.position.set(Math.cos(angle) * 0.28, 0.03, Math.sin(angle) * 0.28);
+        chairGroup.add(wheel);
+      }
+
       group.add(chairGroup);
 
       // 4. Multi-Monitor Setup with Live Code Textures
@@ -591,32 +635,38 @@ class IsometricHive3D {
       bicep.castShadow = true;
       armRoot.add(bicep);
 
-      // Elbow Joint Sphere
+      // Elbow sub-group — pivots INDEPENDENTLY for realistic elbow bend
+      const elbowGroup = new THREE.Group();
+      elbowGroup.position.y = -0.20;
+      armRoot.add(elbowGroup);
+
+      // Elbow Joint Sphere (in elbow group so it follows the forearm)
       const elbowGeo = new THREE.SphereGeometry(0.04, 10, 10);
       const elbow = new THREE.Mesh(elbowGeo, jointMat);
-      elbow.position.y = -0.20;
-      armRoot.add(elbow);
+      elbowGroup.add(elbow);
 
-      // Forearm with Neon Circuit Stripe
+      // Forearm with Neon Circuit Stripe (positioned below elbow pivot)
       const forearmGeo = new THREE.CylinderGeometry(0.042, 0.036, 0.18, 12);
       const forearm = new THREE.Mesh(forearmGeo, armorMat);
-      forearm.position.y = -0.31;
+      forearm.position.y = -0.11;
       forearm.castShadow = true;
-      armRoot.add(forearm);
+      elbowGroup.add(forearm);
 
       // Glowing circuit line on forearm
       const stripeGeo = new THREE.BoxGeometry(0.015, 0.12, 0.085);
       const stripe = new THREE.Mesh(stripeGeo, glowMat);
-      stripe.position.set(0, -0.31, 0);
-      armRoot.add(stripe);
+      stripe.position.set(0, -0.11, 0);
+      elbowGroup.add(stripe);
 
       // Cyber Hand / Palm
       const handGeo = new THREE.BoxGeometry(0.05, 0.06, 0.04);
       const hand = new THREE.Mesh(handGeo, jointMat);
-      hand.position.y = -0.42;
+      hand.position.y = -0.22;
       hand.castShadow = true;
-      armRoot.add(hand);
+      elbowGroup.add(hand);
 
+      // Store elbow pivot for animation access
+      armRoot.elbowGroup = elbowGroup;
       return armRoot;
     };
 
@@ -628,11 +678,11 @@ class IsometricHive3D {
 
     // --- 4. Legs with Articulated Knee Armor & Magnetic Boots ---
     const buildLeg = (isLeft) => {
-      const legRoot = new THREE.Group();
+      const legRoot = new THREE.Group();         // Hip joint pivot (rotates thigh)
       const side = isLeft ? -1 : 1;
       legRoot.position.set(side * 0.14, 0.65, 0);
 
-      // Hip Joint
+      // Hip Joint sphere
       const hipGeo = new THREE.SphereGeometry(0.05, 10, 10);
       const hip = new THREE.Mesh(hipGeo, jointMat);
       hip.position.y = 0;
@@ -645,36 +695,42 @@ class IsometricHive3D {
       thigh.castShadow = true;
       legRoot.add(thigh);
 
-      // Knee Joint & Kneecap Armor
+      // Knee sub-group — pivots INDEPENDENTLY at knee joint for realistic bend
+      const kneeGroup = new THREE.Group();
+      kneeGroup.position.y = -0.29;
+      legRoot.add(kneeGroup);
+
+      // Knee Joint & Kneecap Armor (in kneeGroup so they follow the shin)
       const kneeGeo = new THREE.SphereGeometry(0.05, 10, 10);
       const knee = new THREE.Mesh(kneeGeo, jointMat);
-      knee.position.y = -0.29;
-      legRoot.add(knee);
+      kneeGroup.add(knee);
 
       const kCapGeo = new THREE.BoxGeometry(0.06, 0.07, 0.04);
       const kCap = new THREE.Mesh(kCapGeo, glowMat);
-      kCap.position.set(0, -0.29, 0.04);
-      legRoot.add(kCap);
+      kCap.position.set(0, 0, 0.04);
+      kneeGroup.add(kCap);
 
-      // Shin / Calf Armor
+      // Shin / Calf Armor (positioned below knee pivot)
       const shinGeo = new THREE.CylinderGeometry(0.052, 0.044, 0.26, 12);
       const shin = new THREE.Mesh(shinGeo, armorMat);
-      shin.position.y = -0.44;
+      shin.position.y = -0.15;
       shin.castShadow = true;
-      legRoot.add(shin);
+      kneeGroup.add(shin);
 
-      // High-Tech Boot with Glowing Soles
+      // High-Tech Boot with Glowing Soles (in kneeGroup so foot follows the shin)
       const bootGeo = new THREE.BoxGeometry(0.07, 0.06, 0.14);
       const boot = new THREE.Mesh(bootGeo, jointMat);
-      boot.position.set(0, -0.59, 0.03);
+      boot.position.set(0, -0.30, 0.03);
       boot.castShadow = true;
-      legRoot.add(boot);
+      kneeGroup.add(boot);
 
       const soleGeo = new THREE.BoxGeometry(0.072, 0.015, 0.142);
       const sole = new THREE.Mesh(soleGeo, glowMat);
-      sole.position.set(0, -0.625, 0.03);
-      legRoot.add(sole);
+      sole.position.set(0, -0.335, 0.03);
+      kneeGroup.add(sole);
 
+      // Store knee pivot on the leg root for animation access
+      legRoot.kneeGroup = kneeGroup;
       return legRoot;
     };
 
@@ -1502,14 +1558,24 @@ class IsometricHive3D {
       const mesh = ag.mesh;
 
       // WORKING (At Chair, Coding & Typing)
+      // Realistik holat: o'tirgan, oyoq bukilgan tizza bilan, qo'l klaviaturaga
+      // egilgan (tirsak ~90°), engil nafas olish (chest scale).
       if (ag.state === 'WORKING') {
         const targetDir = new THREE.Vector3().subVectors(ag.deskPos, ag.chairPos).normalize();
         mesh.rotation.y = Math.atan2(targetDir.x, targetDir.z);
 
         mesh.position.copy(ag.chairPos);
         mesh.bodyGroup.position.y = THREE.MathUtils.lerp(mesh.bodyGroup.position.y, 0.68, 0.15);
+        mesh.bodyGroup.rotation.y = THREE.MathUtils.lerp(mesh.bodyGroup.rotation.y, 0, 0.15);
+
+        // Oyoqlar oldga — o'tirgan pozitsiya (sonlar oldga, tizza egilgan)
         mesh.leftLegGroup.rotation.x = THREE.MathUtils.lerp(mesh.leftLegGroup.rotation.x, -Math.PI / 2.2, 0.15);
         mesh.rightLegGroup.rotation.x = THREE.MathUtils.lerp(mesh.rightLegGroup.rotation.x, -Math.PI / 2.2, 0.15);
+        // Tizza — o'tirganda ~90° egilishi kerak (natural sitting posture)
+        if (mesh.leftLegGroup.kneeGroup)
+          mesh.leftLegGroup.kneeGroup.rotation.x = THREE.MathUtils.lerp(mesh.leftLegGroup.kneeGroup.rotation.x, Math.PI / 2.1, 0.15);
+        if (mesh.rightLegGroup.kneeGroup)
+          mesh.rightLegGroup.kneeGroup.rotation.x = THREE.MathUtils.lerp(mesh.rightLegGroup.kneeGroup.rotation.x, Math.PI / 2.1, 0.15);
 
         const typeSpeed = ag.id === 'pm' ? 18 : 22;
         const typeL = Math.sin(ag.animTime * typeSpeed) * 0.14 - 0.75;
@@ -1518,13 +1584,26 @@ class IsometricHive3D {
         mesh.rightArmGroup.rotation.x = typeR;
         mesh.leftArmGroup.rotation.z = 0.22;
         mesh.rightArmGroup.rotation.z = -0.22;
+        // Tirsak — terish paytida ~90° egilgan (qo'llar klaviatura tepasida)
+        if (mesh.leftArmGroup.elbowGroup)
+          mesh.leftArmGroup.elbowGroup.rotation.x = THREE.MathUtils.lerp(mesh.leftArmGroup.elbowGroup.rotation.x, Math.PI / 2.6, 0.2);
+        if (mesh.rightArmGroup.elbowGroup)
+          mesh.rightArmGroup.elbowGroup.rotation.x = THREE.MathUtils.lerp(mesh.rightArmGroup.elbowGroup.rotation.x, Math.PI / 2.6, 0.2);
 
         mesh.headGroup.rotation.y = Math.sin(ag.animTime * 3.2) * 0.32;
         mesh.headGroup.rotation.x = -0.15 + Math.cos(ag.animTime * 2.0) * 0.06;
+        mesh.headGroup.rotation.z = 0;
+
+        // Nafas olish — ko'krak juda engil kengayadi (breathing rhythm ~4-5s davr)
+        const breath = 1 + Math.sin(ag.animTime * 1.3) * 0.015;
+        mesh.bodyGroup.scale.set(breath, breath, breath);
       }
 
       // WALK_TO_DESK (Task Assigned -> Strides to Workstation)
+      // Realistik yurish tsikli: hip swing, knee bend (lift phase), arm swing +
+      // elbow bend, torso counter-twist, vertical bob va head bob (natural gait).
       else if (ag.state === 'WALK_TO_DESK') {
+        mesh.bodyGroup.scale.set(1, 1, 1);  // breathing off during motion
         const dist = mesh.position.distanceTo(ag.chairPos);
         if (dist > 0.25) {
           const dir = new THREE.Vector3().subVectors(ag.chairPos, mesh.position).normalize();
@@ -1532,22 +1611,68 @@ class IsometricHive3D {
           mesh.rotation.y = THREE.MathUtils.lerp(mesh.rotation.y, targetAngle, 0.14);
           mesh.position.addScaledVector(dir, ag.walkSpeed * 1.35 * delta);
 
-          const walkCycle = Math.sin(ag.animTime * 10);
-          mesh.leftLegGroup.rotation.x = walkCycle * 0.65;
-          mesh.rightLegGroup.rotation.x = -walkCycle * 0.65;
-          mesh.leftArmGroup.rotation.x = -walkCycle * 0.55;
-          mesh.rightArmGroup.rotation.x = walkCycle * 0.55;
-          mesh.bodyGroup.position.y = 0.95 + Math.abs(Math.sin(ag.animTime * 20)) * 0.08;
-          mesh.headGroup.rotation.x = 0;
+          const gaitFreq = 9.0;                       // yurish siklining chastotasi
+          const t = ag.animTime * gaitFreq;
+          const s = Math.sin(t);                      // asosiy faza
+          const c = Math.cos(t);                      // 90° oldinda — vertical bob
+
+          // 1. Sonlar (hip) — qarama-qarshi ravishda oldinga-orqaga
+          mesh.leftLegGroup.rotation.x  =  s * 0.55;
+          mesh.rightLegGroup.rotation.x = -s * 0.55;
+
+          // 2. Tizzalar — oyoq oldinga ko'tarilganda ko'proq egiladi (asymmetric),
+          //    orqaga siljiganda deyarli to'g'ri turadi (ground contact).
+          //    Formula: pattern qiymati [0..1] — 1 == oyoq to'liq ko'tarilgan.
+          const leftLift  = Math.max(0,  s);          // chap oyoq oldinda
+          const rightLift = Math.max(0, -s);          // o'ng oyoq oldinda
+          if (mesh.leftLegGroup.kneeGroup)
+            mesh.leftLegGroup.kneeGroup.rotation.x  = -leftLift  * 0.9;
+          if (mesh.rightLegGroup.kneeGroup)
+            mesh.rightLegGroup.kneeGroup.rotation.x = -rightLift * 0.9;
+
+          // 3. Qo'llar — oyoqlarga qarama-qarshi qulflangan (natural gait)
+          mesh.leftArmGroup.rotation.x  = -s * 0.5;
+          mesh.rightArmGroup.rotation.x =  s * 0.5;
+
+          // 4. Tirsak — qo'l oldinga uchayotganda biroz egiladi
+          const leftElbowBend  = 0.15 + Math.max(0, -s) * 0.35;
+          const rightElbowBend = 0.15 + Math.max(0,  s) * 0.35;
+          if (mesh.leftArmGroup.elbowGroup)
+            mesh.leftArmGroup.elbowGroup.rotation.x  = leftElbowBend;
+          if (mesh.rightArmGroup.elbowGroup)
+            mesh.rightArmGroup.elbowGroup.rotation.x = rightElbowBend;
+
+          // 5. Vertikal bob — har qadamda tanaga ozgina pastga bosim (2× chastotada)
+          const bob = Math.abs(Math.sin(t * 2)) * 0.05;
+          mesh.bodyGroup.position.y = 0.95 - bob * 0.6;
+
+          // 6. Torso counter-twist — kamar oyoqlarga qarshi burchak
+          mesh.bodyGroup.rotation.y = -s * 0.08;
+
+          // 7. Head bob va nafas olish
+          mesh.headGroup.rotation.z = s * 0.03;       // engil yon tebranish
+          mesh.headGroup.rotation.x = Math.abs(c) * 0.03;
           mesh.headGroup.rotation.y = 0;
         } else {
           mesh.position.copy(ag.chairPos);
+          // Yurish tugagach oyoqlar/qo'llarni to'g'rilaymiz
+          if (mesh.leftLegGroup.kneeGroup)  mesh.leftLegGroup.kneeGroup.rotation.x  = 0;
+          if (mesh.rightLegGroup.kneeGroup) mesh.rightLegGroup.kneeGroup.rotation.x = 0;
+          if (mesh.leftArmGroup.elbowGroup)  mesh.leftArmGroup.elbowGroup.rotation.x  = 0;
+          if (mesh.rightArmGroup.elbowGroup) mesh.rightArmGroup.elbowGroup.rotation.x = 0;
+          mesh.bodyGroup.rotation.y = 0;
           ag.state = 'WORKING';
         }
       }
 
       // CELEBRATE (Victory Pose)
       else if (ag.state === 'CELEBRATE') {
+        mesh.bodyGroup.scale.set(1, 1, 1);
+        // Tizza va tirsakni WORKING pozadan chiqarish (aks holda oyoq egik qoladi)
+        if (mesh.leftLegGroup.kneeGroup)  mesh.leftLegGroup.kneeGroup.rotation.x  = THREE.MathUtils.lerp(mesh.leftLegGroup.kneeGroup.rotation.x, 0, 0.15);
+        if (mesh.rightLegGroup.kneeGroup) mesh.rightLegGroup.kneeGroup.rotation.x = THREE.MathUtils.lerp(mesh.rightLegGroup.kneeGroup.rotation.x, 0, 0.15);
+        if (mesh.leftArmGroup.elbowGroup)  mesh.leftArmGroup.elbowGroup.rotation.x  = THREE.MathUtils.lerp(mesh.leftArmGroup.elbowGroup.rotation.x, 0, 0.15);
+        if (mesh.rightArmGroup.elbowGroup) mesh.rightArmGroup.elbowGroup.rotation.x = THREE.MathUtils.lerp(mesh.rightArmGroup.elbowGroup.rotation.x, 0, 0.15);
         mesh.bodyGroup.position.y = THREE.MathUtils.lerp(mesh.bodyGroup.position.y, 0.95, 0.1);
         mesh.leftLegGroup.rotation.x = THREE.MathUtils.lerp(mesh.leftLegGroup.rotation.x, 0, 0.1);
         mesh.rightLegGroup.rotation.x = THREE.MathUtils.lerp(mesh.rightLegGroup.rotation.x, 0, 0.1);
@@ -1565,6 +1690,13 @@ class IsometricHive3D {
 
       // IDLE ACTIVITIES (Football, Tennis, Gym, Spectator)
       else {
+        mesh.bodyGroup.scale.set(1, 1, 1);
+        // Tizza va tirsak WORKING'dan qolgan egilishlarni bosqichma-bosqich to'g'irlaymiz
+        if (mesh.leftLegGroup.kneeGroup)  mesh.leftLegGroup.kneeGroup.rotation.x  = THREE.MathUtils.lerp(mesh.leftLegGroup.kneeGroup.rotation.x, 0, 0.15);
+        if (mesh.rightLegGroup.kneeGroup) mesh.rightLegGroup.kneeGroup.rotation.x = THREE.MathUtils.lerp(mesh.rightLegGroup.kneeGroup.rotation.x, 0, 0.15);
+        if (mesh.leftArmGroup.elbowGroup)  mesh.leftArmGroup.elbowGroup.rotation.x  = THREE.MathUtils.lerp(mesh.leftArmGroup.elbowGroup.rotation.x, 0, 0.15);
+        if (mesh.rightArmGroup.elbowGroup) mesh.rightArmGroup.elbowGroup.rotation.x = THREE.MathUtils.lerp(mesh.rightArmGroup.elbowGroup.rotation.x, 0, 0.15);
+        mesh.bodyGroup.rotation.y = THREE.MathUtils.lerp(mesh.bodyGroup.rotation.y, 0, 0.15);
         const slot = ag.activityState || 'IDLE_ROAM';
         const dist = mesh.position.distanceTo(ag.targetPos);
 

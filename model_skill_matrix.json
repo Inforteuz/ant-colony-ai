@@ -155,14 +155,14 @@
       "model_id": "posiden/nemotron-3.5-lightning",
       "model_name": "Nemotron 3.5 Lightning",
       "provider": "17_wtf",
-      "total_evaluations": 3,
-      "average_score": 86.3,
+      "total_evaluations": 4,
+      "average_score": 86.4,
       "category_scores": {
         "planning_pm": 85.0,
         "frontend_ui": 82.0,
         "backend_api": 84.0,
         "algorithms": 85.0,
-        "qa_testing": 97.8,
+        "qa_testing": 98.2,
         "devops": 80.0,
         "security": 94.0,
         "research": 83.0
@@ -188,6 +188,13 @@
           "category": "qa_testing",
           "score": 100.0,
           "feedback": "Hisobot to'liqligi va ball berilganiga qarab baholandi"
+        },
+        {
+          "timestamp": 1787058733.134321,
+          "role_id": "qa_test_automation",
+          "category": "qa_testing",
+          "score": 100.0,
+          "feedback": "Оценка на основе полноты отчета и покрытия тестами"
         }
       ]
     },
@@ -195,19 +202,27 @@
       "model_id": "posiden/hy3",
       "model_name": "HY3 Enterprise",
       "provider": "17_wtf",
-      "total_evaluations": 0,
-      "average_score": 88.0,
+      "total_evaluations": 1,
+      "average_score": 83.1,
       "category_scores": {
         "planning_pm": 85.0,
         "frontend_ui": 82.0,
-        "backend_api": 84.0,
+        "backend_api": 73.8,
         "algorithms": 85.0,
         "qa_testing": 80.0,
         "devops": 94.0,
         "security": 82.0,
         "research": 83.0
       },
-      "history": []
+      "history": [
+        {
+          "timestamp": 1787058733.132106,
+          "role_id": "backend_engineer",
+          "category": "backend_api",
+          "score": 63.5,
+          "feedback": "### Aniqlangan sintaksis va tuzilish xatolari:\n- `script.js` (UndeclaredVariable): 331-qatorda `btn` ishlatilgan, lekin u fayl boshida `const btn = document.getElementById(...)` bilan e'lon qilinmagan"
+        }
+      ]
     },
     "posiden/nemotron-3-ultra": {
       "model_id": "posiden/nemotron-3-ultra",
@@ -378,7 +393,7 @@
     "pm_orchestrator": "posiden/nemotron-3.5-lightning",
     "frontend_architect": "gemini-3.5-flash-lite",
     "ui_designer": "posiden/deepseek-v4-flash",
-    "backend_engineer": "gemini-3.5-flash-lite",
+    "backend_engineer": "posiden/nemotron-3.5-lightning",
     "algorithm_solver": "gemini-2.5-flash",
     "qa_test_automation": "posiden/nemotron-3.5-lightning",
     "devops_deployer": "posiden/hy3",
@@ -388,5 +403,5 @@
     "performance_optimizer": "posiden/deepseek-v4-flash",
     "system_troubleshooter": "posiden/deepseek-v4-flash"
   },
-  "last_updated": 1787053037.797011
+  "last_updated": 1787058733.134349
 }

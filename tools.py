@@ -688,16 +688,50 @@ def edit_file(filename: str, old_text: str, new_text: str) -> Dict[str, Any]:
 
     occurrences = content.count(old_text)
     if occurrences == 0:
+        # Agentga tuzatish uchun ma'lumot beramiz: qidirilgan matnning birinchi
+        # qatoridan boshlangan yaqin joyni topib namuna beramiz.
+        hint_lines: List[str] = []
+        first_line = (old_text.splitlines() or [""])[0].strip()
+        if first_line and len(first_line) >= 4:
+            # Fayl ichidan birinchi bir necha muvofiq qatorlarni topamiz
+            found_at = -1
+            content_lines = content.splitlines()
+            # Fuzzy: birinchi qator ichidagi bo'lakni izlaymiz
+            needle = first_line[:60]
+            for i, ln in enumerate(content_lines):
+                if needle in ln:
+                    found_at = i
+                    break
+            if found_at != -1:
+                a = max(0, found_at - 2)
+                b = min(len(content_lines), found_at + 6)
+                hint_lines = [f"{n+1}: {content_lines[n]}" for n in range(a, b)]
+        hint_txt = "\n".join(hint_lines) if hint_lines else ""
         return {
             "success": False,
-            "error": "`old_text` faylda topilmadi. Avval `read_file` bilan aniq matnni oling.",
-            "filename": filename
+            "error": (
+                "`old_text` faylda topilmadi. Sabab odatda: bo'sh joy, tab yoki qator uzilishi mos kelmagan. "
+                "Avval `read_file` bilan aniq matnni oling, keyin qayta urining."
+                + (f"\n\nFaylda o'xshash joy topildi (nomerlari bilan):\n{hint_txt}" if hint_txt else "")
+            ),
+            "filename": filename,
+            "file_lines": len(content.splitlines()),
         }
     if occurrences > 1:
+        # Birinchi va oxirgi topilishning atrofidan namuna beramiz
+        idx1 = content.find(old_text)
+        idx2 = content.rfind(old_text)
+        line_a = content[:idx1].count("\n") + 1
+        line_b = content[:idx2].count("\n") + 1
         return {
             "success": False,
-            "error": f"`old_text` {occurrences} marta uchraydi — noaniq. Ko'proq kontekst qo'shib takrorlang.",
-            "filename": filename
+            "error": (
+                f"`old_text` faylda {occurrences} marta uchraydi (masalan {line_a} va {line_b}-qatorlarda). "
+                "Ko'proq atrof kontekstini `old_text` ichiga qo'shib, faqat bitta joyni belgilang."
+            ),
+            "filename": filename,
+            "occurrences": occurrences,
+            "first_line": line_a, "last_line": line_b,
         }
 
     updated = content.replace(old_text, new_text, 1)
