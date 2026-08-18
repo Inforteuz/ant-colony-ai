@@ -103,6 +103,40 @@ def allocate_project_dir(task_prompt: str, preferred_name: Optional[str] = None)
     return candidate
 
 
+def get_workspace_projects_summary() -> str:
+    """Ishchi muhitdagi (PROJECTS_BASE_DIR) barcha haqiqiy loyihalarni skanerlaydi va sanasi bo'yicha saralaydi."""
+    try:
+        from pathlib import Path
+        base = Path(PROJECTS_BASE_DIR)
+        if not base.exists():
+            return "Ishchi muhitda hozircha hech qanday loyiha papkasi mavjud emas."
+
+        entries = []
+        for p in base.iterdir():
+            if p.is_dir() and not p.name.startswith('.') and p.name not in ('node_modules', '__pycache__', 'temp_workspace'):
+                mtime = p.stat().st_mtime
+                files = [f.name for f in p.iterdir() if f.is_file() and not f.name.startswith('.')]
+                entries.append({
+                    "name": p.name,
+                    "mtime": mtime,
+                    "mtime_str": time.strftime("%Y-%m-%d %H:%M", time.localtime(mtime)),
+                    "files": files[:8],
+                    "path": str(p)
+                })
+
+        entries.sort(key=lambda x: x["mtime"], reverse=True)
+        if not entries:
+            return "Ishchi muhitda hozircha hech qanday loyiha papkasi mavjud emas."
+
+        lines = ["Haqiqiy ishchi muhitdagi loyihalar (eng oxirgisidan boshlab / от самого последнего):"]
+        for idx, e in enumerate(entries[:10], 1):
+            f_list = ", ".join(e["files"]) if e["files"] else "bo'sh papka"
+            lines.append(f"{idx}. Papka: `{e['name']}` ({e['mtime_str']}) — Fayllar: [{f_list}]")
+        return "\n".join(lines)
+    except Exception as err:
+        return f"Loyihalarni skanerlashda xatolik: {err}"
+
+
 def is_conversational_query(text: str) -> bool:
     """Foydalanuvchi xabari umumiy savol, salomlashish yoki imkoniyatlar haqidami?"""
     t = (text or "").strip().lower()
@@ -119,7 +153,14 @@ def is_conversational_query(text: str) -> bool:
         "kim san", "kimsan", "qanday yordam", "qanday ishlaysan", "qaysi tillar", "imkoniyatlaring",
         "nima ish qila olasan", "nima qilaolasan", "what can you do", "who are you", "help me understand",
         "что ты умеешь", "что ты можешь", "кто ты", "какие языки", "как ты работаешь", "твои возможности",
-        "помощь", "чем можешь помочь", "расскажи о себе"
+        "помощь", "чем можешь помочь", "расскажи о себе",
+        # Project history & status queries
+        "oxirgi loyiha", "oxirgi bajargan", "qaysi loyiha", "oxirgi loyihamiz", "qanday loyihalar",
+        "qilingan ishlar", "loyiha tarixi", "oldin nima", "oldingi loyiha", "bajargan loyiha",
+        "oxirgi qilgan", "oxirgi ish", "nima loyiha qildik", "oxirgi loyihamiz qaysi",
+        "последний проект", "какой был последний", "какие проекты", "история проектов",
+        "список проектов", "что мы делали", "что создали", "последняя задача", "какой проект",
+        "last project", "recent project", "project history"
     ]
     if any(kw in t for kw in keywords):
         return True
@@ -292,9 +333,11 @@ class AgentEngine:
             if r["id"] != "pm_orchestrator"
         )
 
+        ws_summary = get_workspace_projects_summary()
         prompt = (
             f"Foydalanuvchi topshirig'i / Запрос пользователя: \"{task_prompt}\"\n\n"
             "Siz Ant Colony AI universal agentlar platformasining Bosh Project Managerisiz.\n"
+            f"## ISHCHI MUHIT VA MAVJUD LOYIHALAR TARIXI (FAQAT HAQIQIY FAKTLAR):\n{ws_summary}\n\n"
             "Mavjud mutaxassis rollar:\n"
             f"{role_menu}\n\n"
             "TALABLAR / ТРЕБОВАНИЯ:\n"
@@ -467,7 +510,16 @@ class AgentEngine:
                     "reasoning_tokens": plan["usage"].get("reasoning_tokens") or (len(plan["reasoning"].split()) * 4 // 3),
                 }
 
-            answer = spec.get("direct_answer") or plan["plan_text"] or "Men Ant Colony AI Boshqaruvchisiman. Istalgan dasturlash tilida (Python, Go, JavaScript, TypeScript, PHP, Rust, DevOps) loyiha yarata olaman."
+            answer = spec.get("direct_answer") or plan["plan_text"] or "Я — Project Manager платформы Ant Colony AI. Готов к выполнению любых задач."
+            # Strip raw JSON wraps if returned inside direct_answer
+            if isinstance(answer, str) and (answer.strip().startswith('{') or '```json' in answer):
+                m_json = re.search(r'\{[\s\S]*\}', answer)
+                if m_json:
+                    try:
+                        p_obj = json.loads(m_json.group(0))
+                        answer = p_obj.get("direct_answer") or p_obj.get("response") or p_obj.get("message") or _JSON_BLOCK_RE.sub("", answer).strip()
+                    except Exception:
+                        answer = _JSON_BLOCK_RE.sub("", answer).strip()
             yield {
                 "type": "pm_plan_ready", "station": "pm",
                 "plan_content": answer,

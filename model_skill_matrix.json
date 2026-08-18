@@ -375,10 +375,10 @@
     }
   },
   "role_assignments": {
-    "pm_orchestrator": "posiden/hy3",
+    "pm_orchestrator": "posiden/nemotron-3.5-lightning",
     "frontend_architect": "gemini-3.5-flash-lite",
     "ui_designer": "posiden/deepseek-v4-flash",
-    "backend_engineer": "posiden/deepseek-v4-flash",
+    "backend_engineer": "gemini-3.5-flash-lite",
     "algorithm_solver": "gemini-2.5-flash",
     "qa_test_automation": "posiden/nemotron-3.5-lightning",
     "devops_deployer": "posiden/hy3",
@@ -388,5 +388,5 @@
     "performance_optimizer": "posiden/deepseek-v4-flash",
     "system_troubleshooter": "posiden/deepseek-v4-flash"
   },
-  "last_updated": 1787051843.7410738
+  "last_updated": 1787053037.797011
 }

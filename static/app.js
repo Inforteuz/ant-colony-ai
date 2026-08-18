@@ -1310,7 +1310,17 @@ class AntColonyApp {
 
   renderMarkdown(text) {
     if (!text) return '';
-    let md = String(text);
+    let md = String(text).trim();
+
+    // If pure conversational JSON response from model, unwrap the inner text directly
+    if (md.startsWith('{') && md.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(md);
+        if (parsed.direct_answer) md = String(parsed.direct_answer);
+        else if (parsed.response) md = String(parsed.response);
+        else if (parsed.message) md = String(parsed.message);
+      } catch (e) {}
+    }
 
     // 1. Strip raw XML tool tags, system markers & emojis
     md = md.replace(/<\/?(?:tool_call|function|parameter|call)[^>]*>/gi, '')
@@ -1738,7 +1748,7 @@ class AntColonyApp {
       this.canvas.updateStationModel('pm', cleanModelLabel(event.assigned_model), 'План составлен');
       this.canvas.updateStationModel('coder', cleanModelLabel(event.assigned_model), 'Подготовка');
       this.appendFeedItem(feed, {
-        title: 'Project Managerning arxitektura rejasi',
+        title: 'Архитектурный план Project Manager',
         titleColor: '#8b5cf6', borderColor: '#8b5cf6',
         body: (event.plan_content || '') + roleLine,
         model: cleanModelLabel(event.assigned_model),

@@ -38,9 +38,24 @@ _LOOP_LIMIT = 3
 
 
 def split_reasoning(text: str) -> tuple[str, str]:
-    """<think> bloklarini asosiy javobdan ajratadi."""
-    thoughts = [m.strip() for m in _THINK_RE.findall(text or "")]
-    clean = _THINK_RE.sub("", text or "").strip()
+    """<think> bloklarini va matnli 'Here's a thinking process:' bloklarini asosiy javobdan ajratadi."""
+    if not text:
+        return "", ""
+
+    thoughts = [m.strip() for m in _THINK_RE.findall(text)]
+    clean = _THINK_RE.sub("", text).strip()
+
+    # Also detect text-based reasoning (common in Nemotron, DeepSeek, Llama models without XML tags)
+    reasoning_text_match = re.search(
+        r"(?:^|\n)(?:Here's a thinking process|Thinking Process|Thinking Steps|Thought Process):?\s*\n([\s\S]*?)(?=\n(?:###|```|\*\*|Salom|Привет|Hello|[A-ZА-ЯЁ][a-zа-яё]+:|\{|\d+\.\s+[A-ZА-ЯЁ])|$)",
+        clean,
+        re.IGNORECASE
+    )
+    if reasoning_text_match:
+        extracted = reasoning_text_match.group(0).strip()
+        thoughts.append(extracted)
+        clean = clean.replace(extracted, "").strip()
+
     return "\n\n".join(thoughts).strip(), clean
 
 
