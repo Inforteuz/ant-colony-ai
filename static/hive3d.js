@@ -754,6 +754,44 @@ class IsometricHive3D {
   }
 
   // --- Create All 7 AI Agents ---
+
+  // --- 3D Floating Avatar Role Nametag Generator ---
+  createAgentNametag(roleName, colorHex) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+
+    // Background badge pill
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+    ctx.beginPath();
+    ctx.roundRect(10, 10, 236, 44, 22);
+    ctx.fill();
+
+    // Glowing border matching station
+    ctx.strokeStyle = colorHex || '#38bdf8';
+    ctx.lineWidth = 3.5;
+    ctx.stroke();
+
+    // Status beacon dot
+    ctx.fillStyle = colorHex || '#38bdf8';
+    ctx.beginPath();
+    ctx.arc(34, 32, 6.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Role Name
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 21px Plus Jakarta Sans, sans-serif';
+    ctx.fillText(roleName, 50, 39);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    const mat = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
+    const sprite = new THREE.Sprite(mat);
+    sprite.scale.set(1.9, 0.48, 1.0);
+    sprite.position.set(0, 2.22, 0); // Directly above robot head!
+    return sprite;
+  }
+
   createAgents() {
     this.agents = {};
 
@@ -775,6 +813,10 @@ class IsometricHive3D {
         deskPos: new THREE.Vector3(st.deskPos.x, 0, st.deskPos.z),
         roamWaitTimer: Math.random() * 4 + 2
       };
+
+      const shortRole = this.getShortRoleName(st.name);
+      const tagSprite = this.createAgentNametag(shortRole, st.colorHex);
+      mesh.add(tagSprite);
 
       this.scene.add(mesh);
       this.agents[st.id] = agentData;

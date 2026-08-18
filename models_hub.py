@@ -65,11 +65,18 @@ class ModelsHub:
                 "circuit_open_until": 0.0,
             }
 
-    def record_usage(self, prompt_tokens: int, completion_tokens: int, reasoning_tokens: int = 0):
+    def record_usage(self, prompt_tokens: int, completion_tokens: int, reasoning_tokens: int = 0, model_id: Optional[str] = None):
         self.telemetry["total_llm_calls"] += 1
         self.telemetry["total_prompt_tokens"] += prompt_tokens
         self.telemetry["total_completion_tokens"] += completion_tokens
         self.telemetry["total_reasoning_tokens"] += reasoning_tokens
+
+        if model_id and model_id in self.stats:
+            st = self.stats[model_id]
+            st["tokens_prompt"] = st.get("tokens_prompt", 0) + prompt_tokens
+            st["tokens_completion"] = st.get("tokens_completion", 0) + completion_tokens
+            st["tokens_total"] = st.get("tokens_total", 0) + prompt_tokens + completion_tokens
+            st["call_count"] = st.get("call_count", 0) + 1
 
     def record_task_completed(self):
         """Bitta orkestratsiya (foydalanuvchi topshirig'i) yakunlandi."""
