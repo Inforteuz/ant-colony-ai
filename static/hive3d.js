@@ -862,7 +862,9 @@ class IsometricHive3D {
     const mat = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
     const sprite = new THREE.Sprite(mat);
     sprite.scale.set(1.9, 0.48, 1.0);
-    sprite.position.set(0, 2.22, 0);
+    // depthTest: false — sprite har doim ustidan chiziladi. 2.22 da u robotning
+    // boshi bilan ustma-ust tushib, yaqindan qaraganda bosh "yo'q" ko'rinardi.
+    sprite.position.set(0, 2.62, 0);
     return sprite;
   }
 
@@ -2199,7 +2201,9 @@ class IsometricHive3D {
       { state: 'T1_A', pos: new THREE.Vector3(22.0, 0, 9.2), label: 'Теннис: Игрок 1' },
       { state: 'T1_B', pos: new THREE.Vector3(22.0, 0, 15.2), label: 'Теннис: Игрок 2' },
       { state: 'GYM_TREAD', pos: new THREE.Vector3(-24.4, 0, -17.4), label: 'Фитнес: Беговая дорожка' },
-      { state: 'GYM_BOXING', pos: new THREE.Vector3(-20.0, 0, -17.5), label: 'Фитнес: Спарринг-бокс' },
+      // Musht qopi world (-20.0, 1.43, -17.5) da. Agent qopning ICHIDA turmasin —
+      // uning oldida, qopga qarab turadi.
+      { state: 'GYM_BOXING', pos: new THREE.Vector3(-20.0, 0, -16.3), label: 'Фитнес: Спарринг-бокс' },
       { state: 'LOUNGE_QUEUE', pos: new THREE.Vector3(17.8, 0, 16.0), label: 'Зона отдыха: Диван' },
       // Yangi enterprise xonalari ham bo'sh turmasin: agentlar u yerda ishlaydi.
       { state: 'MARKETING_DESK', pos: new THREE.Vector3(18.8, 0, -13.1), label: 'Маркетинг и BI: анализ воронок' },
@@ -2551,7 +2555,7 @@ class IsometricHive3D {
 
           // 6. Gym Boxing Sparring Pod
           else if (slot === 'GYM_BOXING') {
-            mesh.rotation.y = 0;
+            mesh.rotation.y = Math.PI;  // qopga yuzlanadi
             mesh.bodyGroup.position.y = 0.95;
             const jabL = Math.sin(ag.animTime * 7) > 0.5 ? -1.3 : -0.5;
             const jabR = Math.cos(ag.animTime * 7) > 0.5 ? -1.3 : -0.5;
