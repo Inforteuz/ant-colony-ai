@@ -149,6 +149,51 @@ DEFAULT_ROLE_DEFINITIONS = [
         "initial_model": "gemini-2.5-flash"
     },
     {
+        "id": "market_researcher",
+        "name": "Market Researcher",
+        "category": "research",
+        "icon": "search",
+        "description": "Аналитик рынка, конкурентная разведка, SWOT и ценовые стратегии",
+        "md_file": "market_researcher.md",
+        "initial_model": "gemini-3.7-flash"
+    },
+    {
+        "id": "content_smm_specialist",
+        "name": "Content & SMM Specialist",
+        "category": "marketing",
+        "icon": "edit",
+        "description": "Копирайтер, контент-стратег, рекламные креативы и SMM-планы",
+        "md_file": "content_smm_specialist.md",
+        "initial_model": "posiden/deepseek-v4-flash"
+    },
+    {
+        "id": "data_bi_analyst",
+        "name": "Data & BI Analyst",
+        "category": "analytics",
+        "icon": "chart",
+        "description": "Аналитик данных, Excel/SQL отчеты, визуализация и прогнозирование выручки",
+        "md_file": "data_bi_analyst.md",
+        "initial_model": "gemini-3.7-flash"
+    },
+    {
+        "id": "legal_docs_specialist",
+        "name": "Legal & Docs Specialist",
+        "category": "legal",
+        "icon": "shield",
+        "description": "Юрист, аудит договоров, анализ рисков, PRD и нормативные регламенты",
+        "md_file": "legal_docs_specialist.md",
+        "initial_model": "posiden/nemotron-3.5-lightning"
+    },
+    {
+        "id": "customer_support_sales",
+        "name": "Customer Support & Sales",
+        "category": "sales",
+        "icon": "users",
+        "description": "Скрипты продаж, отработка возражений, FAQ и регламенты поддержки",
+        "md_file": "customer_support_sales.md",
+        "initial_model": "posiden/deepseek-v4-flash"
+    },
+    {
         "id": "blockchain_dev",
         "name": "Blockchain Developer",
         "category": "backend_api",

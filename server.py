@@ -1551,3 +1551,45 @@ async def _populate_dynamic_jokes_cache():
         joke = await _generate_live_ai_joke()
         if joke:
             _DYNAMIC_AI_JOKES_CACHE.append(joke)
+
+
+# --- Telegram Bot API Endpoints ---
+from telegram_bot import telegram_bot_manager
+
+@app.get("/api/telegram/status")
+async def get_telegram_status():
+    """Telegram bot holati va konfiguratsiyasini qaytaradi."""
+    return {
+        "enabled": telegram_bot_manager.config.get("enabled", False),
+        "is_running": telegram_bot_manager.is_running,
+        "has_token": bool(telegram_bot_manager.config.get("token")),
+        "bot_info": telegram_bot_manager.bot_info,
+        "allowed_chat_ids": telegram_bot_manager.config.get("allowed_chat_ids", [])
+    }
+
+@app.post("/api/telegram/save-token")
+async def save_telegram_token(payload: Dict[str, Any]):
+    """Telegram bot tokenini tekshiradi, saqlaydi va ishga tushiradi."""
+    token = (payload.get("token") or "").strip()
+    if not token:
+        return {"success": False, "error": "Token bo'sh bo'lishi mumkin emas"}
+
+    info = await telegram_bot_manager.verify_token(token)
+    if not info:
+        return {"success": False, "error": "Noto'g'ri Telegram Bot Token. @BotFather dan tekshiring."}
+
+    telegram_bot_manager.save_config(token=token, enabled=True)
+    await telegram_bot_manager.start()
+    return {"success": True, "bot_info": info}
+
+@app.post("/api/telegram/toggle")
+async def toggle_telegram_bot(payload: Dict[str, Any]):
+    """Telegram botni yoqish yoki o'chirish."""
+    enable = bool(payload.get("enabled", True))
+    telegram_bot_manager.save_config(enabled=enable)
+    if enable:
+        success = await telegram_bot_manager.start()
+        return {"success": success, "is_running": telegram_bot_manager.is_running}
+    else:
+        await telegram_bot_manager.stop()
+        return {"success": True, "is_running": False}

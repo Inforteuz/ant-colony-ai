@@ -215,8 +215,10 @@
       <div class="quick-chips-row" id="pm-quick-chips">
         <button class="quick-chip-btn" data-task="Создать 3D интерактивную страницу на Three.js с анимацией и частицами">3D Сайт на Three.js</button>
         <button class="quick-chip-btn" data-task="Написать REST API сервер на FastAPI с Pydantic моделями и SQLite базой данных">FastAPI REST API</button>
-        <button class="quick-chip-btn" data-task="Создать интерактивный дашборд аналитики на HTML, CSS и Chart.js с темной темой">Дашборд аналитики</button>
-        <button class="quick-chip-btn" data-task="Создать полноценное приложение ToDo с локальным сохранением и категориями">ToDo приложение</button>
+        <button class="quick-chip-btn" data-task="Провести глубокий анализ рынка и конкурентов для AI SaaS продукта с SWOT матрицей">Анализ рынка (SWOT)</button>
+        <button class="quick-chip-btn" data-task="Составить 30-дневный SMM контент-план и 5 продающих постов для Telegram и Instagram">30-дневный SMM план</button>
+        <button class="quick-chip-btn" data-task="Провести аудит договора оказания услуг и составить перечень рисков и PRD">Аудит договора (PRD)</button>
+        <button class="quick-chip-btn" data-task="Написать скрипты продаж и отработку 10 главных возражений клиентов">Скрипты продаж и FAQ</button>
       </div>
       <div class="pm-input-wrapper">
         <textarea id="pm-task-input" class="pm-textarea" placeholder="Поставьте задачу для Project Manager (например: 'Создать интерактивную страницу на HTML + CSS + JS')..." rows="2"></textarea>
@@ -517,6 +519,7 @@
           <button class="lb-filter-btn" data-mode="multi">Гибридный / Мульти-провайдер</button>
           <button class="lb-filter-btn" data-mode="custom">Локальный / Свой (Ollama, LM Studio)</button>
           <button class="lb-filter-btn" data-mode="recreation">Зоны отдыха и спорта</button>
+          <button class="lb-filter-btn" data-mode="telegram">Telegram Bot</button>
         </div>
         <div class="setup-mode-panel" id="panel-setup-single">
           <div style="background: var(--bg-card-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 16px; margin-bottom: 14px;">
@@ -603,6 +606,37 @@
                   <button class="btn-hive-action" id="btn-import-all-custom-models" style="background: var(--color-emerald); color: #fff; padding: 4px 10px; font-size: 11px;">Импортировать в систему</button>
                 </div>
                 <div id="custom-models-list-chips" style="display: flex; flex-wrap: wrap; gap: 6px; max-height: 140px; overflow-y: auto;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="setup-mode-panel hidden" id="panel-setup-telegram">
+          <div style="background: var(--bg-card-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 16px; margin-bottom: 14px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+              <h4 style="font-size: 13.5px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px; margin: 0;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px; height:16px; color:#38bdf8;"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+                <span>Управление Telegram ботом Ant Colony AI</span>
+              </h4>
+              <span id="tg-status-badge" class="ws-badge" style="background: rgba(100, 116, 139, 0.2); color: #94a3b8;">Не настроен</span>
+            </div>
+            <p style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 14px;">
+              Подключите Telegram бота (@BotFather), чтобы давать задачи всей команде AI агентов прямо из Telegram, получать уведомления о прогрессе и скачивать готовые файлы проектов.
+            </p>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              <div>
+                <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">Telegram Bot Token (от @BotFather):</label>
+                <div class="key-test-row">
+                  <input type="password" id="setup-tg-token" class="search-input key-test-input" placeholder="1234567890:ABCdefGHIjklMNOpqrsTUVwxyz..." style="flex: 1;">
+                  <button class="btn-hive-action ws-btn-primary" id="btn-save-tg-bot" type="button" style="padding: 6px 14px; font-size: 11.5px; font-weight: 700;">Сохранить и запустить</button>
+                </div>
+                <div class="key-test-result" id="key-test-tg"></div>
+              </div>
+              <div id="tg-bot-info-card" class="hidden" style="background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px; display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                  <div style="font-size: 12px; font-weight: 700; color: var(--text-main);" id="tg-bot-name-label">@AntColony_Bot</div>
+                  <div style="font-size: 11px; color: #10b981;" id="tg-bot-status-desc">Бот активен и принимает задачи</div>
+                </div>
+                <button class="btn-hive-action" id="btn-toggle-tg-bot" type="button" style="background: #ef4444; color: #fff; padding: 5px 12px; font-size: 11px; font-weight: 700;">Остановить</button>
               </div>
             </div>
           </div>

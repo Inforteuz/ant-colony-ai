@@ -63,6 +63,31 @@ _ROLE_KEYWORDS: Dict[str, List[str]] = {
         "kubernetes", "k8s", "service mesh", "docker-compose", "istio",
         "распределённ", "event-driven", "cqrs", "saga pattern"
     ],
+        "market_researcher": [
+        "bozor tahlili", "raqobatchilar", "raqobat", "bozorni o'rgan", "swot", "tam sam som",
+        "analiz rynka", "analiz konkurentov", "issledovanie rynka", "market research", "competitor analysis",
+        "marketing strategiya", "narx siyosati", "pricing", "go to market"
+    ],
+    "content_smm_specialist": [
+        "smm", "kontent reja", "post yoz", "kopirayter", "reklama matni", "maqola yoz",
+        "telegram post", "instagram post", "kontent", "statya", "tekst dlya sajta", "smm plan",
+        "copywriting", "content plan", "blog post", "social media", "reklama"
+    ],
+    "data_bi_analyst": [
+        "ma'lumotlar tahlili", "csv tahlil", "excel tahlil", "bi hisobot", "statistika",
+        "analiz dannyh", "otchet excel", "bi analiz", "data analysis", "statistika prodaj",
+        "prognoz vyruchki", "daromad prognozi", "funnel", "kpi"
+    ],
+    "legal_docs_specialist": [
+        "shartnoma", "yuridik", "oferta", "nda", "prd", "brd", "nizom", "qonuniy",
+        "dogovor", "yuridicheskiy analiz", "polzovatelskoe soglashenie", "terms of service",
+        "privacy policy", "contract review", "yuridicheskaya proverka", "reglament"
+    ],
+    "customer_support_sales": [
+        "sotuv skripti", "skript", "mijozlar", "e'tirozlar", "faq", "podderjka",
+        "skript prodaj", "otrabotka vozrajeniy", "klienty", "sales script", "support sop",
+        "customer success", "skript obshcheniya", "lidlar"
+    ],
     "blockchain_dev": [
         "blockchain", "smart contract", "smartkontrakt", "solidity", "vyper", "foundry", "hardhat",
         "web3", "web 3", "erc-20", "erc20", "erc-721", "nft", "defi", "dao",
