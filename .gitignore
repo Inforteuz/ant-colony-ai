@@ -43,3 +43,19 @@ venv.bak/
 # Temp workspaces
 temp_workspace/
 workspace/
+
+# --- Ant Colony AI: mahalliy ish holati (ochiq repoga tushmasligi kerak) ---
+# Bularda foydalanuvchining shaxsiy so'rovlari, javoblari va buyruqlari saqlanadi.
+.prompt_cache.json
+pm_memory.json
+model_skill_matrix.json
+janitor_log.jsonl
+shell_audit.log
+telegram_config.json
+*.log
+
+# Sinov/vaqtinchalik artefaktlar
+TEST_DOC.md
+
+# Mahalliy symlink (repodan tashqariga ko' rsatadi)
+skills

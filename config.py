@@ -8,16 +8,53 @@ BASE_DIR = Path(__file__).resolve().parent
 WORKSPACE_DIR = BASE_DIR / "workspace"
 WORKSPACE_DIR.mkdir(exist_ok=True)
 
-# Main Projects Base Directory on User Desktop
-PROJECTS_BASE_DIR = Path("/Users/apple/Desktop/04_Loyihalar")
+
+def _load_dotenv(path: Path) -> None:
+    """
+    `.env` faylini muhit o'zgaruvchilariga yuklaydi (tashqi kutubxonasiz).
+
+    MUHIM: ilgari setup sehrgari `.env` faylini YOZARDI, lekin uni hech kim
+    O'QIMASDI — serverni qayta ishga tushirgach kalitlar yo'qolardi va ilova
+    faqat kodga yozib qo'yilgan zaxira kalitlar hisobiga ishlardi. Endi kalitlar
+    haqiqatan ham `.env` dan tiklanadi.
+
+    Tizim muhitida allaqachon mavjud qiymat ustunroq — CI/Docker'da `.env`
+    faylni majburan bosib o'tmasligi uchun.
+    """
+    if not path.exists():
+        return
+    try:
+        for raw in path.read_text(encoding="utf-8").splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            key = key.strip()
+            value = value.strip().strip('"').strip("'")
+            if key and key not in os.environ:
+                os.environ[key] = value
+    except Exception:
+        # Buzuq `.env` butun ilovani to'xtatmasligi kerak.
+        pass
+
+
+_load_dotenv(BASE_DIR / ".env")
+
+# Loyihalar papkasi. Standart — foydalanuvchi uy katalogidagi `AntColonyProjects`.
+# Har qanday OS'da ishlaydi; `PROJECTS_BASE_DIR` env orqali o'zgartiriladi.
+# (Ilgari bu yerda `/Users/apple/Desktop/04_Loyihalar` qattiq yozilgan edi —
+#  boshqa foydalanuvchida ham, Linux/Windows'da ham ishlamasdi.)
+_projects_env = os.getenv("PROJECTS_BASE_DIR", "").strip()
+PROJECTS_BASE_DIR = Path(_projects_env).expanduser() if _projects_env else (Path.home() / "AntColonyProjects")
 try:
     PROJECTS_BASE_DIR.mkdir(parents=True, exist_ok=True)
 except Exception:
     pass
 
-# API kalitlari: avval muhit o'zgaruvchisi (env), keyin quyidagi zaxira qiymat.
-# Ishlab chiqarishda kalitlarni `GEMINI_API_KEY`, `WTF_API_KEY`, `OPENROUTER_API_KEY`
-# muhit o'zgaruvchilari orqali bering — kodda saqlamang.
+# API kalitlari FAQAT muhit o'zgaruvchilaridan o'qiladi (`.env` fayli yoki tizim env).
+# Kodda hech qanday kalit saqlanmaydi — `.env.example` dan nusxa oling:
+#     cp .env.example .env
+# va o'z kalitlaringizni qo'ying. Kamida bitta provayder kaliti kerak.
 PROVIDERS = {
     "gemini": {
         "id": "gemini",

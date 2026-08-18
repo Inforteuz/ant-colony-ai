@@ -54,9 +54,9 @@ class IsometricHive3D {
       pingpong: { pos: new THREE.Vector3(22.0, 5.5, 23.5), target: new THREE.Vector3(22.0, 1.0, 16.0) },
       gym: { pos: new THREE.Vector3(-22.0, 5.5, -9.5), target: new THREE.Vector3(-22.0, 1.0, -16.0) },
       football: { pos: new THREE.Vector3(0, 9.5, -11.0), target: new THREE.Vector3(0, 0.8, -23.5) },
-      conference: { pos: new THREE.Vector3(-22.0, 6.0, 23.5), target: new THREE.Vector3(-22.0, 1.2, 16.0) },
-      marketing: { pos: new THREE.Vector3(22.0, 6.0, -9.5), target: new THREE.Vector3(22.0, 1.2, -16.0) },
-      legal: { pos: new THREE.Vector3(-22.0, 6.0, 7.5), target: new THREE.Vector3(-22.0, 1.2, 0.0) }
+      conference: { pos: new THREE.Vector3(-22.0, 10.5, 29.0), target: new THREE.Vector3(-22.0, 1.4, 15.0) },
+      marketing: { pos: new THREE.Vector3(22.0, 10.0, -2.5), target: new THREE.Vector3(22.0, 1.4, -17.0) },
+      legal: { pos: new THREE.Vector3(-22.0, 9.5, 13.0), target: new THREE.Vector3(-22.0, 1.4, -1.0) }
     };
 
     this.targetCameraPos = this.cameraPresets.overview.pos.clone();
@@ -1454,6 +1454,570 @@ class IsometricHive3D {
     this.footballScoreTex.needsUpdate = true;
   }
 
+  // ============================================================
+  // ENTERPRISE XONALARI — Conference Hall, Marketing & BI, Legal Office
+  // ============================================================
+
+  // Har uch xona uchun umumiy pol platformasi va neon perimetri.
+  buildRoomFloor(group, width, depth, accentHex) {
+    const isLight = this.isLight;
+
+    const floor = new THREE.Mesh(
+      new THREE.BoxGeometry(width, 0.06, depth),
+      new THREE.MeshStandardMaterial({
+        color: isLight ? 0xe2e8f0 : 0x0f172a,
+        roughness: 0.4,
+        metalness: isLight ? 0.1 : 0.6,
+      })
+    );
+    floor.position.y = 0.03;
+    floor.receiveShadow = true;
+    group.add(floor);
+
+    const border = new THREE.Mesh(
+      new THREE.BoxGeometry(width + 0.12, 0.08, depth + 0.12),
+      new THREE.MeshBasicMaterial({ color: accentHex, wireframe: true })
+    );
+    border.position.y = 0.04;
+    group.add(border);
+
+    // Xona yuqorisidan mahalliy yorug'lik — mebel qorong'ida yo'qolib ketmasin.
+    const light = new THREE.PointLight(accentHex, isLight ? 0.5 : 0.95, Math.max(width, depth) * 1.4);
+    light.position.set(0, 4.2, 0);
+    group.add(light);
+
+    return floor;
+  }
+
+  // Xona sarlavhasi — kartochka foni bilan (drawRoundedCard) va kenglikka moslashuvchi shrift.
+  createRoomSign(title, subtitle, accentCss) {
+    const isLight = this.isLight;
+    const cvs = document.createElement('canvas');
+    cvs.width = 520;
+    cvs.height = 120;
+    const ctx = cvs.getContext('2d');
+
+    ctx.clearRect(0, 0, 520, 120);
+    ctx.fillStyle = isLight ? 'rgba(255, 255, 255, 0.95)' : 'rgba(10, 16, 30, 0.92)';
+    ctx.strokeStyle = accentCss;
+    ctx.lineWidth = 4;
+    this.drawRoundedCard(ctx, 5, 5, 510, 110, 18);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = accentCss;
+    this.drawRoundedCard(ctx, 5, 5, 510, 9, 4);
+    ctx.fill();
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = isLight ? '#0f172a' : '#f8fafc';
+    this.fitText(ctx, title, 470, 30);
+    ctx.fillText(title, 260, 58);
+
+    ctx.fillStyle = accentCss;
+    this.fitText(ctx, subtitle, 470, 18, '600');
+    ctx.fillText(subtitle, 260, 92);
+
+    const tex = new THREE.CanvasTexture(cvs);
+    tex.minFilter = THREE.LinearFilter;
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
+    sprite.scale.set(5.0, 1.15, 1);
+    return sprite;
+  }
+
+  // Devorga o'rnatilgan ekran uchun jonli kanvas teksturasi.
+  createRoomScreenTexture(kind, accentCss) {
+    const isLight = this.isLight;
+    const cvs = document.createElement('canvas');
+    cvs.width = 512;
+    cvs.height = 288;
+    const ctx = cvs.getContext('2d');
+
+    ctx.fillStyle = isLight ? '#f8fafc' : '#050b18';
+    ctx.fillRect(0, 0, 512, 288);
+    ctx.strokeStyle = accentCss;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(2, 2, 508, 284);
+
+    ctx.fillStyle = accentCss;
+    ctx.font = 'bold 20px Plus Jakarta Sans, sans-serif';
+
+    if (kind === 'conference') {
+      ctx.fillText('SPRINT REVIEW — Q3 ROADMAP', 22, 40);
+      const rows = [
+        ['Требования собраны', 1.0],
+        ['Архитектура согласована', 0.82],
+        ['Реализация модулей', 0.61],
+        ['QA регрессия', 0.35],
+        ['Релиз-кандидат', 0.12],
+      ];
+      ctx.font = '600 15px Plus Jakarta Sans, sans-serif';
+      rows.forEach(([label, pct], i) => {
+        const y = 84 + i * 38;
+        ctx.fillStyle = isLight ? '#334155' : '#cbd5e1';
+        ctx.fillText(label, 22, y);
+        ctx.fillStyle = isLight ? 'rgba(15,23,42,0.10)' : 'rgba(148,163,184,0.18)';
+        ctx.fillRect(250, y - 13, 236, 14);
+        ctx.fillStyle = accentCss;
+        ctx.fillRect(250, y - 13, 236 * pct, 14);
+      });
+    } else if (kind === 'marketing') {
+      ctx.fillText('BI DASHBOARD — CONVERSION FUNNEL', 22, 40);
+      // Ustunli diagramma
+      const bars = [0.35, 0.62, 0.48, 0.81, 0.7, 0.93, 0.58];
+      bars.forEach((v, i) => {
+        const h = v * 150;
+        const x = 30 + i * 66;
+        ctx.fillStyle = isLight ? 'rgba(15,23,42,0.08)' : 'rgba(148,163,184,0.14)';
+        ctx.fillRect(x, 100, 44, 150);
+        ctx.fillStyle = accentCss;
+        ctx.fillRect(x, 250 - h, 44, h);
+      });
+      ctx.fillStyle = isLight ? '#475569' : '#94a3b8';
+      ctx.font = '600 13px JetBrains Mono, monospace';
+      ctx.fillText('CTR 4.8%   CAC $12.40   ROAS 3.2x', 22, 276);
+    } else {
+      ctx.fillText('DOCUMENT REVIEW — RISK MATRIX', 22, 40);
+      const items = [
+        ['NDA / Соглашение о неразглашении', 'OK', '#10b981'],
+        ['Договор оказания услуг', 'RISK', '#f59e0b'],
+        ['Лицензия MIT — совместимость', 'OK', '#10b981'],
+        ['Политика обработки данных', 'RISK', '#ef4444'],
+        ['SLA приложение №2', 'OK', '#10b981'],
+      ];
+      ctx.font = '600 15px Plus Jakarta Sans, sans-serif';
+      items.forEach(([label, status, color], i) => {
+        const y = 84 + i * 38;
+        ctx.fillStyle = isLight ? '#334155' : '#cbd5e1';
+        ctx.fillText(label, 22, y);
+        ctx.fillStyle = color;
+        ctx.fillText(status, 420, y);
+      });
+    }
+
+    const tex = new THREE.CanvasTexture(cvs);
+    tex.minFilter = THREE.LinearFilter;
+    return tex;
+  }
+
+  // Umumiy ofis stuli (ish stansiyalaridagidan soddaroq, xonalar uchun).
+  buildRoomChair(accentHex) {
+    const isLight = this.isLight;
+    const chair = new THREE.Group();
+    const bodyMat = new THREE.MeshStandardMaterial({
+      color: isLight ? 0xf1f5f9 : 0x334155,
+      roughness: 0.5,
+      metalness: 0.2,
+      emissive: new THREE.Color(accentHex),
+      emissiveIntensity: isLight ? 0.04 : 0.12,
+    });
+    const metalMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.85, roughness: 0.25 });
+
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.08, 0.58), bodyMat);
+    seat.position.y = 0.5;
+    seat.castShadow = true;
+    chair.add(seat);
+
+    const back = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.62, 0.07), bodyMat);
+    back.position.set(0, 0.85, 0.27);
+    back.castShadow = true;
+    chair.add(back);
+
+    const stripe = new THREE.Mesh(
+      new THREE.BoxGeometry(0.44, 0.5, 0.02),
+      new THREE.MeshBasicMaterial({ color: accentHex })
+    );
+    stripe.position.set(0, 0.85, 0.228);
+    chair.add(stripe);
+
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.5, 10), metalMat);
+    pole.position.y = 0.25;
+    chair.add(pole);
+
+    for (let a = 0; a < 5; a++) {
+      const ang = (a / 5) * Math.PI * 2;
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.24, 6), metalMat);
+      leg.position.set(Math.cos(ang) * 0.15, 0.05, Math.sin(ang) * 0.15);
+      leg.rotation.z = Math.cos(ang) * 0.6;
+      leg.rotation.x = Math.sin(ang) * 0.6;
+      chair.add(leg);
+    }
+    return chair;
+  }
+
+  // --- 1. Konferens-zal: uzun stol, 8 stul, taqdimot ekrani ---
+  createConferenceRoom() {
+    const accentHex = 0x8b5cf6;
+    const accentCss = '#8b5cf6';
+    const isLight = this.isLight;
+
+    const group = new THREE.Group();
+    group.position.set(-22.0, 0, 16.0);
+
+    this.buildRoomFloor(group, 12.0, 14.0, accentHex);
+
+    // Uzun konferens stoli
+    const tableMat = new THREE.MeshStandardMaterial({
+      color: isLight ? 0xffffff : 0x1e293b,
+      roughness: 0.22,
+      metalness: isLight ? 0.1 : 0.75,
+    });
+    const table = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.1, 7.0), tableMat);
+    table.position.set(0, 0.78, 0.5);
+    table.castShadow = true;
+    table.receiveShadow = true;
+    group.add(table);
+
+    // Stol markazidagi yorug' chiziq
+    const inlay = new THREE.Mesh(
+      new THREE.BoxGeometry(0.5, 0.104, 6.4),
+      new THREE.MeshBasicMaterial({ color: accentHex, transparent: true, opacity: 0.55 })
+    );
+    inlay.position.set(0, 0.782, 0.5);
+    group.add(inlay);
+
+    // Stol qirralari — qorong'i mavzuda stol fon bilan qo'shilib ketmasligi uchun.
+    const tableEdge = new THREE.Mesh(
+      new THREE.BoxGeometry(3.06, 0.11, 7.06),
+      new THREE.MeshBasicMaterial({ color: accentHex, wireframe: true, transparent: true, opacity: 0.5 })
+    );
+    tableEdge.position.copy(table.position);
+    group.add(tableEdge);
+
+    // Stol oyoqlari
+    const legMat = new THREE.MeshStandardMaterial({ color: isLight ? 0x94a3b8 : 0x0f172a, metalness: 0.9, roughness: 0.2 });
+    [[-1.2, -2.4], [1.2, -2.4], [-1.2, 3.4], [1.2, 3.4]].forEach(([lx, lz]) => {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.78, 8), legMat);
+      leg.position.set(lx, 0.39, lz);
+      leg.castShadow = true;
+      group.add(leg);
+    });
+
+    // Stol atrofida 8 stul (har tomonda 4 ta)
+    for (let i = 0; i < 4; i++) {
+      const z = -1.9 + i * 1.6;
+
+      const left = this.buildRoomChair(accentHex);
+      left.position.set(-2.15, 0, z);
+      left.rotation.y = -Math.PI / 2;
+      group.add(left);
+
+      const right = this.buildRoomChair(accentHex);
+      right.position.set(2.15, 0, z);
+      right.rotation.y = Math.PI / 2;
+      group.add(right);
+    }
+
+    // Har bir joyda noutbuk
+    for (let i = 0; i < 4; i++) {
+      const z = -1.9 + i * 1.6;
+      [-1.0, 1.0].forEach(sx => {
+        const lid = new THREE.Mesh(
+          new THREE.BoxGeometry(0.5, 0.32, 0.03),
+          new THREE.MeshStandardMaterial({ color: isLight ? 0xcbd5e1 : 0x0f172a, metalness: 0.6, roughness: 0.3 })
+        );
+        lid.position.set(sx, 0.99, z);
+        lid.rotation.x = -0.32;
+        lid.rotation.y = sx < 0 ? 0.25 : -0.25;
+        group.add(lid);
+      });
+    }
+
+    // Taqdimot ekrani (devorga o'rnatilgan)
+    const screenTex = this.createRoomScreenTexture('conference', accentCss);
+    const screen = new THREE.Mesh(
+      new THREE.BoxGeometry(5.0, 2.8, 0.08),
+      new THREE.MeshBasicMaterial({ map: screenTex })
+    );
+    screen.position.set(0, 2.5, -5.6);
+    group.add(screen);
+    this.conferenceScreenMesh = screen;
+
+    const frame = new THREE.Mesh(
+      new THREE.BoxGeometry(5.3, 3.1, 0.05),
+      new THREE.MeshBasicMaterial({ color: accentHex })
+    );
+    frame.position.set(0, 2.5, -5.66);
+    group.add(frame);
+
+    const sign = this.createRoomSign('КОНФЕРЕНЦ-ЗАЛ', 'Планёрки · Sprint Review · Синхронизация с CEO', accentCss);
+    sign.position.set(0, 2.5, 6.6);
+    sign.scale.set(4.2, 0.97, 1);
+    group.add(sign);
+
+    this.scene.add(group);
+    this.conferenceGroup = group;
+  }
+
+  // --- 2. Marketing va BI qanoti: dashboard devori, tahlil stollari ---
+  createMarketingAnalyticsWing() {
+    const accentHex = 0xec4899;
+    const accentCss = '#ec4899';
+    const isLight = this.isLight;
+
+    const group = new THREE.Group();
+    group.position.set(22.0, 0, -16.0);
+
+    this.buildRoomFloor(group, 12.0, 12.0, accentHex);
+
+    // Uchta ish stoli (yarim doira bo'ylab)
+    const deskMat = new THREE.MeshStandardMaterial({
+      color: isLight ? 0xffffff : 0x1e293b,
+      roughness: 0.22,
+      metalness: isLight ? 0.1 : 0.75,
+    });
+    const legMat = new THREE.MeshStandardMaterial({ color: isLight ? 0x94a3b8 : 0x0f172a, metalness: 0.9, roughness: 0.2 });
+
+    [-3.2, 0, 3.2].forEach((dx, idx) => {
+      const desk = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.08, 1.1), deskMat);
+      desk.position.set(dx, 0.92, 1.6);
+      desk.castShadow = true;
+      desk.receiveShadow = true;
+      group.add(desk);
+
+      [[-1.0, -0.45], [1.0, -0.45], [-1.0, 0.45], [1.0, 0.45]].forEach(([lx, lz]) => {
+        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.92, 8), legMat);
+        leg.position.set(dx + lx, 0.46, 1.6 + lz);
+        group.add(leg);
+      });
+
+      // Monitor
+      const monTex = this.createRoomScreenTexture('marketing', accentCss);
+      const mon = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.7, 0.04), new THREE.MeshBasicMaterial({ map: monTex }));
+      mon.position.set(dx, 1.36, 1.35);
+      group.add(mon);
+
+      const stand = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.09, 0.3, 8), legMat);
+      stand.position.set(dx, 1.08, 1.35);
+      group.add(stand);
+
+      // Stul
+      const chair = this.buildRoomChair(accentHex);
+      chair.position.set(dx, 0, 2.9);
+      group.add(chair);
+
+      if (idx === 1) this.marketingMonitorTex = monTex;
+    });
+
+    // Katta dashboard devori (3 ta panel)
+    for (let i = 0; i < 3; i++) {
+      const px = -3.4 + i * 3.4;
+      const tex = this.createRoomScreenTexture('marketing', accentCss);
+      const panel = new THREE.Mesh(new THREE.BoxGeometry(3.0, 1.8, 0.07), new THREE.MeshBasicMaterial({ map: tex }));
+      panel.position.set(px, 2.6, -4.9);
+      group.add(panel);
+
+      const bezel = new THREE.Mesh(
+        new THREE.BoxGeometry(3.2, 2.0, 0.04),
+        new THREE.MeshBasicMaterial({ color: accentHex })
+      );
+      bezel.position.set(px, 2.6, -4.96);
+      group.add(bezel);
+    }
+
+    const sign = this.createRoomSign('МАРКЕТИНГ И BI', 'Аналитика · Воронки · Контент-планы', accentCss);
+    sign.position.set(0, 2.5, 5.3);
+    sign.scale.set(4.2, 0.97, 1);
+    group.add(sign);
+
+    this.scene.add(group);
+    this.marketingGroup = group;
+  }
+
+  // --- 3. Yuridik bo'lim: hujjatlar arxivi va tekshiruv taxtasi ---
+  createLegalDocsOffice() {
+    const accentHex = 0xf59e0b;
+    const accentCss = '#f59e0b';
+    const isLight = this.isLight;
+
+    const group = new THREE.Group();
+    group.position.set(-22.0, 0, 0.0);
+
+    this.buildRoomFloor(group, 10.0, 11.0, accentHex);
+
+    const woodMat = new THREE.MeshStandardMaterial({
+      color: isLight ? 0xf5f5f4 : 0x292524,
+      roughness: 0.55,
+      metalness: 0.15,
+    });
+    const legMat = new THREE.MeshStandardMaterial({ color: isLight ? 0x94a3b8 : 0x0f172a, metalness: 0.9, roughness: 0.2 });
+
+    // Yurist ish stoli
+    const desk = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.1, 1.4), woodMat);
+    desk.position.set(0, 0.9, 0.6);
+    desk.castShadow = true;
+    desk.receiveShadow = true;
+    group.add(desk);
+
+    [[-1.25, -0.55], [1.25, -0.55], [-1.25, 0.55], [1.25, 0.55]].forEach(([lx, lz]) => {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.9, 8), legMat);
+      leg.position.set(lx, 0.45, 0.6 + lz);
+      group.add(leg);
+    });
+
+    const chair = this.buildRoomChair(accentHex);
+    chair.position.set(0, 0, 2.1);
+    group.add(chair);
+
+    // Stol ustidagi hujjat uyumlari
+    const paperMat = new THREE.MeshStandardMaterial({ color: isLight ? 0xffffff : 0xe2e8f0, roughness: 0.85 });
+    [[-0.8, 0.35], [0.85, 0.55]].forEach(([px, pz], i) => {
+      const stack = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.12 + i * 0.06, 0.36), paperMat);
+      stack.position.set(px, 1.01 + (0.06 + i * 0.03), pz);
+      stack.rotation.y = i * 0.18;
+      stack.castShadow = true;
+      group.add(stack);
+    });
+
+    // Muhr / shtamp
+    const stamp = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.13, 0.13, 0.16, 12),
+      new THREE.MeshStandardMaterial({ color: accentHex, emissive: accentHex, emissiveIntensity: 0.5 })
+    );
+    stamp.position.set(0.1, 1.03, 0.9);
+    group.add(stamp);
+
+    // Ikkita hujjat javoni (raflar bilan)
+    [-3.4, 3.4].forEach(sx => {
+      const shelfBody = new THREE.Mesh(new THREE.BoxGeometry(1.0, 2.6, 0.5), woodMat);
+      shelfBody.position.set(sx, 1.3, -3.6);
+      shelfBody.castShadow = true;
+      group.add(shelfBody);
+
+      for (let r = 0; r < 4; r++) {
+        const y = 0.45 + r * 0.62;
+        // Rafdagi papkalar — turli balandlik va rangda
+        for (let bidx = 0; bidx < 5; bidx++) {
+          const h = 0.3 + ((bidx * 7 + r * 3) % 4) * 0.04;
+          const folder = new THREE.Mesh(
+            new THREE.BoxGeometry(0.13, h, 0.34),
+            new THREE.MeshStandardMaterial({
+              color: [0xf59e0b, 0xef4444, 0x0ea5e9, 0x10b981, 0x8b5cf6][bidx % 5],
+              roughness: 0.7,
+            })
+          );
+          folder.position.set(sx - 0.34 + bidx * 0.17, y + h / 2, -3.42);
+          group.add(folder);
+        }
+      }
+    });
+
+    // Hujjat tekshiruv taxtasi
+    const boardTex = this.createRoomScreenTexture('legal', accentCss);
+    const board = new THREE.Mesh(new THREE.BoxGeometry(4.0, 2.25, 0.07), new THREE.MeshBasicMaterial({ map: boardTex }));
+    board.position.set(0, 2.4, -4.6);
+    group.add(board);
+
+    const boardFrame = new THREE.Mesh(
+      new THREE.BoxGeometry(4.25, 2.5, 0.04),
+      new THREE.MeshBasicMaterial({ color: accentHex })
+    );
+    boardFrame.position.set(0, 2.4, -4.66);
+    group.add(boardFrame);
+
+    const sign = this.createRoomSign('ЮРИДИЧЕСКИЙ ОТДЕЛ', 'Договоры · Риски · Лицензии и NDA', accentCss);
+    sign.position.set(0, 2.4, 4.9);
+    sign.scale.set(4.0, 0.92, 1);
+    group.add(sign);
+
+    this.scene.add(group);
+    this.legalGroup = group;
+  }
+
+  // ============================================================
+  // XONALARDAN FOYDALANISH — yig'ilishlar va bo'lim ish joylari
+  // ============================================================
+
+  // Konferens-zaldagi 8 o'rin (dunyo koordinatalarida).
+  _conferenceSeats() {
+    const gx = -22.0, gz = 16.0;
+    const seats = [];
+    for (let i = 0; i < 4; i++) {
+      const z = gz + (-1.9 + i * 1.6);
+      seats.push({ pos: new THREE.Vector3(gx - 2.15, 0, z), facing: Math.PI / 2 });
+      seats.push({ pos: new THREE.Vector3(gx + 2.15, 0, z), facing: -Math.PI / 2 });
+    }
+    return seats;
+  }
+
+  /**
+   * PM jamoani konferens-zalga yig'adi: bo'sh agentlar stol atrofiga borib o'tiradi,
+   * ekranda yig'ilish mavzusi ko'rsatiladi. Belgilangan vaqtdan keyin tarqaladi.
+   */
+  callTeamMeeting(topic = 'Планёрка по новой задаче', durationSec = 22) {
+    if (!this.conferenceGroup) return;
+
+    this.meetingUntil = performance.now() + durationSec * 1000;
+    this.meetingTopic = topic;
+
+    const seats = this._conferenceSeats();
+    // PM har doim yig'ilishni boshqaradi — u birinchi o'rinda.
+    const ordered = Object.values(this.agents).sort((a, b) => (a.id === 'pm' ? -1 : b.id === 'pm' ? 1 : 0));
+
+    let seatIdx = 0;
+    ordered.forEach(ag => {
+      // Topshiriq ustida ishlayotgan agentni ish joyidan uzmaymiz.
+      if (ag.state === 'WORKING' || ag.state === 'WALK_TO_DESK') return;
+      const seat = seats[seatIdx % seats.length];
+      seatIdx += 1;
+      ag.state = 'IDLE_ACTIVITY';
+      ag.activityState = 'MEETING';
+      ag.activityLabel = 'Планёрка в переговорной';
+      ag.meetingFacing = seat.facing;
+      ag.targetPos.copy(seat.pos);
+      ag.animTime = Math.random() * 2;
+    });
+
+    this.updateConferenceScreen(topic);
+  }
+
+  // Yig'ilish davom etyaptimi?
+  _meetingActive() {
+    return Boolean(this.meetingUntil && performance.now() < this.meetingUntil);
+  }
+
+  // Konferens ekranida joriy mavzuni ko'rsatamiz.
+  updateConferenceScreen(topic) {
+    if (!this.conferenceScreenMesh) return;
+    const isLight = this.isLight;
+    const cvs = document.createElement('canvas');
+    cvs.width = 512; cvs.height = 288;
+    const ctx = cvs.getContext('2d');
+
+    ctx.fillStyle = isLight ? '#f8fafc' : '#050b18';
+    ctx.fillRect(0, 0, 512, 288);
+    ctx.strokeStyle = '#8b5cf6';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(2, 2, 508, 284);
+
+    ctx.fillStyle = '#8b5cf6';
+    ctx.font = 'bold 19px Plus Jakarta Sans, sans-serif';
+    ctx.fillText('ПЛАНЁРКА КОМАНДЫ', 22, 40);
+
+    ctx.fillStyle = isLight ? '#0f172a' : '#e2e8f0';
+    const maxW = 468;
+    const words = String(topic || '').split(/\s+/).filter(Boolean);
+    ctx.font = '600 20px Plus Jakarta Sans, sans-serif';
+    const lines = [];
+    let cur = '';
+    for (const w of words) {
+      const cand = cur ? `${cur} ${w}` : w;
+      if (ctx.measureText(cand).width <= maxW) cur = cand;
+      else { if (cur) lines.push(cur); cur = w; if (lines.length === 4) break; }
+    }
+    if (cur && lines.length < 5) lines.push(cur);
+    lines.slice(0, 5).forEach((ln, i) => ctx.fillText(ln, 22, 90 + i * 30));
+
+    ctx.fillStyle = isLight ? '#64748b' : '#94a3b8';
+    ctx.font = '600 14px JetBrains Mono, monospace';
+    ctx.fillText('PM -> распределение ролей и оценка объёма', 22, 262);
+
+    const tex = new THREE.CanvasTexture(cvs);
+    tex.minFilter = THREE.LinearFilter;
+    this.conferenceScreenMesh.material.map = tex;
+    this.conferenceScreenMesh.material.needsUpdate = true;
+  }
+
   createDataStreamSystem() {
     this.beams = [];
     this.activeBeams = [];
@@ -1518,8 +2082,8 @@ class IsometricHive3D {
     // =============================================================
     const agT1_A = Object.values(this.agents).find(ag => ag.activityState === 'T1_A');
     const agT1_B = Object.values(this.agents).find(ag => ag.activityState === 'T1_B');
-    const p1_ready = agT1_A && agT1_A.mesh.position.distanceTo(new THREE.Vector3(22.0, 0, 10.4)) < 0.8;
-    const p2_ready = agT1_B && agT1_B.mesh.position.distanceTo(new THREE.Vector3(22.0, 0, 14.0)) < 0.8;
+    const p1_ready = agT1_A && agT1_A.mesh.position.distanceTo(new THREE.Vector3(22.0, 0, 9.2)) < 0.9;
+    const p2_ready = agT1_B && agT1_B.mesh.position.distanceTo(new THREE.Vector3(22.0, 0, 15.2)) < 0.9;
 
     if (_doPingPong && this.pingPongCourt1 && this.pingPongBall1) {
       const c1 = this.pingPongCourt1;
@@ -1630,14 +2194,33 @@ class IsometricHive3D {
     const EXCLUSIVE_SLOTS = [
       { state: 'FB_STRIKER', pos: new THREE.Vector3(0, 0, -15.5), label: 'Футбол: Нападающий' },
       { state: 'FB_KEEPER', pos: new THREE.Vector3(0, 0, -30.8), label: 'Футбол: Вратарь' },
-      { state: 'T1_A', pos: new THREE.Vector3(22.0, 0, 10.4), label: 'Теннис: Игрок 1' },
-      { state: 'T1_B', pos: new THREE.Vector3(22.0, 0, 14.0), label: 'Теннис: Игрок 2' },
+      // Stol markazi (22, 12.2), uzunligi 3.8 -> z 10.3..14.1.
+      // Ilgari o'yinchilar 10.4 va 14.0 da turardi, ya'ni stolning ICHIDA.
+      { state: 'T1_A', pos: new THREE.Vector3(22.0, 0, 9.2), label: 'Теннис: Игрок 1' },
+      { state: 'T1_B', pos: new THREE.Vector3(22.0, 0, 15.2), label: 'Теннис: Игрок 2' },
       { state: 'GYM_TREAD', pos: new THREE.Vector3(-24.4, 0, -17.4), label: 'Фитнес: Беговая дорожка' },
       { state: 'GYM_BOXING', pos: new THREE.Vector3(-20.0, 0, -17.5), label: 'Фитнес: Спарринг-бокс' },
-      { state: 'LOUNGE_QUEUE', pos: new THREE.Vector3(17.8, 0, 16.0), label: 'Зona отдыха: Диван' }
+      { state: 'LOUNGE_QUEUE', pos: new THREE.Vector3(17.8, 0, 16.0), label: 'Зона отдыха: Диван' },
+      // Yangi enterprise xonalari ham bo'sh turmasin: agentlar u yerda ishlaydi.
+      { state: 'MARKETING_DESK', pos: new THREE.Vector3(18.8, 0, -13.1), label: 'Маркетинг и BI: анализ воронок' },
+      { state: 'MARKETING_DESK2', pos: new THREE.Vector3(25.2, 0, -13.1), label: 'Маркетинг и BI: отчётность' },
+      { state: 'LEGAL_DESK', pos: new THREE.Vector3(-22.0, 0, 2.1), label: 'Юридический отдел: проверка договоров' }
     ];
 
-    idleAgents.forEach((ag, idx) => {
+    // Yig'ilish tugagan bo'lsa — agentlarni odatdagi holatga qaytaramiz.
+    if (this.meetingUntil && !this._meetingActive()) {
+      this.meetingUntil = 0;
+      Object.values(this.agents).forEach(ag => {
+        if (ag.activityState === 'MEETING') ag.activityState = null;
+      });
+    }
+
+    // DIQQAT: bu yerda `return` ishlatib bo'lmaydi — funksiyaning qolgan qismida
+    // agentlarning harakati va animatsiyasi bor. Yig'ilish paytida faqat sport
+    // slotlarini tarqatishni o'tkazib yuboramiz, harakat davom etaveradi.
+    const slotAssignment = this._meetingActive() ? [] : idleAgents;
+
+    slotAssignment.forEach((ag, idx) => {
       const slot = EXCLUSIVE_SLOTS[idx % EXCLUSIVE_SLOTS.length];
       if (ag.activityState !== slot.state) {
         ag.activityState = slot.state;
@@ -2090,6 +2673,16 @@ class IsometricHive3D {
     document.querySelectorAll('.btn-cam-view').forEach(btn => {
       btn.classList.toggle('active', btn.getAttribute('data-view') === presetKey);
     });
+
+    // Guruh tugmasi ichida faol ko'rinish tanlangan bo'lsa — guruh ham belgilanadi.
+    document.querySelectorAll('.cam-group').forEach(group => {
+      group.classList.toggle('has-active', Boolean(group.querySelector('.btn-cam-view.active')));
+      group.classList.remove('is-open');
+      const pop = group.querySelector('.cam-popover');
+      const trigger = group.querySelector('.btn-cam-group');
+      if (pop) pop.classList.add('hidden');
+      if (trigger) trigger.setAttribute('aria-expanded', 'false');
+    });
   }
 
   zoomCamera(deltaDistance) {
@@ -2138,6 +2731,41 @@ class IsometricHive3D {
         const view = e.currentTarget.getAttribute('data-view');
         this.focusCamera(view);
       });
+    });
+
+    // 1b. Guruh menyulari (Команда / Пространства)
+    const camGroups = Array.from(document.querySelectorAll('.cam-group'));
+    const closeAllCamGroups = (except = null) => {
+      camGroups.forEach(g => {
+        if (g === except) return;
+        g.classList.remove('is-open');
+        const pop = g.querySelector('.cam-popover');
+        const trg = g.querySelector('.btn-cam-group');
+        if (pop) pop.classList.add('hidden');
+        if (trg) trg.setAttribute('aria-expanded', 'false');
+      });
+    };
+
+    camGroups.forEach(group => {
+      const trigger = group.querySelector('.btn-cam-group');
+      const pop = group.querySelector('.cam-popover');
+      if (!trigger || !pop) return;
+
+      trigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const willOpen = pop.classList.contains('hidden');
+        closeAllCamGroups(group);
+        pop.classList.toggle('hidden', !willOpen);
+        group.classList.toggle('is-open', willOpen);
+        trigger.setAttribute('aria-expanded', String(willOpen));
+      });
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.cam-group')) closeAllCamGroups();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeAllCamGroups();
     });
 
     // 2. On-screen Zoom HUD buttons
@@ -2280,6 +2908,17 @@ class IsometricHive3D {
     if (ppBtn) ppBtn.style.display = shouldShow ? '' : 'none';
     if (gymBtn) gymBtn.style.display = shouldShow ? '' : 'none';
     if (fbBtn) fbBtn.style.display = shouldShow ? '' : 'none';
+
+    // Dam olish zonalari yashirilsa, ular ustidagi "Зоны отдыха" sarlavhasi ham
+    // ortiqcha bo'lib qolmasin, va guruhdagi hisoblagich haqiqiy sonni ko'rsatsin.
+    const roomsGroup = document.querySelector('.cam-group[data-group="rooms"]');
+    if (roomsGroup) {
+      const recLabel = Array.from(roomsGroup.querySelectorAll('.cam-popover-label'))
+        .find(el => el.textContent.trim().startsWith('Зоны отдыха'));
+      if (recLabel) recLabel.style.display = shouldShow ? '' : 'none';
+      const countEl = roomsGroup.querySelector('.cam-count');
+      if (countEl) countEl.textContent = shouldShow ? '6' : '3';
+    }
 
     // If recreation is hidden, redirect all idle agents to roam near workstations
     if (!shouldShow && this.agents) {

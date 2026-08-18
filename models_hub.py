@@ -63,6 +63,11 @@ class ModelsHub:
                 # Circuit breaker: ketma-ket xatoliklar soni va qachongacha bloklangani.
                 "consecutive_failures": 0,
                 "circuit_open_until": 0.0,
+                # Token sarfi — record_usage() to'ldiradi. Boshidanoq mavjud bo'lsin,
+                # aks holda API javobida maydon umuman bo'lmaydi va UI "undefined" ko'rsatadi.
+                "tokens_prompt": 0,
+                "tokens_completion": 0,
+                "tokens_total": 0,
             }
 
     def record_usage(self, prompt_tokens: int, completion_tokens: int, reasoning_tokens: int = 0, model_id: Optional[str] = None):
@@ -174,8 +179,30 @@ class ModelsHub:
         stat = self.stats.get(model_id)
         return (stat or {}).get("provider")
 
+    def is_provider_configured(self, provider_id: str,
+                               custom_keys: Optional[Dict[str, str]] = None) -> bool:
+        """
+        Provayderda API kalit bormi?
+
+        MUHIM: ilgari bu tekshiruv umuman yo'q edi. Bitta provayder kalitiga ega
+        foydalanuvchida ham zaxira zanjiri BARCHA kataloglardagi modellar bilan
+        to'ldirilardi — har so'rovda kalitsiz provayderlarga 401/403 so'rov ketib,
+        vaqt va urinishlar bekorga sarflanardi. Endi kalitsiz provayder umuman
+        tanlanmaydi.
+        """
+        if custom_keys and custom_keys.get(provider_id):
+            return True
+        return bool((PROVIDERS.get(provider_id) or {}).get("default_key", "").strip())
+
+    def configured_providers(self) -> List[str]:
+        """Kaliti mavjud provayderlar ro'yxati (diagnostika va UI uchun)."""
+        return [pid for pid in PROVIDERS if self.is_provider_configured(pid)]
+
     def is_provider_available(self, provider_id: str) -> bool:
         """Provayder hozir ishlatilishi mumkinmi?"""
+        # Kalitsiz provayder hech qachon ishlatilmaydi.
+        if not self.is_provider_configured(provider_id):
+            return False
         deadline = self.provider_cooldowns.get(provider_id, 0.0)
         if deadline <= 0:
             return True
@@ -324,6 +351,23 @@ class ModelsHub:
         provider_id = meta["provider"]
         provider_info = PROVIDERS.get(provider_id, {})
         api_key = self.get_api_key(provider_id, custom_keys)
+
+        # Kalit yo'q bo'lsa — so'rov yubormaymiz. Ilgari kalitsiz provayderlar ham
+        # ping qilinib, UI'da "Ошибка" deb ko'rinardi va foydalanuvchi tizim buzuq
+        # deb o'ylardi. To'g'ri holat: "не настроен".
+        if not api_key or not api_key.strip():
+            stat = self.stats.get(model_id)
+            if stat is not None:
+                stat.update({
+                    "status": "not_configured",
+                    "last_checked": time.time(),
+                    "last_error": f"{provider_info.get('name', provider_id)}: API kalit kiritilmagan",
+                })
+            return {
+                "model_id": model_id, "status": "not_configured",
+                "latency_ms": 0, "status_code": 0,
+                "error": "API kalit kiritilmagan",
+            }
 
         t0 = time.time()
         status = "error"

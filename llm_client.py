@@ -79,6 +79,11 @@ def build_fallback_chain(primary: str, exclude: Optional[List[str]] = None) -> L
         mid = m["id"]
         if mid == primary or mid in exclude:
             continue
+        # Kaliti kiritilmagan provayder modellari zanjirga umuman kirmaydi.
+        # Aks holda bitta provayderli o'rnatishda har chaqiruv 401 bilan
+        # bir necha marta urinib, sekinlashib ketardi.
+        if not models_hub.is_provider_configured(m["provider"]):
+            continue
         stat = models_hub.stats.get(mid, {})
         status = stat.get("status", "unknown")
         prov = m["provider"]
@@ -96,15 +101,16 @@ def build_fallback_chain(primary: str, exclude: Optional[List[str]] = None) -> L
 
     healthy.sort(key=lambda x: (x[0], x[2], x[1]))
 
-    # Birinchi bosqich: sog'lom modellardan zanjirni to'ldiramiz, provayder xilma-xilligiga
-    # ustunlik bergan holda.
-    diverse_first = [c for c in healthy if c[4] not in used_providers]
-    same_provider = [c for c in healthy if c[4] in used_providers]
-    for entry in diverse_first + same_provider:
-        if len(chain) >= MAX_FALLBACK_MODELS:
-            break
-        chain.append(entry[3])
-        used_providers.add(entry[4])
+    # Birinchi bosqich: har qadamda hali ishlatilmagan provayderdan eng yaxshi modelni
+    # olamiz (round-robin). Ilgari "diverse" ro'yxati sikldan OLDIN bir marta
+    # hisoblanardi — natijada bitta provayderning bir nechta modeli zanjirni to'ldirib,
+    # boshqa provayderlar umuman tushmay qolardi (provayder tushib qolsa zanjir foydasiz).
+    remaining = list(healthy)
+    while remaining and len(chain) < MAX_FALLBACK_MODELS:
+        pick = next((c for c in remaining if c[4] not in used_providers), remaining[0])
+        remaining.remove(pick)
+        chain.append(pick[3])
+        used_providers.add(pick[4])
 
     # Ikkinchi bosqich: agar zanjir bo'sh bo'lsa (hamma model quarantine'da) —
     # eng erta tiklanadiganini yakuniy chora sifatida qo'shamiz.
@@ -318,6 +324,25 @@ class LLMClient:
         chain = build_fallback_chain(model_id, exclude=exclude_models)
         attempts: List[Dict[str, Any]] = []
         last_error = "Неизвестная ошибка"
+
+        # Hech qanday provayder sozlanmagan bo'lsa — tushunarli xabar qaytaramiz.
+        # Ilgari bu holat "Неизвестная ошибка" bo'lib chiqar, foydalanuvchi nimani
+        # tuzatish kerakligini bilmasdi.
+        if not chain:
+            configured = models_hub.configured_providers()
+            if not configured:
+                msg = ("Ни один провайдер не настроен: добавьте хотя бы один API-ключ "
+                       "(Настройки → Setup Wizard) или пропишите его в файле .env.")
+            else:
+                msg = (f"Нет доступных моделей. Настроены провайдеры: {', '.join(configured)}. "
+                       "Возможно, все их модели временно в лимите (429) — попробуйте позже "
+                       "или добавьте второго провайдера.")
+            return {
+                "success": False, "text": "", "reasoning": "", "tool_calls": [],
+                "error": msg, "needs_setup": not configured,
+                "model_used": None, "provider": None,
+                "duration_ms": 0, "fallback_used": False, "attempts": [],
+            }
 
         for m_id in chain:
             provider_id = _provider_for(m_id)

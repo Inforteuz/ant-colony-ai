@@ -1414,11 +1414,6 @@ async def serve_index():
     index_file = STATIC_DIR / "index.html"
     return FileResponse(str(index_file))
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("server:app", host="0.0.0.0", port=8080, reload=True)
-
-
 from pm_proactive import pm_proactive_engine
 
 class PMFeedbackRequest(BaseModel):
@@ -1827,3 +1822,30 @@ async def toggle_telegram_bot(payload: Dict[str, Any]):
     else:
         await telegram_bot_manager.stop()
         return {"success": True, "is_running": False}
+
+
+# ==========================================================
+# Entrypoint
+# ==========================================================
+# MUHIM: bu blok fayl OXIRIDA turishi shart. Ilgari u fayl o'rtasida edi va
+# undan keyin e'lon qilingan barcha marshrutlar (`/api/pm/*`, `/api/telegram/*`,
+# `/api/ceo/insights` ...) faqat uvicorn reload=True child jarayoni faylni
+# qaytadan import qilgani uchun ishlab ketardi. reload o'chirilsa yo'qolardi.
+if __name__ == "__main__":
+    import uvicorn
+
+    # Standart holatda faqat mahalliy interfeys. Platformada shell buyruqlarini
+    # bajaruvchi endpoint bor — uni tarmoqqa ochish autentifikatsiyasiz RCE demakdir.
+    # Ongli ravishda ochmoqchi bo'lsangiz: ANT_HOST=0.0.0.0 (izolyatsiyalangan tarmoqda).
+    host = os.getenv("ANT_HOST", "127.0.0.1")
+    port = int(os.getenv("ANT_PORT", "8080"))
+    reload_enabled = os.getenv("ANT_RELOAD", "0").lower() in ("1", "true", "yes")
+
+    if host not in ("127.0.0.1", "localhost", "::1"):
+        print(
+            f"\n[OGOHLANTIRISH] Server {host} manzilida tinglaydi — tarmoqdagi har kim "
+            f"terminal endpointi orqali buyruq bajara oladi.\n"
+            f"Buni faqat ishonchli, izolyatsiyalangan tarmoqda qiling.\n"
+        )
+
+    uvicorn.run("server:app", host=host, port=port, reload=reload_enabled)

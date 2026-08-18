@@ -1138,8 +1138,15 @@ class AntColonyApp {
     setInterval(() => {
       const now = Date.now();
       const idleSeconds = (now - this.lastUserActivity) / 1000;
-      // If idle for > 40 seconds, no active tasks running, and not prompted in last 3 minutes
-      if (idleSeconds >= 40 && !this.isRunning && (now - this.lastIdlePromptSent) > 180000) {
+      // Ilgari bir xil xabar har 3 daqiqada cheksiz takrorlanardi va lenta
+      // bir xil bloklar bilan to'lib ketardi. Endi interval har takrorda
+      // uzayadi (3 → 8 → 15 → 25 daqiqa) va mazmuni o'zgarmagan xabar
+      // umuman qayta chiqmaydi.
+      const backoffSteps = [180000, 480000, 900000, 1500000];
+      this._idleStreak = this._idleStreak || 0;
+      const waitMs = backoffSteps[Math.min(this._idleStreak, backoffSteps.length - 1)];
+
+      if (idleSeconds >= 40 && !this.isRunning && (now - this.lastIdlePromptSent) > waitMs) {
         this.lastIdlePromptSent = now;
         this.triggerPMIdleInquiry();
       }
@@ -1164,12 +1171,23 @@ class AntColonyApp {
     if (greeting && greeting.total_orchestrations > 0) {
       const lp = greeting.last_project;
       const plans = greeting.pending_plans || [];
-      const stats = `${greeting.total_orchestrations} loyiha (o'rt. ball ${greeting.avg_score || '—'})`;
+      // Butun interfeys rus tilida — PM xabarlari ham bir tilda bo'lishi kerak.
+      // Ilgari bu blok o'zbekcha ("loyiha", "So'nggi loyiha", "Kelajakdagi rejalar")
+      // va ruscha matnni aralashtirib yuborardi.
+      const plural = (n, one, few, many) => {
+        const a = Math.abs(n) % 100, b = a % 10;
+        if (a > 10 && a < 20) return many;
+        if (b > 1 && b < 5) return few;
+        if (b === 1) return one;
+        return many;
+      };
+      const n = greeting.total_orchestrations;
+      const stats = `${n} ${plural(n, 'задачу', 'задачи', 'задач')} (средний балл ${greeting.avg_score || '—'})`;
       const lpBlock = lp
-        ? `<p><strong>So'nggi loyiha:</strong> «${this.esc((lp.task || '').slice(0, 120))}» — ${lp.files_count || 0} fayl, ${lp.score !== null ? `ball ${lp.score}` : 'baholanmagan'} <span style="opacity:0.7">(${lp.iso || ''})</span></p>`
+        ? `<p><strong>Последний проект:</strong> «${this.esc((lp.task || '').slice(0, 120))}» — ${lp.files_count || 0} ${plural(lp.files_count || 0, 'файл', 'файла', 'файлов')}, ${lp.score !== null ? `балл ${lp.score}` : 'без оценки'} <span style="opacity:0.7">(${this.esc(lp.iso || '')})</span></p>`
         : '';
       const plansBlock = plans.length
-        ? `<p><strong>Kelajakdagi rejalar (${greeting.pending_plans_total}):</strong></p><ul style="margin:4px 0 8px 20px;">${plans.map(p => `<li>${this.esc(p.text)}</li>`).join('')}</ul>`
+        ? `<p><strong>Отложенные планы (${greeting.pending_plans_total}):</strong></p><ul style="margin:4px 0 8px 20px;">${plans.map(p => `<li>${this.esc(p.text)}</li>`).join('')}</ul>`
         : '';
       bodyHtml = `
         <p><strong>Уважаемый CEO,</strong> команда закончила текущие задачи. За всё время я обработал ${this.esc(stats)}.</p>
@@ -1184,6 +1202,16 @@ class AntColonyApp {
         <p style="opacity:0.75;font-size:11.5px;">💡 Совет: скажите «запомни, что…» — и я буду держать это в долговременной памяти между сессиями.</p>
       `;
     }
+
+    // Mazmun o'zgarmagan bo'lsa qayta chiqarmaymiz — lenta bir xil bloklar bilan
+    // to'lib ketmasin. Streak esa keyingi kutish oralig'ini uzaytiradi.
+    const signature = bodyHtml.replace(/\s+/g, ' ').trim();
+    if (signature === this._lastIdleSignature) {
+      this._idleStreak = (this._idleStreak || 0) + 1;
+      return;
+    }
+    this._lastIdleSignature = signature;
+    this._idleStreak = (this._idleStreak || 0) + 1;
 
     const pmMsg = document.createElement('div');
     pmMsg.className = 'chat-card chat-card-pm';
@@ -1613,8 +1641,16 @@ class AntColonyApp {
 
     this.setPMRunning(true);
     this.lastUserActivity = Date.now();
+    // Foydalanuvchi qaytdi — idle backoff va takror tekshiruvi qayta boshlanadi.
+    this._idleStreak = 0;
+    this._lastIdleSignature = null;
     if (this.canvas && this.canvas.setActiveStation) {
       this.canvas.setActiveStation('pm', 'Составление плана...');
+    }
+    // PM yangi topshiriq bo'yicha jamoani konferens-zalga yig'adi: rejalashtirish
+    // bosqichida robotlar stol atrofida o'tiradi, ekranda mavzu ko'rsatiladi.
+    if (this.canvas && typeof this.canvas.callTeamMeeting === 'function') {
+      this.canvas.callTeamMeeting(taskText.slice(0, 140), 20);
     }
     this.updateLiveHUD('Центральное управление (PM)', 'DeepSeek V4 Flash', `Анализ задачи: ${taskText.slice(0, 35)}...`, 10);
 
@@ -2271,6 +2307,8 @@ class AntColonyApp {
   // --- AI Leaderboard Modal ---
   async openLeaderboardModal() {
     document.getElementById('modal-ai-leaderboard').classList.remove('hidden');
+    // Ping/status/token ustunlari uchun jonli ma'lumot avval yuklanadi.
+    await this.loadModelHealthMap();
     this.renderLeaderboardData();
   }
 
@@ -2375,25 +2413,67 @@ class AntColonyApp {
       const score = cat === 'all' ? m.average_score : (m.category_scores ? m.category_scores[cat] || 85 : 85);
       const pct = Math.min(100, Math.max(0, score));
 
+      // Jonli sog'liq ma'lumoti: avval leaderboard qatoridan, keyin /api/models dan.
+      const live = (this._modelHealth && this._modelHealth[m.model_id]) || {};
+      const latMs = m.latency_ms || live.latency_ms || 0;
+      // O'lchanmagan ping soxta raqam bilan to'ldirilmaydi — "—" ko'rsatiladi.
+      const latency = latMs > 0
+        ? `${latMs} ms`
+        : '<span style="opacity:0.5">не измерен</span>';
+      const tokTotal = m.tokens_total || live.tokens_total || 0;
+      const tokens = tokTotal
+        ? this._fmtTokens(tokTotal)
+        : '<span style="opacity:0.5">0</span>';
+      const isBaseline = m.is_baseline || (m.total_evaluations || 0) === 0;
+
+      const statusMap = {
+        online: ['#10b981', 'Онлайн'],
+        rate_limited: ['#f59e0b', 'Лимит'],
+        degraded: ['#f59e0b', 'Нестабильно'],
+        timeout: ['#f59e0b', 'Таймаут'],
+        error: ['#ef4444', 'Ошибка'],
+        unknown: ['#94a3b8', 'Не проверен'],
+      };
+      const [stColor, stLabel] = statusMap[m.status || live.status] || statusMap.unknown;
+
       const tr = document.createElement('tr');
+      // MUHIM: sarlavhada 8 ustun bor — qatorda ham aynan 8 ta <td> bo'lishi shart.
+      // Ilgari "Задержка (Ping)" katagi tushib qolgani uchun barcha ustunlar
+      // bittaga chapga siljib, ma'lumot noto'g'ri sarlavha ostida chiqardi.
       tr.innerHTML = `
         <td><span class="lb-rank-num ${rankClass}">#${rank}</span></td>
-        <td><strong>${m.model_name}</strong><br><small style="color:#64748b; font-family:var(--font-mono)">${m.model_id}</small></td>
-        <td><span style="font-size:11px; background:rgba(139,92,246,0.1); padding:2px 6px; border-radius:4px">${m.provider}</span></td>
+        <td><strong>${this.esc(m.model_name)}</strong><br><small style="color:#64748b; font-family:var(--font-mono)">${this.esc(m.model_id)}</small></td>
+        <td><span style="font-size:11px; background:rgba(139,92,246,0.1); padding:2px 6px; border-radius:4px">${this.esc(m.provider)}</span></td>
         <td>
           <div class="lb-score-bar-wrap">
             <span class="lb-score-val">${score} ELO</span>
             <div class="lb-progress-bar">
-              <div class="lb-progress-fill" style="width: ${pct}%"></div>
+              <div class="lb-progress-fill${isBaseline ? ' is-baseline' : ''}" style="width: ${pct}%"></div>
             </div>
+            ${isBaseline ? '<small class="lb-baseline-note" title="Модель ещё не оценивалась в реальных задачах">базовая оценка</small>' : ''}
           </div>
         </td>
-        <td><span style="font-size:11px; font-weight:600; color:var(--color-purple)">${this.formatCategoryName(m.best_category)}</span></td>
-        <td>${m.total_evaluations || 0} оценок</td>
-        <td><span style="color:#10b981; font-weight:700">● Онлайн</span></td>
+        <td><span style="font-family:var(--font-mono); font-size:11.5px">${latency}</span></td>
+        <td><span style="font-size:11px; font-weight:600; color:var(--color-purple)">${this.esc(this.formatCategoryName(m.best_category))}</span></td>
+        <td><span style="font-family:var(--font-mono); font-size:11.5px">${tokens}</span><br><small style="color:#64748b">${m.total_evaluations || 0} оценок</small></td>
+        <td><span style="color:${stColor}; font-weight:700">● ${stLabel}</span></td>
       `;
       tbody.appendChild(tr);
     });
+  }
+
+  // Leaderboard uchun jonli model sog'lig'ini yuklaydi (ping, status, token sarfi).
+  async loadModelHealthMap() {
+    try {
+      const res = await fetch('/api/models');
+      if (!res.ok) return;
+      const data = await res.json();
+      const map = {};
+      (data.models || []).forEach(m => { map[m.id] = m; });
+      this._modelHealth = map;
+    } catch (e) {
+      console.warn('Model health fetch error:', e);
+    }
   }
 
   // --- CEO Modal & Terminal Executor ---
@@ -2988,6 +3068,24 @@ class AntColonyApp {
     // Workspace va generation sozlamalarni yuklaymiz
     this.refreshWorkspaceStatus();
     this.refreshGenSettings();
+    this.refreshFirstRunBanner();
+  }
+
+  // Hech qanday provayder kaliti yo'q bo'lsa — sehrgar tepasida ogohlantirish.
+  // Birinchi ishga tushirishda foydalanuvchi nima qilish kerakligini darrov ko'radi.
+  async refreshFirstRunBanner() {
+    const banner = document.getElementById('setup-first-run-banner');
+    if (!banner) return;
+    try {
+      const res = await fetch('/api/setup/status');
+      if (!res.ok) return;
+      const data = await res.json();
+      const active = Array.isArray(data.providers_active) ? data.providers_active : [];
+      banner.classList.toggle('hidden', active.length > 0);
+    } catch (e) {
+      // Tarmoq xatosi — bannerni majburan ko'rsatmaymiz.
+      banner.classList.add('hidden');
+    }
   }
 
   closeSetupModal() {

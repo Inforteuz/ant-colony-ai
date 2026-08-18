@@ -5228,3 +5228,219 @@ body.light-theme .kpi-file-chip {
   justify-content: center;
   margin-bottom: 10px;
 }
+
+/* Leaderboard: hali baholanmagan modellar ochiq belgilanadi (soxta ishonch bermaslik uchun) */
+.lb-baseline-note {
+  display: block;
+  margin-top: 3px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.lb-progress-fill.is-baseline {
+  opacity: 0.42;
+  background-image: repeating-linear-gradient(
+    45deg, rgba(255,255,255,0.16) 0 4px, transparent 4px 8px
+  );
+}
+
+/* ============================================================
+   KAMERA NAVIGATSIYASI — guruhlangan ixcham panel
+   14 ta tugma bitta qatorda ekran kengligini yeb qo'yardi.
+   ============================================================ */
+
+.hud-camera-bar {
+  gap: 6px !important;
+  flex-wrap: nowrap !important;
+  overflow: visible !important;
+  width: auto !important;
+  max-width: none !important;
+}
+
+.btn-cam-view svg,
+.btn-cam-group svg {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+}
+
+.hud-camera-bar > .btn-cam-view {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cam-group {
+  position: relative;
+}
+
+.btn-cam-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+  transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
+}
+.btn-cam-group:hover,
+.cam-group.is-open .btn-cam-group {
+  color: var(--text-main);
+  background: rgba(139, 92, 246, 0.12);
+  border-color: rgba(139, 92, 246, 0.35);
+}
+.cam-group.has-active .btn-cam-group {
+  color: var(--color-purple);
+  border-color: rgba(139, 92, 246, 0.45);
+}
+
+.cam-count {
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 9.5px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 15px;
+  color: var(--text-muted);
+  background: rgba(148, 163, 184, 0.16);
+}
+.cam-group.has-active .cam-count {
+  color: #fff;
+  background: var(--color-purple);
+}
+
+.cam-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 400;
+  min-width: 214px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px;
+  border-radius: 13px;
+  background: var(--bg-card-elevated);
+  border: 1px solid var(--border-subtle);
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.45);
+  animation: cam-pop-in 0.14s ease-out;
+}
+.cam-popover.hidden { display: none !important; }
+
+@keyframes cam-pop-in {
+  from { opacity: 0; transform: translateY(-5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.cam-popover .btn-cam-view {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.cam-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 6px currentColor;
+}
+
+.cam-popover-label {
+  padding: 6px 10px 3px;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+body.light-theme .cam-popover {
+  background: #ffffff;
+  border-color: rgba(15, 23, 42, 0.1);
+  box-shadow: 0 16px 42px rgba(15, 23, 42, 0.14);
+}
+
+/* Juda tor ekranda guruh tugmalarida faqat ikonka qoladi */
+@media (max-width: 720px) {
+  .btn-cam-group span,
+  .hud-camera-bar > .btn-cam-view span { display: none; }
+}
+
+/* Setup Wizard — birinchi ishga tushirish ogohlantirishi */
+.setup-first-run {
+  display: flex;
+  gap: 13px;
+  align-items: flex-start;
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  border-radius: 13px;
+  background: rgba(245, 158, 11, 0.09);
+  border: 1px solid rgba(245, 158, 11, 0.38);
+}
+.setup-first-run.hidden { display: none !important; }
+
+.setup-first-run-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.16);
+}
+.setup-first-run-icon svg { width: 17px; height: 17px; }
+
+.setup-first-run-body strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-main);
+}
+.setup-first-run-body p {
+  margin: 0 0 8px;
+  font-size: 11.8px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+.setup-first-run-body code {
+  padding: 1px 5px;
+  border-radius: 5px;
+  font-size: 11px;
+  background: rgba(148, 163, 184, 0.16);
+}
+
+.setup-key-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.setup-key-links a {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: none;
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.14);
+  border: 1px solid rgba(245, 158, 11, 0.32);
+  transition: background 0.16s ease;
+}
+.setup-key-links a:hover { background: rgba(245, 158, 11, 0.26); }

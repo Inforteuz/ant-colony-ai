@@ -547,24 +547,22 @@ class SkillMatrixEngine:
                 m_copy["best_category_key"] = "general"
                 m_copy["best_category_score"] = m.get("average_score", 85.0)
 
-            # Attach real ping and latency metric
+            # Haqiqiy ping va status. MUHIM: ilgari o'lchanmagan model uchun
+            # model nomiga qarab "taxminiy" latency to'qib chiqarilardi (190/280/340...)
+            # va u UI'da real o'lchov sifatida ko'rsatilardi. Bu foydalanuvchini
+            # chalg'itadi — endi o'lchanmagan qiymat 0 bo'lib qoladi, UI "—" chizadi.
             st = models_hub.stats.get(m["model_id"], {})
-            latency = st.get("latency_ms", 0)
-            if latency == 0:
-                mid = m.get("model_id", "").lower()
-                prov = m.get("provider", "").lower()
-                if "lightning" in mid or "groq" in prov: latency = 190
-                elif "flash" in mid or "gemini" in mid: latency = 280
-                elif "cohere" in mid: latency = 340
-                elif "deepseek" in mid: latency = 390
-                elif "hy3" in mid: latency = 440
-                else: latency = 520
-
-            m_copy["latency_ms"] = latency
-            m_copy["status"] = st.get("status", "online")
+            m_copy["latency_ms"] = st.get("latency_ms", 0)
+            m_copy["status"] = st.get("status", "unknown")
+            m_copy["tokens_total"] = st.get("tokens_total", 0)
+            # Model hali hech baholanmagan bo'lsa, ELO — bu boshlang'ich baza qiymati,
+            # o'lchov emas. UI shu bayroqqa qarab "базовая оценка" deb belgilaydi.
+            m_copy["is_baseline"] = (m.get("total_evaluations", 0) or 0) == 0
             ranked.append(m_copy)
 
-        fastest_m = min(ranked, key=lambda x: x.get("latency_ms", 9999)) if ranked else None
+        # Eng tez model faqat haqiqatan o'lchangan modellar orasidan tanlanadi.
+        measured = [r for r in ranked if (r.get("latency_ms") or 0) > 0]
+        fastest_m = min(measured, key=lambda x: x["latency_ms"]) if measured else None
 
         categories = [
             ("frontend_ui", "Frontend и UI"),
