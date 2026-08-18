@@ -2784,6 +2784,11 @@ class AntColonyApp {
     } else if (mode === 'custom') {
       payload.custom_base_url = document.getElementById('setup-custom-url').value.trim();
       payload.custom_key = document.getElementById('setup-custom-key').value.trim();
+    } else if (mode === 'telegram') {
+      document.getElementById('btn-save-tg-bot')?.click();
+      statusMsg.textContent = 'Telegram бот настроен!';
+      statusMsg.style.color = '#10b981';
+      return;
     }
 
     try {
@@ -3215,6 +3220,11 @@ window.addEventListener('DOMContentLoaded', () => {
       document.getElementById('panel-setup-custom').classList.toggle('hidden', mode !== 'custom');
       const recPanel = document.getElementById('panel-setup-recreation');
       if (recPanel) recPanel.classList.toggle('hidden', mode !== 'recreation');
+      const tgPanel = document.getElementById('panel-setup-telegram');
+      if (tgPanel) {
+        tgPanel.classList.toggle('hidden', mode !== 'telegram');
+        if (mode === 'telegram') window.antApp.loadTelegramBotStatus();
+      }
     });
   }
 
