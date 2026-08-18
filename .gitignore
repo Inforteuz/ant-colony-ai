@@ -46,11 +46,7 @@ workspace/
 
 # --- Ant Colony AI: mahalliy ish holati (ochiq repoga tushmasligi kerak) ---
 # Bularda foydalanuvchining shaxsiy so'rovlari, javoblari va buyruqlari saqlanadi.
-.prompt_cache.json
-pm_memory.json
-model_skill_matrix.json
-janitor_log.jsonl
-shell_audit.log
+data/
 telegram_config.json
 *.log
 
@@ -62,3 +58,7 @@ skills
 
 # Sinov paytida qolib ketgan artefakt
 create
+
+# Ichki spetsifikatsiya hujjatlari (repoga tushmaydi)
+docs/*.pdf
+docs/PROJECT_STATUS.md

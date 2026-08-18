@@ -7,7 +7,7 @@ import json
 import time
 from pathlib import Path
 from typing import Dict, List, Any, Optional
-from config import BASE_DIR, PROJECTS_BASE_DIR, WORKSPACE_DIR
+from ant_colony.config import BASE_DIR, PROJECTS_BASE_DIR, WORKSPACE_DIR
 
 MEMORY_FILE = BASE_DIR / "pm_memory.json"
 

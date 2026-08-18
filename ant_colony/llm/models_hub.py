@@ -6,8 +6,8 @@ import asyncio
 import aiohttp
 from pathlib import Path
 from typing import Dict, List, Any, Optional
-from config import PROVIDERS, MODELS_CATALOG, WORKSPACE_DIR, PROJECTS_BASE_DIR, AGENT_CONFIG
-from prompt_cache import prompt_cache
+from ant_colony.config import PROVIDERS, MODELS_CATALOG, WORKSPACE_DIR, PROJECTS_BASE_DIR, AGENT_CONFIG
+from ant_colony.llm.prompt_cache import prompt_cache
 
 class ModelsHub:
     # Circuit breaker: shu miqdor ketma-ket xatolikdan keyin model vaqtinchalik
@@ -237,7 +237,7 @@ class ModelsHub:
             return cached[1], cached[2]
 
         # Import shu yerda — modul yuklanish tartibida aylanma bog'liqlik bo'lmasligi uchun.
-        from tools import walk_project_files, get_active_project_dir
+        from ant_colony.runtime.tools import walk_project_files, get_active_project_dir
 
         file_count = 0
         total_bytes = 0

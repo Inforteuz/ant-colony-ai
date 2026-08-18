@@ -38,7 +38,7 @@ source venv/bin/activate          # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
 cp .env.example .env              # then put at least one API key in .env
-python server.py
+python run.py
 ```
 
 Open <http://127.0.0.1:8080>.
@@ -118,18 +118,35 @@ Found a security issue? Please open a private report rather than a public issue.
    breaker)
 ```
 
-| File | Responsibility |
-|---|---|
-| `server.py` | HTTP + SSE API, static hosting, orchestration entrypoints |
-| `agent_engine.py` / `agent_loop.py` | Agent run loop, tool-call parsing, repair cycle |
-| `llm_client.py` | Provider adapters, fallback chain, retries, timeouts |
-| `models_hub.py` | Model health, latency, token accounting, circuit breakers |
-| `skill_matrix.py` | Continuous ELO, category scores, role→model assignment |
-| `prompt_cache.py` | Disk-backed prompt cache and savings statistics |
-| `tools.py` | Tool implementations and the command safety layer |
-| `pm_memory.py` / `pm_proactive.py` | Long-term PM memory and proactive CEO briefings |
-| `static/hive3d.js` | Three.js office: rooms, agents, animation |
-| `roles/*.md` | Editable system prompts — one Markdown file per role |
+```
+run.py                        # entrypoint — python run.py
+ant_colony/
+├── config.py                 # paths, provider registry, agent tuning
+├── server.py                 # HTTP + SSE API, static hosting
+├── core/                     # orchestration
+│   ├── agent_engine.py       # agent run loop
+│   ├── agent_loop.py         # tool-call parsing, repair cycle
+│   ├── skill_matrix.py       # continuous ELO, role→model assignment
+│   ├── pm_memory.py          # long-term PM memory
+│   └── pm_proactive.py       # proactive CEO briefings
+├── llm/
+│   ├── client.py             # fallback chain, retries, timeouts
+│   ├── models_hub.py         # health, latency, tokens, circuit breakers
+│   └── prompt_cache.py       # disk cache + savings stats
+├── providers/                # BYOK: registry, drivers, secrets, SSRF guard
+│   └── drivers/              # one driver per wire protocol
+├── runtime/
+│   ├── tools.py              # fs / shell / python tools + safety layer
+│   └── workspace_janitor.py
+└── integrations/
+    └── telegram_bot.py
+static/                       # web UI (index.html, css/, js/, vendor/)
+roles/                        # editable system prompts, one .md per role
+data/                         # runtime state — gitignored
+docs/                         # specs and status notes
+scripts/                      # install.py, setup.sh
+tests/
+```
 
 ---
 
@@ -149,15 +166,15 @@ Builds analysis notebooks and statistical models.
 - Model evaluation and reporting
 ```
 
-Register it in `DEFAULT_ROLE_DEFINITIONS` in `config.py` with an `initial_model`, and the
+Register it in `DEFAULT_ROLE_DEFINITIONS` in `ant_colony/config.py` with an `initial_model`, and the
 role appears in the UI, gets ELO-scored, and becomes assignable by the PM. You can also
 create and edit roles live from **Инструменты → Редактор навыков**.
 
 ## Adding a provider
 
-Add an entry to `PROVIDERS` in `config.py` (base URL, key env var, chat endpoint) and list
+Add an entry to `PROVIDERS` in `ant_colony/config.py` (base URL, key env var, chat endpoint) and list
 its models in `MODELS_CATALOG`. OpenAI-compatible endpoints work without new adapter code;
-anything else needs a branch in `llm_client._call_provider`.
+anything else needs a driver in `ant_colony/providers/drivers/`.
 
 ---
 
@@ -167,7 +184,7 @@ Issues and pull requests are welcome. Please:
 
 - keep the existing code style (comments explain *why*, not *what*);
 - verify the UI in both light and dark themes;
-- never commit secrets, `.env`, or local state files (`.prompt_cache.json`, `pm_memory.json`).
+- never commit secrets, `.env`, or anything under `data/`.
 
 ## License
 
@@ -183,7 +200,7 @@ Issues and pull requests are welcome. Please:
 python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env      # .env ichiga kamida bitta API kalit yozing
-python server.py          # http://127.0.0.1:8080
+python run.py          # http://127.0.0.1:8080
 ```
 
 Kalitni UI orqali ham kiritish mumkin: **Настройки → Setup Wizard**. Kalitlar `.env` ga

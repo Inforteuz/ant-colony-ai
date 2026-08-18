@@ -201,7 +201,7 @@ class TelegramBotManager:
 
         if text.startswith("/status"):
             try:
-                from models_hub import models_hub
+                from ant_colony.llm.models_hub import models_hub
                 stats = models_hub.get_real_stats()
                 status_text = (
                     f"📊 *Ant Colony AI Tizim Holati*\n\n"
@@ -222,7 +222,7 @@ class TelegramBotManager:
         )
 
         try:
-            from agent_engine import agent_engine
+            from ant_colony.core.agent_engine import agent_engine
             final_answer = ""
             assigned_role = ""
             created_files = []
@@ -256,7 +256,7 @@ class TelegramBotManager:
 
             # Send created files if any
             if created_files:
-                from config import PROJECTS_BASE_DIR
+                from ant_colony.config import PROJECTS_BASE_DIR
                 await self.send_message(chat_id, f"📁 *Yaratilgan fayllar ({len(created_files)} ta):*")
                 for f_rel in created_files[:5]:
                     f_full = PROJECTS_BASE_DIR / f_rel

@@ -9,10 +9,10 @@ import time
 import random
 from pathlib import Path
 from typing import Dict, Any, List, Optional
-from config import BASE_DIR, MODELS_CATALOG, AGENT_CONFIG
+from ant_colony.config import DATA_DIR, ROLES_DIR, MODELS_CATALOG, AGENT_CONFIG
 
-MATRIX_FILE = BASE_DIR / "model_skill_matrix.json"
-ROLES_DIR = BASE_DIR / "roles"
+MATRIX_FILE = DATA_DIR / "model_skill_matrix.json"
+# ROLES_DIR endi config.py da markazlashtirilgan.
 
 # UCB izlanish koeffitsienti: kam sinalgan modellarga imkon berish kuchi.
 # 0 bo'lsa — sof greedy (bir marta yetakchi bo'lgan model abadiy yetakchi qoladi).
@@ -321,7 +321,7 @@ class SkillMatrixEngine:
         # Sog'liq holatini models_hub'dan olamiz (import shu yerda — aylanma importni oldini olish uchun).
         health: Dict[str, str] = {}
         try:
-            from models_hub import models_hub
+            from ant_colony.llm.models_hub import models_hub
             health = {k: v.get("status", "unknown") for k, v in models_hub.stats.items()}
         except Exception:
             pass
@@ -505,7 +505,7 @@ class SkillMatrixEngine:
             reverse=True
         )
 
-        from models_hub import models_hub
+        from ant_colony.llm.models_hub import models_hub
         ranked = []
         for idx, m in enumerate(sorted_models):
             rank = idx + 1

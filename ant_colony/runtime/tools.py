@@ -15,7 +15,7 @@ import shutil
 import subprocess
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Callable
-from config import BASE_DIR, WORKSPACE_DIR, PROJECTS_BASE_DIR
+from ant_colony.config import DATA_DIR, BASE_DIR, WORKSPACE_DIR, PROJECTS_BASE_DIR
 
 # Active Project Directory (Defaults to 04_Loyihalar)
 CURRENT_PROJECT_DIR: Path = PROJECTS_BASE_DIR
@@ -346,7 +346,7 @@ def _kill_process_tree(proc: subprocess.Popen):
 
 
 # --- Audit log ---
-_AUDIT_LOG_PATH = BASE_DIR / "shell_audit.log"
+_AUDIT_LOG_PATH = DATA_DIR / "shell_audit.log"
 
 
 def _audit_log(command: str, cwd: str, result: Dict[str, Any]):

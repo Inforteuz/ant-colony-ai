@@ -18,9 +18,9 @@ import time
 from collections import OrderedDict
 from pathlib import Path
 from typing import Dict, Any, Optional
-from config import BASE_DIR
+from ant_colony.config import DATA_DIR
 
-CACHE_FILE = BASE_DIR / ".prompt_cache.json"
+CACHE_FILE = DATA_DIR / "prompt_cache.json"
 
 MAX_ENTRIES = 400
 # Diskka yozishni shu qadar sekunddan tez-tez qilmaymiz.

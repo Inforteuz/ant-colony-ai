@@ -17,20 +17,20 @@ import asyncio
 import tempfile
 from pathlib import Path
 
-from config import MODELS_CATALOG, AGENT_CONFIG
-from tools import (
+from ant_colony.config import MODELS_CATALOG, AGENT_CONFIG
+from ant_colony.runtime.tools import (
     write_file, read_file, edit_file, list_files, list_dir, execute_python,
     calculate, run_shell_command, execute_tool, get_tool_schemas,
     render_tool_guide, set_active_project_dir, AVAILABLE_TOOLS,
 )
-from agent_loop import parse_text_tool_calls, split_reasoning
-from llm_client import _to_openai_messages, _to_gemini_payload, build_fallback_chain
-from agent_engine import (
+from ant_colony.core.agent_loop import parse_text_tool_calls, split_reasoning
+from ant_colony.llm.client import _to_openai_messages, _to_gemini_payload, build_fallback_chain
+from ant_colony.core.agent_engine import (
     sanitize_slug, select_specialist_role, extract_json_block, extract_score,
 )
-from skill_matrix import skill_matrix
-from models_hub import models_hub
-from prompt_cache import prompt_cache
+from ant_colony.core.skill_matrix import skill_matrix
+from ant_colony.llm.models_hub import models_hub
+from ant_colony.llm.prompt_cache import prompt_cache
 
 PASSED = 0
 FAILED = []
@@ -335,7 +335,7 @@ def test_monitor_config():
 
 async def test_online():
     print("\n=== ONLINE: haqiqiy model chaqiruvlari ===")
-    from llm_client import llm_client
+    from ant_colony.llm.client import llm_client
 
     res = await llm_client.complete(
         "posiden/deepseek-v4-flash",
@@ -360,7 +360,7 @@ async def test_online():
             print(f"     tool_calls={[c['name'] for c in res['tool_calls']]}")
 
     print("\n--- Agentic loop (haqiqiy fayl yaratish) ---")
-    from agent_loop import run_agent
+    from ant_colony.core.agent_loop import run_agent
     with tempfile.TemporaryDirectory() as tmp:
         set_active_project_dir(Path(tmp))
         final = None

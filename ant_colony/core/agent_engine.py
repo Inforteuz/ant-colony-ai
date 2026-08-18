@@ -20,18 +20,18 @@ import asyncio
 from pathlib import Path
 from typing import Dict, Any, List, AsyncGenerator, Optional, Tuple
 
-from config import (
+from ant_colony.config import (
     PROVIDERS, MODELS_CATALOG, WORKSPACE_DIR, PROJECTS_BASE_DIR,
     WORKSTATIONS, AGENT_CONFIG,
 )
-from tools import (
+from ant_colony.runtime.tools import (
     AVAILABLE_TOOLS, set_active_project_dir, get_active_project_dir, list_dir,
 )
-from models_hub import models_hub
-from skill_matrix import skill_matrix, DEFAULT_ROLE_DEFINITIONS
-from prompt_cache import prompt_cache
-from llm_client import llm_client
-from agent_loop import run_agent, split_reasoning, AgentRunResult
+from ant_colony.llm.models_hub import models_hub
+from ant_colony.core.skill_matrix import skill_matrix, DEFAULT_ROLE_DEFINITIONS
+from ant_colony.llm.prompt_cache import prompt_cache
+from ant_colony.llm.client import llm_client
+from ant_colony.core.agent_loop import run_agent, split_reasoning, AgentRunResult
 
 # Loyiha nomini yasashda tashlab yuboriladigan yordamchi so'zlar.
 _STOPWORDS = {
@@ -420,7 +420,7 @@ class AgentEngine:
 
     def extract_reasoning_and_content(self, raw_message: Dict[str, Any]) -> Tuple[str, str, Optional[Dict[str, Any]]]:
         """Eski API shakli — `agent_loop` funksiyalari ustidagi qobiq."""
-        from agent_loop import parse_text_tool_calls
+        from ant_colony.core.agent_loop import parse_text_tool_calls
         content = raw_message.get("content", "") or ""
         reasoning, clean = split_reasoning(content)
         calls, clean = parse_text_tool_calls(clean)
@@ -442,7 +442,7 @@ class AgentEngine:
         # PM uzoq muddatli xotira konteksti — oldingi loyihalar, kelajakdagi rejalar
         pm_mem_context = ""
         try:
-            from pm_memory import get_memory
+            from ant_colony.core.pm_memory import get_memory
             mem = get_memory()
             if mem:
                 snippet = mem.as_context_snippet(max_projects=5)
@@ -814,7 +814,7 @@ class AgentEngine:
         qa_score = extract_score(qa_text)
 
         # Deterministik statik va sintaksis tahlili
-        from tools import verify_code_syntax
+        from ant_colony.runtime.tools import verify_code_syntax
         syntax_res = verify_code_syntax()
         if not syntax_res.get("success"):
             issues_list = syntax_res.get("issues", [])

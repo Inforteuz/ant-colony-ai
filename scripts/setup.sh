@@ -2,6 +2,9 @@
 # Ant Colony AI — Quick Automated Setup Wrapper
 set -e
 
+# Skript scripts/ ichida — barcha amallar repo ildizida bajariladi.
+cd "$(dirname "$0")/.."
+
 echo "==================================================================="
 echo "   ANT COLONY AI — QUICK INSTALLER (PYTHON VIRTUALENV & SETUP)    "
 echo "==================================================================="

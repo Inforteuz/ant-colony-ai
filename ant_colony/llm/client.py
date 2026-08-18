@@ -17,9 +17,9 @@ import asyncio
 import aiohttp
 from typing import Dict, Any, List, Optional, Tuple
 
-from config import PROVIDERS, MODELS_CATALOG, AGENT_CONFIG
-from models_hub import models_hub
-from prompt_cache import prompt_cache
+from ant_colony.config import PROVIDERS, MODELS_CATALOG, AGENT_CONFIG
+from ant_colony.llm.models_hub import models_hub
+from ant_colony.llm.prompt_cache import prompt_cache
 
 # Zaxira zanjirining maksimal uzunligi — bitta chaqiruvda cheksiz urinmaslik uchun.
 MAX_FALLBACK_MODELS = 4

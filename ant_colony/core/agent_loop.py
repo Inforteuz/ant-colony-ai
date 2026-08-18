@@ -18,12 +18,12 @@ import json
 import time
 from typing import Dict, Any, List, AsyncGenerator, Optional
 
-from config import AGENT_CONFIG
-from tools import (
+from ant_colony.config import AGENT_CONFIG
+from ant_colony.runtime.tools import (
     AVAILABLE_TOOLS, execute_tool, get_tool_schemas, render_tool_guide,
     get_active_project_dir,
 )
-from llm_client import llm_client
+from ant_colony.llm.client import llm_client
 
 # Matndan asbob chaqirig'ini ajratish uchun naqshlar (native calling ishlamaganda).
 _FENCED_TOOL_RE = re.compile(
@@ -424,7 +424,7 @@ async def run_agent(
     # bo'yicha kod bloklarini avtomatik ajratib olib, fayllarga saqlaymiz.
     if not result.files_written and result.final_text:
         raw_text = result.final_text
-        from tools import write_file
+        from ant_colony.runtime.tools import write_file
 
         lang_mappings = [
             (r"```html\s*\n([\s\S]*?)```", "index.html"),
@@ -455,7 +455,7 @@ async def run_agent(
     # tuzatish urinishi beramiz. Bu agent'ning "TASK_COMPLETE"'ini haqiqiy natijaga bog'laydi.
     if result.files_written and not result.error:
         try:
-            from tools import verify_code_syntax
+            from ant_colony.runtime.tools import verify_code_syntax
             check = verify_code_syntax()
             if check.get("issues_count", 0) > 0:
                 issues = check.get("issues") or []

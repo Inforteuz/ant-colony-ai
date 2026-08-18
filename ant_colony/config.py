@@ -4,9 +4,22 @@ Configuration and model definitions for Ant Colony AI Platform.
 import os
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent
+# Paket `ant_colony/` ichida joylashgan, shuning uchun repo ildizi — ikki daraja tepada.
+# Barcha yo'l konstantalari shu yerdan hosil bo'ladi.
+PACKAGE_DIR = Path(__file__).resolve().parent
+BASE_DIR = PACKAGE_DIR.parent
+
+# Ishchi (vaqtinchalik) fayllar va runtime holati.
 WORKSPACE_DIR = BASE_DIR / "workspace"
 WORKSPACE_DIR.mkdir(exist_ok=True)
+
+# Runtime holati bitta joyda: kesh, ELO matritsasi, PM xotirasi, loglar.
+DATA_DIR = BASE_DIR / "data"
+DATA_DIR.mkdir(exist_ok=True)
+
+# Rol yo'riqnomalari (Markdown) va veb-interfeys.
+ROLES_DIR = BASE_DIR / "roles"
+STATIC_DIR = BASE_DIR / "static"
 
 
 def _load_dotenv(path: Path) -> None:

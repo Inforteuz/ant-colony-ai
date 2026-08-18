@@ -15,22 +15,23 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from config import (
-    BASE_DIR, WORKSPACE_DIR, PROJECTS_BASE_DIR, PROVIDERS, MODELS_CATALOG,
+from ant_colony.config import (
+    BASE_DIR, DATA_DIR, STATIC_DIR, ROLES_DIR,
+    WORKSPACE_DIR, PROJECTS_BASE_DIR, PROVIDERS, MODELS_CATALOG,
     WORKSTATIONS, AGENT_CONFIG,
 )
-from models_hub import models_hub
-from agent_engine import agent_engine
-from skill_matrix import skill_matrix
-from prompt_cache import prompt_cache
-from workspace_janitor import WorkspaceJanitor
-from pm_memory import PMMemory, init_memory, get_memory
-from tools import (
+from ant_colony.llm.models_hub import models_hub
+from ant_colony.core.agent_engine import agent_engine
+from ant_colony.core.skill_matrix import skill_matrix
+from ant_colony.llm.prompt_cache import prompt_cache
+from ant_colony.runtime.workspace_janitor import WorkspaceJanitor
+from ant_colony.core.pm_memory import PMMemory, init_memory, get_memory
+from ant_colony.runtime.tools import (
     AVAILABLE_TOOLS, get_tool_schemas, list_files, read_file, run_shell_command,
     get_active_project_dir, set_active_project_dir, AGENT_MEMORY, set_event_emitter,
     walk_project_files, _skip_entry, MAX_WALK_FILES,
 )
-import config as _config_module
+import ant_colony.config as _config_module
 
 app = FastAPI(title="Ant Colony AI Agent Platform")
 
@@ -50,12 +51,12 @@ async def on_startup():
     global _JANITOR
     _JANITOR = WorkspaceJanitor(
         projects_base_dir_getter=lambda: _config_module.PROJECTS_BASE_DIR,
-        log_path=BASE_DIR / "janitor_log.jsonl",
+        log_path=DATA_DIR / "janitor_log.jsonl",
         is_orchestration_active_getter=lambda: (CURRENT_JOB is not None and CURRENT_JOB.status == "running"),
     )
     _JANITOR.start()
     # PM Memory — long-term xotira (fayl asosida)
-    init_memory(BASE_DIR / "pm_memory.json")
+    init_memory(DATA_DIR / "pm_memory.json")
 
 
 _JANITOR: Optional[WorkspaceJanitor] = None
@@ -115,7 +116,7 @@ class ImportCustomModelsRequest(BaseModel):
 @app.get("/api/skills")
 async def list_skill_files():
     """Skill MD fayllar ro'yxatini qaytaradi."""
-    skills_dir = BASE_DIR / "roles"
+    skills_dir = ROLES_DIR
     files = []
     if skills_dir.exists():
         files = sorted([f.name for f in skills_dir.iterdir() if f.suffix == ".md" and not f.name.startswith(".")])
@@ -128,7 +129,7 @@ async def create_skill_file(req: CreateSkillRequest):
     if not clean_id:
         clean_id = f"custom_role_{int(time.time())}"
     fname = f"{clean_id}.md"
-    skill_path = BASE_DIR / "roles" / fname
+    skill_path = ROLES_DIR / fname
     default_content = req.content.strip() or f"# {req.name}\n\n## Описание роли\n{req.description}\n\n## Ключевые навыки (Skills)\n- Экспертное выполнение задач\n"
     skill_path.write_text(default_content, encoding="utf-8")
 
@@ -150,7 +151,7 @@ async def get_skill_file(filename: str):
     safe_name = os.path.basename(filename.strip())
     if not safe_name.endswith(".md"):
         raise HTTPException(status_code=400, detail="Разрешены только .md файлы")
-    skill_path = BASE_DIR / "roles" / safe_name
+    skill_path = ROLES_DIR / safe_name
     if not skill_path.exists():
         raise HTTPException(status_code=404, detail=f"Файл не найден: {safe_name}")
     content = skill_path.read_text(encoding="utf-8")
@@ -162,7 +163,7 @@ async def save_skill_file(filename: str, req: EditorSaveRequest):
     safe_name = os.path.basename(filename.strip())
     if not safe_name.endswith(".md"):
         raise HTTPException(status_code=400, detail="Разрешены только .md файлы")
-    skill_path = BASE_DIR / "roles" / safe_name
+    skill_path = ROLES_DIR / safe_name
     if not skill_path.parent.exists():
         skill_path.parent.mkdir(parents=True, exist_ok=True)
     skill_path.write_text(req.content, encoding="utf-8")
@@ -175,7 +176,7 @@ async def delete_skill_file(filename: str):
     safe_name = os.path.basename(filename.strip())
     if not safe_name.endswith(".md"):
         raise HTTPException(status_code=400, detail="Разрешены только .md файлы")
-    skill_path = BASE_DIR / "roles" / safe_name
+    skill_path = ROLES_DIR / safe_name
     if not skill_path.exists():
         raise HTTPException(status_code=404, detail=f"Файл не найден: {safe_name}")
     try:
@@ -1369,7 +1370,7 @@ async def deploy_to_netlify(req: NetlifyDeployRequest):
 
 # --- Mount Static Files ---
 
-STATIC_DIR = BASE_DIR / "static"
+# STATIC_DIR endi config.py da markazlashtirilgan.
 # --- Single-Line Code Obfuscation & Minification Router ---
 def _minify_code_stream(content: str, content_type: str = "text/html") -> str:
     """Kommentlar va bo'shliqlarni zichlab, bitta uzun qatorda xavfsiz qaytaradi."""
@@ -1397,7 +1398,7 @@ def _minify_code_stream(content: str, content_type: str = "text/html") -> str:
         return " ".join(lines)
     return content
 
-_ASSET_VERSION_RE = re.compile(r'(/static/([A-Za-z0-9_.\-]+))\?t=\d+')
+_ASSET_VERSION_RE = re.compile(r'(/static/((?:[A-Za-z0-9_\-]+/)*[A-Za-z0-9_.\-]+))\?t=\d+')
 
 
 def _bust_asset_cache(html: str) -> str:
@@ -1445,7 +1446,7 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 # FastAPI birinchi ro'yxatdan o'tgan marshrutni ishlatadi, shuning uchun u
 # hech qachon chaqirilmasdi — o'lik kod sifatida olib tashlandi.
 
-from pm_proactive import pm_proactive_engine
+from ant_colony.core.pm_proactive import pm_proactive_engine
 
 class PMFeedbackRequest(BaseModel):
     question_id: str
@@ -1542,7 +1543,7 @@ async def get_pm_suggestions(refresh: bool = False):
     suggestions = None
     source = "fallback"
     try:
-        from llm_client import llm_client
+        from ant_colony.llm.client import llm_client
         prompt = (
             "Ты — Project Manager AI платформы, которая создаёт проекты силами AI-агентов "
             "(разработчик, дизайнер, QA, DevOps, аналитик, маркетолог, юрист).\n\n"
@@ -1647,7 +1648,7 @@ async def get_ceo_insights(refresh: bool = False):
     insights = heuristics
     source = "heuristic"
     try:
-        from llm_client import llm_client
+        from ant_colony.llm.client import llm_client
         cache_stats = stats.get("prompt_cache") or {}
         summary = (
             f"Моделей всего: {stats.get('total_models')}, онлайн: {stats.get('online_models')}. "
@@ -1751,7 +1752,7 @@ STATIC_DEV_JOKES_POOL = [
 async def _generate_live_ai_joke() -> Optional[Dict[str, Any]]:
     """Generates a fresh, unique AI joke using fast LLM in background with minimal tokens."""
     try:
-        from llm_client import llm_client
+        from ant_colony.llm.client import llm_client
         prompt = (
             "Сгенерируй 1 свежую, смешную шутку или забавный диалог из 2 реплик между двумя IT специалистами "
             "(выбери пару из: coder, tester, deployer, pm, monitor, designer, researcher). "
@@ -1814,7 +1815,7 @@ async def _populate_dynamic_jokes_cache():
 
 
 # --- Telegram Bot API Endpoints ---
-from telegram_bot import telegram_bot_manager
+from ant_colony.integrations.telegram_bot import telegram_bot_manager
 
 @app.get("/api/telegram/status")
 async def get_telegram_status():
@@ -1853,30 +1854,3 @@ async def toggle_telegram_bot(payload: Dict[str, Any]):
     else:
         await telegram_bot_manager.stop()
         return {"success": True, "is_running": False}
-
-
-# ==========================================================
-# Entrypoint
-# ==========================================================
-# MUHIM: bu blok fayl OXIRIDA turishi shart. Ilgari u fayl o'rtasida edi va
-# undan keyin e'lon qilingan barcha marshrutlar (`/api/pm/*`, `/api/telegram/*`,
-# `/api/ceo/insights` ...) faqat uvicorn reload=True child jarayoni faylni
-# qaytadan import qilgani uchun ishlab ketardi. reload o'chirilsa yo'qolardi.
-if __name__ == "__main__":
-    import uvicorn
-
-    # Standart holatda faqat mahalliy interfeys. Platformada shell buyruqlarini
-    # bajaruvchi endpoint bor — uni tarmoqqa ochish autentifikatsiyasiz RCE demakdir.
-    # Ongli ravishda ochmoqchi bo'lsangiz: ANT_HOST=0.0.0.0 (izolyatsiyalangan tarmoqda).
-    host = os.getenv("ANT_HOST", "127.0.0.1")
-    port = int(os.getenv("ANT_PORT", "8080"))
-    reload_enabled = os.getenv("ANT_RELOAD", "0").lower() in ("1", "true", "yes")
-
-    if host not in ("127.0.0.1", "localhost", "::1"):
-        print(
-            f"\n[OGOHLANTIRISH] Server {host} manzilida tinglaydi — tarmoqdagi har kim "
-            f"terminal endpointi orqali buyruq bajara oladi.\n"
-            f"Buni faqat ishonchli, izolyatsiyalangan tarmoqda qiling.\n"
-        )
-
-    uvicorn.run("server:app", host=host, port=port, reload=reload_enabled)
