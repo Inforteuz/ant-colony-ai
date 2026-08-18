@@ -51,7 +51,7 @@ window.showToast = function(title, message, type = 'success', duration = 3500) {
 
 // Helper to sanitize long model names
 function cleanModelLabel(name) {
-  if (!name) return 'Kutish rejimida';
+  if (!name) return 'В режиме ожидания';
   let str = String(name).trim();
   if (str.includes('/')) str = str.split('/').pop();
   if (str.includes(':')) str = str.split(':')[0];
@@ -290,7 +290,7 @@ class IsometricHiveCanvas {
       ctx.fillText(cleanModel, sx, sy + height + 28);
     } else {
       ctx.fillStyle = isLight ? '#94a3b8' : '#64748b';
-      ctx.fillText(`${cleanModel} • Kutish rejimida`, sx, sy + height + 28);
+      ctx.fillText(`${cleanModel} • В режиме ожидания`, sx, sy + height + 28);
     }
 
     // Live Floating Action HUD Badge (Only when active)
@@ -1001,8 +1001,8 @@ class AntColonyApp {
     feed.innerHTML = `
       <div class="empty-feed-placeholder" id="pm-empty-placeholder">
         <svg class="placeholder-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-        <h4>Project Manager kutish rejimida</h4>
-        <p>Vazifa bering. Boshqaruvchi loyihani ishchi muhitda yaratadi, eng mos modelni tanlaydi va terminal orqali to‘liq bajaradi.</p>
+        <h4>Project Manager в режиме ожидания</h4>
+        <p>Поставьте задачу. PM составит архитектурный план, распределит подзадачи между AI агентами (Разработчик, Дизайнер, QA, DevOps) и полностью создаст готовый проект в рабочей среде.</p>
       </div>
     `;
   }
@@ -1805,7 +1805,7 @@ class AntColonyApp {
     // 3.7. Agent Errors / Warnings
     if (type === 'agent_error' || type === 'orchestration_failed') {
       this.appendFeedItem(feed, {
-        title: `${event.agent_name || 'Boshqaruvchi'}: xatolik`,
+        title: `${event.agent_name || 'Оркестратор'}: ошибка`,
         titleColor: '#ef4444', borderColor: '#ef4444',
         body: event.error
       });

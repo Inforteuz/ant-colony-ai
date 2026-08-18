@@ -317,7 +317,7 @@ class LLMClient:
 
         chain = build_fallback_chain(model_id, exclude=exclude_models)
         attempts: List[Dict[str, Any]] = []
-        last_error = "Noma'lum xatolik"
+        last_error = "Неизвестная ошибка"
 
         for m_id in chain:
             provider_id = _provider_for(m_id)
@@ -393,7 +393,7 @@ class LLMClient:
 
         return {
             "success": False,
-            "error": f"Barcha modellarga ulanishda xatolik: {last_error}",
+            "error": f"Ошибка подключения ко всем моделям: {last_error}",
             "text": "", "reasoning": "", "tool_calls": [],
             "usage": {}, "model_used": model_id, "provider": "",
             "duration_ms": 0, "cached": False, "fallback_used": True,

@@ -706,8 +706,8 @@ class AgentEngine:
                 f"Записанные файлы: {', '.join(coder_result.files_written) or '(файлы еще не созданы)'}\n\n"
                 f"## Отчет QA тестирования\n{qa_text[:4000]}\n\n"
                 f"## Отчет безопасности\n{security_text[:2500]}\n\n"
-                "Устраните указанные ЗАМЕЧАНИЯ. Avval `read_file` bilan mavjud "
-                "kodni o'qing, затем внесите точечные исправления через `edit_file` или `write_file`, "
+                "Устраните указанные ЗАМЕЧАНИЯ. Сначала прочитайте существующий код через `read_file`, "
+                "затем внесите точечные исправления через `edit_file` или `write_file`, "
                 "и проверьте результат. Не создавайте проект с нуля."
             )
 
@@ -715,7 +715,7 @@ class AgentEngine:
             async for event in run_agent(
                 station="coder", agent_name=f"{coder_display} (tuzatish #{repair_rounds})",
                 model_id=coder_model, role_md=coder_md,
-                task=f"Kamchiliklarni tuzatish: {task_prompt}",
+                task=f"Устранение замечаний: {task_prompt}",
                 context=repair_context,
                 tool_names=["read_file", "list_dir", "edit_file", "write_file",
                             "run_shell_command", "execute_python"],
@@ -834,7 +834,7 @@ class AgentEngine:
                         + "\n".join(f"- {n}" for n in repair_notes)) if repair_rounds else ""
 
         final_summary = (
-            f"### Vazifa muvaffaqiyatli yakunlandi\n\n"
+            f"### Задача успешно выполнена\n\n"
             f"**Loyiha manzili:** `{project_dir}`\n\n"
             f"**PM rejasi (`{plan['model_used']}`):**\n{plan['plan_text']}\n\n"
             f"---\n\n**Yaratilgan fayllar ({len(created_files)}):**\n{files_block}\n\n"
@@ -842,7 +842,7 @@ class AgentEngine:
             f"{coder_summary}\n\n"
             f"*Ish ko'rsatkichlari: {coder_result.steps} qadam, {coder_result.tool_calls} asbob chaqirig'i, "
             f"{round(coder_result.tool_success_rate * 100)}% muvaffaqiyat, {total_tokens} token.*\n\n"
-            f"---\n\n**QA hisoboti (`{tester_model}`):**\n{qa_text or '—'}\n\n"
+            f"---\n\n**Отчет QA (`{tester_model}`):**\n{qa_text or '—'}\n\n"
             f"---\n\n**Xavfsizlik auditi (`{security_model}`):**\n{security_text or '—'}"
             f"{repair_block}\n\n"
             f"---\n\n**Baholash (Continuous Learning):**\n"
