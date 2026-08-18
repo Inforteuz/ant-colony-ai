@@ -1234,7 +1234,7 @@ class AntColonyApp {
       };
 
       setEl('val-total-models', data.total_models || '21');
-      setEl('sub-online-models', `${data.online_models || 11} онлайн`);
+      setEl('sub-online-models', `${data.online_models || 11} в сети`);
       setEl('val-tasks-run', data.total_tasks_run || '0');
       
       const totalK = ((data.total_tokens_consumed || 0) / 1000).toFixed(1);

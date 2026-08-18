@@ -4254,10 +4254,7 @@ body.light-theme .code-editor-textarea {
 }
 
 /* KPI pill'lar hech qachon kengaymasin (max eni cheklangan) */
-.hud-kpi-pill {
-  max-width: 180px;
-  overflow: hidden;
-}
+
 
 /* 1550px'gacha: kichik podpistlarni yashiramiz */
 @media (max-width: 1550px) {
@@ -4695,3 +4692,89 @@ body.light-theme .ant-toast .toast-desc { color: #475569; }
 .kpi-purple .kpi-icon { color: var(--color-purple); }
 .kpi-emerald .kpi-icon { color: var(--color-emerald); }
 .kpi-amber .kpi-icon { color: var(--color-amber); }
+
+
+/* ============================================================
+   PIXEL-PERFECT HUD KPI PILLS
+   ============================================================ */
+.hud-kpi-bar {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex-wrap: nowrap !important;
+}
+
+.hud-kpi-pill {
+  max-width: none !important;
+  overflow: visible !important;
+  white-space: nowrap !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 5px 12px !important;
+  border-radius: 20px !important;
+  background: rgba(15, 23, 42, 0.65) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  cursor: pointer !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  user-select: none !important;
+}
+
+.hud-kpi-pill:hover {
+  background: rgba(30, 41, 59, 0.9) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+body.light-theme .hud-kpi-pill {
+  background: rgba(255, 255, 255, 0.85) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+body.light-theme .hud-kpi-pill:hover {
+  background: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.18) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.kpi-icon {
+  width: 13px !important;
+  height: 13px !important;
+  flex-shrink: 0 !important;
+}
+.kpi-purple .kpi-icon { color: var(--color-purple); }
+.kpi-emerald .kpi-icon { color: var(--color-emerald); }
+.kpi-amber .kpi-icon { color: var(--color-amber); }
+
+.kpi-val {
+  font-family: var(--font-mono);
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  color: var(--text-main) !important;
+  letter-spacing: -0.2px;
+}
+
+.kpi-label {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: var(--text-muted) !important;
+}
+
+.kpi-sub {
+  font-size: 9.5px !important;
+  font-weight: 700 !important;
+  padding: 2px 7px !important;
+  border-radius: 6px !important;
+  letter-spacing: 0.2px;
+  white-space: nowrap !important;
+}
+
+.kpi-purple .kpi-sub { color: #c084fc !important; background: rgba(168, 85, 247, 0.18) !important; border: 1px solid rgba(168, 85, 247, 0.25) !important; }
+.kpi-emerald .kpi-sub { color: #34d399 !important; background: rgba(16, 185, 129, 0.18) !important; border: 1px solid rgba(16, 185, 129, 0.25) !important; }
+.kpi-amber .kpi-sub { color: #fbbf24 !important; background: rgba(245, 158, 11, 0.18) !important; border: 1px solid rgba(245, 158, 11, 0.25) !important; }
+
+@media (max-width: 1200px) {
+  .kpi-label { display: none !important; }
+}
