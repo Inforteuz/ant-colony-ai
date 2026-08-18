@@ -3174,24 +3174,15 @@ async function deleteMdFile() {
 window.addEventListener('DOMContentLoaded', () => {
   window.antApp = new AntColonyApp();
 
-    // Tools Dropdown Toggle
+  // Tools Dropdown Toggle (Direct & Reliable)
   const btnToolsDropdown = document.getElementById('btn-top-tools-dropdown');
   const toolsMenu = document.getElementById('tools-dropdown-menu');
   if (btnToolsDropdown && toolsMenu) {
-    // Menu'ni body'ga ko'chiramiz — topbar overflow bilan kesilib qolmasin
-    if (toolsMenu.parentElement !== document.body) {
-      document.body.appendChild(toolsMenu);
-    }
-    btnToolsDropdown.addEventListener('click', (e) => {
+    btnToolsDropdown.onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();
-      // Menu'ning fixed pozitsiyasini tugma tagida joylashtiramiz
-      const rect = btnToolsDropdown.getBoundingClientRect();
-      toolsMenu.style.top = (rect.bottom + 6) + 'px';
-      toolsMenu.style.right = (window.innerWidth - rect.right) + 'px';
-      toolsMenu.style.left = 'auto';
       toolsMenu.classList.toggle('hidden');
-    });
+    };
 
     document.addEventListener('click', (e) => {
       if (!btnToolsDropdown.contains(e.target) && !toolsMenu.contains(e.target)) {
@@ -3200,9 +3191,9 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 
     toolsMenu.querySelectorAll('.menu-dropdown-item').forEach(item => {
-      item.addEventListener('click', () => {
+      item.onclick = () => {
         toolsMenu.classList.add('hidden');
-      });
+      };
     });
   }
 

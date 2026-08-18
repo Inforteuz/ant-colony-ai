@@ -53,7 +53,10 @@ class IsometricHive3D {
       deployer: { pos: new THREE.Vector3(3.5, 5, -2.5), target: new THREE.Vector3(3.5, 1.2, -8.3) },
       pingpong: { pos: new THREE.Vector3(22.0, 5.5, 23.5), target: new THREE.Vector3(22.0, 1.0, 16.0) },
       gym: { pos: new THREE.Vector3(-22.0, 5.5, -9.5), target: new THREE.Vector3(-22.0, 1.0, -16.0) },
-      football: { pos: new THREE.Vector3(0, 9.5, -11.0), target: new THREE.Vector3(0, 0.8, -23.5) }
+      football: { pos: new THREE.Vector3(0, 9.5, -11.0), target: new THREE.Vector3(0, 0.8, -23.5) },
+      conference: { pos: new THREE.Vector3(-22.0, 6.0, 23.5), target: new THREE.Vector3(-22.0, 1.2, 16.0) },
+      marketing: { pos: new THREE.Vector3(22.0, 6.0, -9.5), target: new THREE.Vector3(22.0, 1.2, -16.0) },
+      legal: { pos: new THREE.Vector3(-22.0, 6.0, 7.5), target: new THREE.Vector3(-22.0, 1.2, 0.0) }
     };
 
     this.targetCameraPos = this.cameraPresets.overview.pos.clone();
@@ -66,6 +69,9 @@ class IsometricHive3D {
     this.createPingPongArea();
     this.createGymArea();
     this.createFootballArea();
+    this.createConferenceRoom();
+    this.createMarketingAnalyticsWing();
+    this.createLegalDocsOffice();
     this.createDataStreamSystem();
     this.setupInteractions();
     this.setupCameraControlsUI();
