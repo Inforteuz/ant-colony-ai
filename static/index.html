@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ant Colony — AI Agent Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css?t=1787057000">
+</head>
+<body class="dark-theme full-3d-body">
+
+  <!-- 1. FULLSCREEN 3D VIEWPORT (100vw x 100vh background canvas) -->
+  <div class="hive-viewport fullscreen-viewport" id="hive-viewport">
+    <canvas id="hive-canvas"></canvas>
+  </div>
+
+  <!-- 2. FLOATING CYBER HUD LAYER (All controls & stats on top of 3D) -->
+  <div class="colony-hud-layer">
+
+    <!-- TOP FLOATING GLASSBAR -->
+    <header class="hud-topbar glass-card">
+      <!-- Brand Logo -->
+      <div class="hud-brand-box" style="display: flex; align-items: center; gap: 8px; flex-shrink: 0; min-width: 135px;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2" style="width: 24px; height: 24px; min-width: 24px; max-width: 24px; flex-shrink: 0; display: block;">
+          <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+          <polyline points="2 17 12 22 22 17"></polyline>
+          <polyline points="2 12 12 17 22 12"></polyline>
+        </svg>
+        <div style="display: flex; flex-direction: column; line-height: 1.1; user-select: none;">
+          <span style="font-size: 13px; font-weight: 800; color: var(--text-main); letter-spacing: 0.5px; white-space: nowrap;">ANT COLONY</span>
+          <span style="font-size: 8.5px; font-weight: 700; color: var(--color-purple); letter-spacing: 0.8px; white-space: nowrap;">AI SWARM</span>
+        </div>
+      </div>
+
+      <!-- Compact KPI HUD Stats -->
+      <div class="hud-kpi-bar">
+        <div class="hud-kpi-pill kpi-purple" title="Доступные AI модели">
+          <span class="kpi-label">Модели:</span>
+          <span class="kpi-val" id="val-total-models">21</span>
+          <span class="kpi-sub" id="sub-online-models">11 онлайн</span>
+        </div>
+        <div class="hud-kpi-pill kpi-emerald" title="Prompt Caching и экономия токенов">
+          <span class="kpi-label">Кэш:</span>
+          <span class="kpi-val" id="val-cache-tokens">0</span>
+          <span class="kpi-sub" id="sub-cache-hit">Хит 0%</span>
+        </div>
+        <div class="hud-kpi-pill kpi-amber" title="Объем рабочей среды и файлов">
+          <span class="kpi-label">Среда:</span>
+          <span class="kpi-val" id="val-workspace-bytes">0 KB</span>
+          <span class="kpi-sub" id="sub-workspace-files">0 файлов</span>
+        </div>
+        <div class="hud-kpi-pill kpi-yellow" title="Средняя задержка API">
+          <span class="kpi-label">Задержка:</span>
+          <span class="kpi-val" id="val-avg-latency">850 ms</span>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="hud-actions-group">
+        <!-- Tools Dropdown Button -->
+        <div class="tools-dropdown-wrap" style="position: relative;">
+          <button class="topbar-btn-pill" id="btn-top-tools-dropdown" title="Инструменты разработки и редакторы">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px; height:13px;"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+            <span>Инструменты ▾</span>
+          </button>
+          <div class="tools-dropdown-menu hidden glass-card" id="tools-dropdown-menu" style="position: absolute; top: calc(100% + 8px); right: 0; min-width: 210px; display: flex; flex-direction: column; gap: 4px; padding: 8px; border-radius: 12px; z-index: 150; box-shadow: 0 12px 35px rgba(0,0,0,0.5);">
+            <button class="menu-dropdown-item" id="btn-open-skill-editor" style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: transparent; border: none; color: var(--text-main); font-size: 12px; font-weight: 600; cursor: pointer; border-radius: 8px; text-align: left;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px; height:14px; color: var(--color-purple);"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+              <span>Редактор навыков</span>
+            </button>
+            <button class="menu-dropdown-item" id="btn-open-md-editor" style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: transparent; border: none; color: var(--text-main); font-size: 12px; font-weight: 600; cursor: pointer; border-radius: 8px; text-align: left;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px; height:14px; color: var(--color-emerald);"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              <span>Редактор MD</span>
+            </button>
+            <button class="menu-dropdown-item" id="btn-open-live-workspace" style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: transparent; border: none; color: var(--text-main); font-size: 12px; font-weight: 600; cursor: pointer; border-radius: 8px; text-align: left;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px; height:14px; color: var(--color-blue);"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+              <span>Живая рабочая среда</span>
+            </button>
+            <button class="menu-dropdown-item" id="btn-open-deploy" style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: transparent; border: none; color: var(--text-main); font-size: 12px; font-weight: 600; cursor: pointer; border-radius: 8px; text-align: left;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px; height:14px; color: var(--color-amber);"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+              <span>Деплой на Netlify/GitHub</span>
+            </button>
+          </div>
+        </div>
+
+        <button class="topbar-btn-pill highlight-gold" id="btn-top-leaderboard" title="Рейтинг AI моделей">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.45 1-1 1H7c-.55 0-1-.45-1-1v-2.34"/><path d="M18 14.66V17c0 .55-.45 1-1 1h-2c-.55 0-1-.45-1-1v-2.34"/><path d="M6 4h12v7a6 6 0 0 1-12 0V4z"/></svg>
+          <span>Рейтинг AI</span>
+        </button>
+        <button class="topbar-btn-pill" id="btn-top-open-ceo" title="CEO Брифинг и аналитика">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
+          <span>CEO</span>
+        </button>
+        <button class="topbar-btn-pill" id="btn-hive-open-roles" title="Матрица ролей и навыков">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+          <span>Роли</span>
+        </button>
+        <button class="topbar-btn-pill" id="btn-top-setup" title="Настройки API и провайдеров">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span>Настройки</span>
+        </button>
+        <button class="topbar-btn-pill btn-glow-purple" id="btn-pm-console-toggle" title="Консоль Project Manager">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <span>PM Консоль</span>
+        </button>
+        <button class="topbar-theme-toggle" id="btn-theme-toggle" title="Сменить тему оформления">
+          <svg class="theme-icon-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <svg class="theme-icon-light hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- FLOATING CAMERA PRESET BAR (Top-Left 3D Control) -->
+    <div class="hud-camera-bar glass-card" id="hive-camera-bar">
+      <button class="btn-cam-view active" data-view="overview" title="Общий обзор офиса">Обзор</button>
+      <button class="btn-cam-view" data-view="pm" title="Рабочее место PM">PM</button>
+      <button class="btn-cam-view" data-view="coder" title="Рабочее место разработчика">Разработчик</button>
+      <button class="btn-cam-view" data-view="designer" title="Рабочее место дизайнера">Дизайн</button>
+      <button class="btn-cam-view" data-view="tester" title="Рабочее место QA инженера">QA</button>
+      <button class="btn-cam-view" data-view="monitor" title="Рабочее место безопасности">Безопасность</button>
+      <button class="btn-cam-view" data-view="deployer" title="Рабочее место DevOps">DevOps</button>
+      <button class="btn-cam-view" data-view="researcher" title="Рабочее место аналитика">Аналитик</button>
+      <button class="btn-cam-view" data-view="pingpong" title="Зона отдыха и настольный теннис">Теннис</button>
+      <button class="btn-cam-view" data-view="gym" title="Зона разминки и калибровки">Фитнес</button>
+      <button class="btn-cam-view" data-view="football" title="Зона кибер-футбола">Футбол</button>
+    </div>
+
+    <!-- FLOATING ZOOM & VIEWPORT CONTROLS (Top-Right 3D Control) -->
+    <div class="hud-zoom-bar glass-card" style="position: absolute; top: 70px; right: 24px; display: flex; align-items: center; gap: 6px; z-index: 20; padding: 6px 12px; border-radius: var(--radius-md); backdrop-filter: blur(12px); box-shadow: var(--shadow-md);">
+      <button class="btn-zoom-ctrl" id="btn-zoom-in" title="Приблизить (+ / W / Стрелка вверх)" style="background: var(--bg-card); border: 1px solid var(--border-subtle); color: var(--text-main); width: 28px; height: 28px; border-radius: 6px; font-weight: bold; font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center;">+</button>
+      <button class="btn-zoom-ctrl" id="btn-zoom-out" title="Отдалить (- / S / Стрелка вниз)" style="background: var(--bg-card); border: 1px solid var(--border-subtle); color: var(--text-main); width: 28px; height: 28px; border-radius: 6px; font-weight: bold; font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center;">−</button>
+      <button class="btn-zoom-ctrl" id="btn-zoom-reset" title="Сбросить масштаб (R / Пробел)" style="background: var(--bg-card); border: 1px solid var(--border-subtle); color: var(--text-main); padding: 0 8px; height: 28px; border-radius: 6px; font-size: 11px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 12px; height: 12px;"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><polyline points="3 3 3 8 8 8"/></svg>
+        <span>Сброс</span>
+      </button>
+      <div style="font-size: 10px; color: var(--text-muted); padding-left: 6px; border-left: 1px solid var(--border-subtle); line-height: 1.2;">
+        <div>Колесико / W, S</div>
+        <div>Drag вращение</div>
+      </div>
+      <div id="fps-badge" title="FPS · Качество (клик — переключить high/medium/low/auto)" style="cursor:pointer; font-size:10px; padding:4px 8px; border-left:1px solid var(--border-subtle); margin-left:4px; color:var(--text-main); font-family:'JetBrains Mono',ui-monospace,monospace; line-height:1.15; user-select:none;">
+        <div><span id="fps-badge-fps">–</span> <span style="opacity:.6">fps</span></div>
+        <div style="font-size:9px;"><span id="fps-badge-mode" style="color:#22c55e; text-transform:uppercase; font-weight:700;">auto</span></div>
+      </div>
+    </div>
+
+    <!-- FLOATING WORKFLOW PIPELINE BAR (Bottom-Left) -->
+    <div class="hud-workflow-bar glass-card">
+      <div class="wf-label">АКТИВНЫЕ ПРОЦЕССЫ</div>
+      <div class="wf-pipeline" id="workflow-pipeline">
+        <div class="wf-step completed" id="wf-step-requirements"><svg class="wf-step-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span>Требования</span><span class="wf-dot"></span></div>
+        <div class="wf-arrow">&#8594;</div>
+        <div class="wf-step" id="wf-step-analysis"><svg class="wf-step-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><span>Анализ</span><span class="wf-dot"></span></div>
+        <div class="wf-arrow">&#8594;</div>
+        <div class="wf-step" id="wf-step-coding"><svg class="wf-step-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg><span>Разработка</span><span class="wf-dot"></span></div>
+        <div class="wf-arrow">&#8594;</div>
+        <div class="wf-step" id="wf-step-testing"><svg class="wf-step-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span>QA Тест</span><span class="wf-dot"></span></div>
+        <div class="wf-arrow">&#8594;</div>
+        <div class="wf-step" id="wf-step-deploy"><svg class="wf-step-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg><span>Деплой</span><span class="wf-dot"></span></div>
+        <div class="wf-arrow">&#8594;</div>
+        <div class="wf-step" id="wf-step-monitoring"><svg class="wf-step-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span>Мониторинг</span><span class="wf-dot"></span></div>
+      </div>
+    </div>
+
+    <!-- FLOATING LIVE AGENT ACTIVITY HUD (Bottom-Right) -->
+    <div class="hud-live-hud glass-card" id="hive-live-hud">
+      <div class="hud-agent-chip">
+        <span class="hud-pulse-dot" id="hud-pulse-dot"></span>
+        <span class="hud-agent-label" id="hud-agent-label">Центральное управление (PM)</span>
+        <span class="hud-model-tag" id="hud-model-tag">DeepSeek V4 Flash</span>
+      </div>
+      <div class="hud-action-stream" id="hud-action-stream">Система готова к выполнению задач</div>
+      <div class="hud-progress-meter"><div class="hud-progress-fill" id="hud-progress-fill" style="width: 0%"></div></div>
+    </div>
+
+  </div>
+
+  <!-- 3. ADVANCED PM CONSOLE DRAWER (Radically upgraded) -->
+  <div class="pm-console-drawer" id="pm-console-drawer">
+    <div class="drawer-header">
+      <div class="drawer-title-box">
+        <div class="pm-avatar-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        </div>
+        <div>
+          <div class="pm-main-title">Project Manager — Оркестратор</div>
+          <div class="pm-sub-title">Рабочая среда • Кэш промптов • Автономный пайплайн</div>
+        </div>
+      </div>
+      <div class="drawer-header-actions">
+        <button class="btn-drawer-action" id="btn-clear-pm-feed" title="Очистить историю">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px; height:13px;"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          <span>Очистить</span>
+        </button>
+        <button class="btn-drawer-close" id="btn-close-pm-drawer" title="Закрыть">✕</button>
+      </div>
+    </div>
+
+    <!-- Feed List Area -->
+    <div class="drawer-body">
+      <div class="pm-feed-list" id="pm-feed-list">
+        <div class="empty-feed-placeholder" id="pm-empty-placeholder">
+          <div class="placeholder-icon-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          </div>
+          <h4>Project Manager в режиме ожидания</h4>
+          <p>Поставьте задачу. PM составит архитектурный план, распределит подзадачи между AI агентами (Разработчик, Дизайнер, QA, DevOps) и полностью создаст готовый проект в рабочей среде.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer Input Area with Quick Suggestion Chips -->
+    <div class="drawer-footer">
+      <div class="quick-chips-row" id="pm-quick-chips">
+        <button class="quick-chip-btn" data-task="Создать 3D интерактивную страницу на Three.js с анимацией и частицами">3D Сайт на Three.js</button>
+        <button class="quick-chip-btn" data-task="Написать REST API сервер на FastAPI с Pydantic моделями и SQLite базой данных">FastAPI REST API</button>
+        <button class="quick-chip-btn" data-task="Создать интерактивный дашборд аналитики на HTML, CSS и Chart.js с темной темой">Дашборд аналитики</button>
+        <button class="quick-chip-btn" data-task="Создать полноценное приложение ToDo с локальным сохранением и категориями">ToDo приложение</button>
+      </div>
+      <div class="pm-input-wrapper">
+        <textarea id="pm-task-input" class="pm-textarea" placeholder="Поставьте задачу для Project Manager (например: 'Создать интерактивную страницу на HTML + CSS + JS')..." rows="2"></textarea>
+        <div class="pm-input-bottom-bar">
+          <span class="pm-input-hint">Нажмите <strong>Enter</strong> для отправки, <strong>Shift+Enter</strong> для новой строки</span>
+          <button class="btn-pm-send" id="btn-pm-send-task">
+            <span>Отправить</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Live Workspace Drawer — Real-time fayllar daraxti va terminal oqimi -->
+  <div class="live-workspace-drawer" id="live-workspace-drawer">
+    <div class="drawer-header">
+      <div class="drawer-title-box">
+        <div class="pm-avatar-icon" style="background: linear-gradient(135deg, #22d3ee, #0ea5e9);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+        </div>
+        <div>
+          <div class="pm-main-title">Live Workspace</div>
+          <div class="pm-sub-title">Файлы и терминал в реальном времени <span class="lw-live-dot" id="lw-live-dot"></span> <span id="lw-live-label">Ожидание</span></div>
+        </div>
+      </div>
+      <div class="drawer-header-actions">
+        <button class="btn-drawer-action" id="btn-lw-refresh" title="Обновить дерево файлов">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px; height:13px;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          <span>Обновить</span>
+        </button>
+        <button class="btn-drawer-action" id="btn-lw-clear-term" title="Очистить терминал">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px; height:13px;"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+          <span>Терминал</span>
+        </button>
+        <button class="btn-drawer-close" id="btn-close-lw-drawer" title="Закрыть">✕</button>
+      </div>
+    </div>
+
+    <div class="lw-body">
+      <!-- Fayllar daraxti -->
+      <div class="lw-panel lw-panel-tree">
+        <div class="lw-panel-head">
+          <span class="lw-panel-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px; height:14px;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            Файлы проекта
+          </span>
+          <span class="lw-panel-meta" id="lw-tree-meta">—</span>
+        </div>
+        <div class="lw-tree-scroll" id="lw-tree-scroll">
+          <div class="lw-placeholder">Загрузка дерева файлов…</div>
+        </div>
+      </div>
+
+      <!-- Terminal oqimi -->
+      <div class="lw-panel lw-panel-term">
+        <div class="lw-panel-head">
+          <span class="lw-panel-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px; height:14px;"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+            Терминал агентов
+          </span>
+          <span class="lw-panel-meta" id="lw-term-meta">0 команд</span>
+        </div>
+        <div class="lw-term-scroll" id="lw-term-scroll">
+          <div class="lw-placeholder">Ожидание команд от агентов…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. MODALS -->
+
+  <!-- CEO MODAL -->
+  <div class="modal-backdrop hidden" id="modal-ceo-briefing">
+    <div class="colony-modal-card ceo-modal-card">
+      <div class="modal-top">
+        <div class="ceo-title-wrap"><div class="ceo-badge-icon">CEO</div><div><h3>CEO Брифинг и аналитика процессов</h3><small class="text-secondary-sub">Статус выполнения, узкие места и использование ресурсов в реальном времени</small></div></div>
+        <button class="btn-modal-x" id="btn-close-ceo-modal">✕</button>
+      </div>
+      <div class="modal-scroll-body">
+        <div class="ceo-progress-banner">
+          <div class="ceo-banner-top"><span class="ceo-phase-name" id="ceo-phase-title">Задачи в режиме ожидания</span><span class="ceo-eta-badge" id="ceo-eta-badge">ETA: 0s</span></div>
+          <div class="ceo-meter-bar"><div class="ceo-meter-fill" id="ceo-meter-fill" style="width: 0%"></div></div>
+          <div class="ceo-banner-sub" id="ceo-status-msg">Project Manager ожидает новую задачу.</div>
+        </div>
+        <div class="ceo-kpi-grid">
+          <div class="ceo-kpi-tile"><div class="ceo-kpi-label">Активный агент и модель</div><div class="ceo-kpi-val" id="ceo-kpi-agent">В ожидании</div></div>
+          <div class="ceo-kpi-tile"><div class="ceo-kpi-label">Узкие места / Задержки</div><div class="ceo-kpi-val text-emerald" id="ceo-kpi-bottleneck">Узких мест нет</div></div>
+          <div class="ceo-kpi-tile"><div class="ceo-kpi-label">Папка рабочей среды</div><div class="ceo-kpi-val" id="ceo-kpi-dir" style="font-size:11px">/Users/apple/Desktop/04_Loyihalar</div></div>
+          <div class="ceo-kpi-tile"><div class="ceo-kpi-label">Экономия кэша промптов</div><div class="ceo-kpi-val text-purple" id="ceo-kpi-cache">0 токенов сэкономлено</div></div>
+        </div>
+        <div class="ceo-terminal-box">
+          <div class="terminal-header"><span>Системный терминал (В папке проекта)</span></div>
+          <div class="terminal-input-row">
+            <input type="text" id="ceo-terminal-input" placeholder="Команда терминала (например: ls -la, python -m py_compile ..., npm test)...">
+            <button id="btn-ceo-terminal-run">Выполнить</button>
+          </div>
+          <pre class="terminal-output" id="ceo-terminal-output">// Результаты выполнения команд отобразятся здесь</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROLES MODAL -->
+  <div class="modal-backdrop hidden" id="modal-roles-matrix">
+    <div class="colony-modal-card roles-modal-card">
+      <div class="modal-top">
+        <div><h3>Роли, инструкции MD и рейтинг моделей (Skill Matrix)</h3><small class="text-secondary-sub">Специализированные роли, системные инструкции и ELO матрица</small></div>
+        <button class="btn-modal-x" id="btn-close-roles-modal">✕</button>
+      </div>
+      <div class="modal-scroll-body">
+        <div class="roles-layout-grid">
+          <div class="roles-list-pane">
+            <div class="editor-sidebar-header">
+              <span class="editor-sidebar-label">Список ролей</span>
+              <button class="btn-editor-add" id="btn-add-role-modal" title="Создать новую специализированную роль">+ Добавить роль</button>
+            </div>
+            <div class="roles-items-container" id="roles-cards-list"></div>
+          </div>
+          <div class="role-md-preview-pane">
+            <div class="editor-toolbar">
+              <div class="role-md-title" id="role-preview-title">Выберите роль</div>
+              <div class="editor-toolbar-actions">
+                <button class="btn-hive-action" id="btn-toggle-role-inline-edit" style="background: var(--bg-card); border: 1px solid var(--border-subtle); color: var(--text-main); font-size: 11px;">Редактировать MD</button>
+                <button class="btn-hive-action hidden" id="btn-save-role-inline" style="background: var(--color-purple); color: #fff; font-size: 11px;">Сохранить</button>
+                <button class="btn-hive-action" id="btn-edit-role-in-skill-editor" style="background: var(--bg-card); border: 1px solid var(--border-subtle); color: var(--text-secondary); font-size: 11px;">В Skill Editor ↗</button>
+                <span class="editor-save-status" id="role-save-status"></span>
+              </div>
+            </div>
+            <div class="role-md-content formatted-markdown" id="role-preview-content">Выберите роль слева для просмотра инструкции.</div>
+            <textarea class="code-editor-textarea hidden" id="role-inline-textarea"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODELS MODAL -->
+  <div class="modal-backdrop hidden" id="modal-models-hub">
+    <div class="colony-modal-card">
+      <div class="modal-top">
+        <div><h3>Каталог моделей и автомониторинг</h3><small class="text-secondary-sub">Автоматически обновляется каждые 4 секунды</small></div>
+        <button class="btn-modal-x" id="btn-close-models-modal">✕</button>
+      </div>
+      <div class="modal-scroll-body">
+        <div class="modal-models-table-wrap">
+          <table class="colony-table">
+            <thead><tr><th>Модель</th><th>Провайдер</th><th>Статус (Авто)</th><th>Задержка (Latency)</th><th>Uptime</th><th>Контекст</th><th>Действие</th></tr></thead>
+            <tbody id="colony-models-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WORKSPACE MODAL -->
+  <div class="modal-backdrop hidden" id="modal-workspace">
+    <div class="colony-modal-card">
+      <div class="modal-top">
+        <div><h3>Файлы рабочей среды</h3><small class="text-secondary-sub">Расположение: <code>/Users/apple/Desktop/04_Loyihalar/</code></small></div>
+        <button class="btn-modal-x" id="btn-close-workspace-modal">✕</button>
+      </div>
+      <div class="modal-scroll-body">
+        <div class="workspace-grid-layout">
+          <div class="workspace-file-list" id="modal-files-list"></div>
+          <div class="workspace-file-view"><pre><code id="modal-file-code">// Выберите файл для просмотра</code></pre></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI LEADERBOARD MODAL -->
+  <div class="modal-backdrop hidden" id="modal-ai-leaderboard">
+    <div class="colony-modal-card modal-large">
+      <div class="modal-top">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div class="stat-icon-wrap" style="background: rgba(234, 179, 8, 0.15); color: #eab308; width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center;"><svg style="width: 18px; height: 18px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.45 1-1 1H7c-.55 0-1-.45-1-1v-2.34"/><path d="M18 14.66V17c0 .55-.45 1-1 1h-2c-.55 0-1-.45-1-1v-2.34"/><path d="M6 4h12v7a6 6 0 0 1-12 0V4z"/></svg></div>
+          <div><h3 style="font-size: 15px; font-weight: 800; color: var(--text-main);">Рейтинг AI моделей (Continuous ELO)</h3><small class="text-secondary-sub">После каждой задачи модели оцениваются и назначаются на лучшие роли</small></div>
+        </div>
+        <button class="btn-modal-x" id="btn-close-leaderboard-modal">✕</button>
+      </div>
+      <div class="modal-scroll-body">
+        <div class="leaderboard-fastest-banner" id="lb-fastest-banner">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 14px;">⚡</span>
+            <span style="font-weight: 700; color: var(--text-main);">Самый быстрый отклик (Ping):</span>
+            <span id="lb-fastest-model-name" style="color: #10b981; font-weight: 800;">Загрузка...</span>
+          </div>
+          <div id="lb-fastest-badge" class="latency-pill lat-fast">-- ms</div>
+        </div>
+        <div class="leaderboard-podium-grid" id="leaderboard-podium"></div>
+        <div class="leaderboard-filters-bar" id="lb-filters-bar">
+          <button class="lb-filter-btn active" data-cat="all">Все (Общий ELO)</button>
+          <button class="lb-filter-btn" data-cat="frontend_ui">Frontend и UI</button>
+          <button class="lb-filter-btn" data-cat="backend_api">Backend и API</button>
+          <button class="lb-filter-btn" data-cat="planning_pm">Project Manager</button>
+          <button class="lb-filter-btn" data-cat="qa_testing">QA и тесты</button>
+          <button class="lb-filter-btn" data-cat="devops">DevOps и деплой</button>
+          <button class="lb-filter-btn" data-cat="security">Безопасность</button>
+        </div>
+        <div class="modal-models-table-wrap">
+          <table class="colony-table lb-table">
+            <thead><tr><th style="width: 50px;">Место</th><th>Модель</th><th>Провайдер</th><th>Рейтинг ELO</th><th>Задержка (Ping)</th><th>Специализация</th><th>Статус</th></tr></thead>
+            <tbody id="leaderboard-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETUP WIZARD MODAL -->
+  <div class="modal-backdrop hidden" id="modal-setup-wizard">
+    <div class="colony-modal-card modal-large">
+      <div class="modal-top">
+        <div><h3 style="font-size: 15px; font-weight: 800; color: var(--text-main);">Ant Colony AI — Настройки API (Setup Wizard)</h3><small class="text-secondary-sub">Выберите единого провайдера или гибридный мульти-провайдерный режим</small></div>
+        <button class="btn-modal-x" id="btn-close-setup-modal">✕</button>
+      </div>
+      <div class="modal-scroll-body">
+        <!-- WORKSPACE DIR — устанавливается один раз, применяется live -->
+        <div class="workspace-setup-box" id="workspace-setup-box">
+          <div class="ws-setup-head">
+            <div>
+              <div class="ws-setup-title">Рабочая папка (Workspace)</div>
+              <div class="ws-setup-desc">Каталог, в котором AI агенты будут создавать новые папки для каждого проекта и писать код. Janitor автоматически чистит пустые папки, если агент не успел записать файлы.</div>
+            </div>
+          </div>
+          <div class="ws-input-row">
+            <input type="text" id="setup-workspace-path" class="ws-input" placeholder="~/Desktop/04_Loyihalar">
+            <button class="btn-hive-action ws-btn-secondary" id="btn-ws-browse" type="button">Обзор…</button>
+            <button class="btn-hive-action ws-btn-primary" id="btn-ws-apply" type="button">Применить</button>
+          </div>
+          <div class="ws-status-row" id="ws-status-row">
+            <span id="ws-current-label" class="ws-badge">Текущая: <span id="ws-current-path">—</span></span>
+            <span id="ws-janitor-label" class="ws-badge">🧹 Janitor: <span id="ws-janitor-info">запуск…</span></span>
+          </div>
+          <!-- Directory browser dropdown -->
+          <div class="ws-browser hidden" id="ws-browser">
+            <div class="ws-browser-head">
+              <button class="ws-browser-up" id="btn-ws-up" title="На уровень выше">↑</button>
+              <span class="ws-browser-cwd" id="ws-browser-cwd">~</span>
+              <button class="ws-browser-close" id="btn-ws-browser-close">✕</button>
+            </div>
+            <div class="ws-browser-list" id="ws-browser-list"></div>
+          </div>
+        </div>
+
+        <div class="leaderboard-filters-bar" id="setup-mode-tabs" style="margin-bottom: 18px;">
+          <button class="lb-filter-btn active" data-mode="single">Единый API провайдер (Рекомендуется)</button>
+          <button class="lb-filter-btn" data-mode="multi">Гибридный / Мульти-провайдер</button>
+          <button class="lb-filter-btn" data-mode="custom">Локальный / Свой (Ollama, LM Studio)</button>
+          <button class="lb-filter-btn" data-mode="recreation">Зоны отдыха и спорта</button>
+        </div>
+        <div class="setup-mode-panel" id="panel-setup-single">
+          <div style="background: var(--bg-card-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 16px; margin-bottom: 14px;">
+            <h4 style="font-size: 13px; font-weight: 700; margin-bottom: 6px; color: var(--text-main);">Быстрый старт с единым провайдером</h4>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <div><label style="font-size: 11px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">Выберите провайдера:</label>
+              <select id="setup-single-provider" class="search-input" style="width: 100%; border: 1px solid var(--border-subtle); background: var(--bg-card); color: var(--text-main); border-radius: var(--radius-sm); padding: 8px;">
+                <option value="github">GitHub Models (GitHub PAT — GPT-4o, DeepSeek-R1, Llama 3.3, Codestral)</option>
+                <option value="openrouter">OpenRouter (DeepSeek V4, Nemotron, Claude, GPT, Llama)</option>
+                <option value="gemini">Google Gemini (Gemini 2.5 Flash / Pro)</option>
+                <option value="openai">OpenAI (GPT-4o, GPT-4o-mini)</option>
+                <option value="groq">Groq (Llama 3.3 70B, DeepSeek R1 Distill)</option>
+              </select></div>
+              <div>
+                <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">API ключ или GitHub Token:</label>
+                <div class="key-test-row">
+                  <input type="password" id="setup-single-key" class="search-input key-test-input" placeholder="github_pat_... или sk-or-v1-... или AIzaSy...">
+                  <button class="btn-key-test" type="button" data-test-provider="single">Проверить</button>
+                </div>
+                <div class="key-test-result" id="key-test-single"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="setup-mode-panel hidden" id="panel-setup-multi">
+          <div style="background: var(--bg-card-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 16px; margin-bottom: 14px;">
+            <h4 style="font-size: 13px; font-weight: 700; margin-bottom: 6px; color: var(--text-main);">Гибридная мульти-провайдерная архитектура</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div>
+                <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">GitHub PAT:</label>
+                <div class="key-test-row">
+                  <input type="password" id="setup-multi-github" class="search-input key-test-input" placeholder="github_pat_...">
+                  <button class="btn-key-test" type="button" data-test-provider="github">Проверить</button>
+                </div>
+                <div class="key-test-result" id="key-test-github"></div>
+              </div>
+              <div>
+                <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">OpenRouter API ключ:</label>
+                <div class="key-test-row">
+                  <input type="password" id="setup-multi-openrouter" class="search-input key-test-input" placeholder="sk-or-v1-...">
+                  <button class="btn-key-test" type="button" data-test-provider="openrouter">Проверить</button>
+                </div>
+                <div class="key-test-result" id="key-test-openrouter"></div>
+              </div>
+              <div>
+                <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">Google Gemini API ключ:</label>
+                <div class="key-test-row">
+                  <input type="password" id="setup-multi-gemini" class="search-input key-test-input" placeholder="AIzaSy...">
+                  <button class="btn-key-test" type="button" data-test-provider="gemini">Проверить</button>
+                </div>
+                <div class="key-test-result" id="key-test-gemini"></div>
+              </div>
+              <div>
+                <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">OpenAI API ключ:</label>
+                <div class="key-test-row">
+                  <input type="password" id="setup-multi-openai" class="search-input key-test-input" placeholder="sk-...">
+                  <button class="btn-key-test" type="button" data-test-provider="openai">Проверить</button>
+                </div>
+                <div class="key-test-result" id="key-test-openai"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="setup-mode-panel hidden" id="panel-setup-custom">
+          <div style="background: var(--bg-card-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 16px; margin-bottom: 14px;">
+            <h4 style="font-size: 13px; font-weight: 700; margin-bottom: 6px; color: var(--text-main);">Локальный Ollama / LM Studio / Свой API Endpoint</h4>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <div>
+                <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">Base URL (OpenAI-совместимый / Ollama):</label>
+                <div style="display: flex; gap: 8px;">
+                  <input type="text" id="setup-custom-url" class="search-input" placeholder="http://localhost:11434/v1 или https://openrouter.ai/api/v1" value="http://localhost:11434/v1" style="flex: 1; border: 1px solid var(--border-subtle); background: var(--bg-card); color: var(--text-main); border-radius: var(--radius-sm); padding: 8px;">
+                  <button class="btn-hive-action" id="btn-fetch-custom-models" style="background: #3b82f6; color: #fff; padding: 8px 14px; white-space: nowrap; font-size: 11.5px; font-weight: 700;">
+                    Загрузить список моделей
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">API ключ (при необходимости / опционально):</label>
+                <input type="password" id="setup-custom-key" class="search-input" placeholder="sk-... или ollama" style="width: 100%; border: 1px solid var(--border-subtle); background: var(--bg-card); color: var(--text-main); border-radius: var(--radius-sm); padding: 8px;">
+              </div>
+              <div id="custom-models-fetch-box" class="custom-models-result-box hidden" style="background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                  <span id="custom-models-count-label" style="font-size: 11.5px; font-weight: 700; color: var(--text-main);">Обнаружено моделей: 0</span>
+                  <button class="btn-hive-action" id="btn-import-all-custom-models" style="background: var(--color-emerald); color: #fff; padding: 4px 10px; font-size: 11px;">Импортировать в систему</button>
+                </div>
+                <div id="custom-models-list-chips" style="display: flex; flex-wrap: wrap; gap: 6px; max-height: 140px; overflow-y: auto;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="setup-mode-panel hidden" id="panel-setup-recreation">
+          <div style="background: var(--bg-card-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 16px; margin-bottom: 14px;">
+            <h4 style="font-size: 13px; font-weight: 700; margin-bottom: 6px; color: var(--text-main);">Отображение зон отдыха (Футбол, Теннис, Фитнес)</h4>
+            <p style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 14px;">Настройте, когда зоны спорта и отдыха должны отображаться в 3D виртуальном офисе.</p>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <label style="display: flex; align-items: center; gap: 10px; padding: 10px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); cursor: pointer; background: var(--bg-card);">
+                <input type="radio" name="recreation_mode_radio" value="auto" checked style="accent-color: var(--color-purple);">
+                <div>
+                  <div style="font-size: 12px; font-weight: 700; color: var(--text-main);">Авто: Показывать только когда нет задач (Рекомендуется)</div>
+                  <div style="font-size: 11px; color: var(--text-muted);">При выполнении задачи зоны спорта скрываются, и все агенты работают в строгом офисном режиме. При простое появляются зоны отдыха.</div>
+                </div>
+              </label>
+              <label style="display: flex; align-items: center; gap: 10px; padding: 10px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); cursor: pointer; background: var(--bg-card);">
+                <input type="radio" name="recreation_mode_radio" value="always_show" style="accent-color: var(--color-purple);">
+                <div>
+                  <div style="font-size: 12px; font-weight: 700; color: var(--text-main);">Всегда показывать</div>
+                  <div style="font-size: 11px; color: var(--text-muted);">Зоны футбола, тенниса и фитнеса всегда видны в 3D пространстве.</div>
+                </div>
+              </label>
+              <label style="display: flex; align-items: center; gap: 10px; padding: 10px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); cursor: pointer; background: var(--bg-card);">
+                <input type="radio" name="recreation_mode_radio" value="disabled" style="accent-color: var(--color-purple);">
+                <div>
+                  <div style="font-size: 12px; font-weight: 700; color: var(--text-main);">Отключить полностью (Строгий офис)</div>
+                  <div style="font-size: 11px; color: var(--text-muted);">Зоны отдыха полностью скрыты, отображаются только рабочие столы и терминалы.</div>
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--border-subtle); padding-top: 14px;">
+          <div id="setup-status-msg" style="font-size: 12px; font-weight: 600; color: var(--text-secondary);"></div>
+          <div><button class="btn-hive-action" id="btn-setup-save" style="background: var(--color-purple); color: #fff; padding: 8px 18px; font-size: 12px; font-weight: 700; border-radius: var(--radius-sm);">Сохранить и применить</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SKILL EDITOR MODAL -->
+  <div class="modal-backdrop hidden" id="modal-skill-editor">
+    <div class="colony-modal-card skill-editor-card">
+      <div class="modal-top">
+        <div><h3 style="font-size: 15px; font-weight: 800; color: var(--text-main);">Редактор инструкций навыков MD</h3><small class="text-secondary-sub">Редактируйте системные инструкции агентов и сохраняйте изменения</small></div>
+        <button class="btn-modal-x" id="btn-close-skill-editor">✕</button>
+      </div>
+      <div class="modal-scroll-body editor-modal-body">
+        <div class="editor-layout">
+          <div class="editor-sidebar">
+            <div class="editor-sidebar-header">
+              <span class="editor-sidebar-label">Файлы навыков</span>
+              <button class="btn-editor-add" id="btn-create-new-skill" title="Создать новый файл навыка / роли">+ Создать</button>
+            </div>
+            <div id="skill-file-list" class="editor-file-list"></div>
+          </div>
+          <div class="editor-main">
+            <div class="editor-toolbar">
+              <span class="editor-current-file" id="skill-current-file">Файл не выбран</span>
+              <div class="editor-toolbar-actions">
+                <button class="btn-hive-action" id="btn-delete-skill" style="background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; color: #ef4444; font-size: 11px;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 13px; height: 13px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                  Удалить
+                </button>
+                <button class="btn-hive-action" id="btn-save-skill" style="background: var(--color-purple); color: #fff;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                  Сохранить
+                </button>
+                <span class="editor-save-status" id="skill-save-status"></span>
+              </div>
+            </div>
+            <textarea id="skill-editor-textarea" class="code-editor-textarea" placeholder="Выберите файл для редактирования..."></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MARKDOWN EDITOR MODAL -->
+  <div class="modal-backdrop hidden" id="modal-md-editor">
+    <div class="colony-modal-card skill-editor-card">
+      <div class="modal-top">
+        <div><h3 style="font-size: 15px; font-weight: 800; color: var(--text-main);">Редактор файлов Markdown</h3><small class="text-secondary-sub">Редактируйте файлы Markdown проекта в реальном времени</small></div>
+        <button class="btn-modal-x" id="btn-close-md-editor">✕</button>
+      </div>
+      <div class="modal-scroll-body editor-modal-body">
+        <div class="editor-layout">
+          <div class="editor-sidebar">
+            <div class="editor-sidebar-header">
+              <span class="editor-sidebar-label">Файлы проекта MD</span>
+              <button class="btn-editor-add" id="btn-create-new-md" title="Создать новый MD файл">+ Создать</button>
+            </div>
+            <div id="md-file-list" class="editor-file-list"></div>
+          </div>
+          <div class="editor-main">
+            <div class="editor-toolbar">
+              <span class="editor-current-file" id="md-current-file">Файл не выбран</span>
+              <div class="editor-toolbar-actions">
+                <button class="btn-hive-action" id="btn-save-md" style="background: #10b981; color: #fff;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                  Сохранить
+                </button>
+                <span class="editor-save-status" id="md-save-status"></span>
+              </div>
+            </div>
+            <textarea id="md-editor-textarea" class="code-editor-textarea" placeholder="Выберите файл для редактирования..."></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DEPLOY MODAL — GitHub va Netlify uchun -->
+  <div class="modal-backdrop hidden" id="modal-deploy">
+    <div class="colony-modal-card" style="max-width: 640px;">
+      <div class="modal-top">
+        <div class="modal-title-box">
+          <div class="modal-icon" style="background: linear-gradient(135deg, #10b981, #059669);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/></svg>
+          </div>
+          <div>
+            <div class="modal-title">Deploy проекта</div>
+            <div class="modal-sub">GitHub push и / или Netlify публикация</div>
+          </div>
+        </div>
+        <button class="btn-modal-x" id="btn-close-deploy">✕</button>
+      </div>
+
+      <div class="modal-body" style="padding: 18px;">
+        <div class="deploy-form-row">
+          <label class="deploy-label">Проект</label>
+          <select id="dep-project-select" class="deploy-input"></select>
+        </div>
+
+        <div class="deploy-tabs">
+          <button class="deploy-tab active" data-tab="github">GitHub</button>
+          <button class="deploy-tab" data-tab="netlify">Netlify</button>
+        </div>
+
+        <!-- GitHub tab -->
+        <div class="deploy-tab-panel" data-panel="github">
+          <div class="deploy-form-row">
+            <label class="deploy-label">Personal Access Token (repo scope)</label>
+            <input type="password" id="dep-gh-token" class="deploy-input" placeholder="ghp_...">
+          </div>
+          <div class="deploy-form-row">
+            <label class="deploy-label">Имя репозитория</label>
+            <input type="text" id="dep-gh-repo" class="deploy-input" placeholder="my-awesome-project">
+          </div>
+          <div class="deploy-form-row">
+            <label class="deploy-label">Описание (необязательно)</label>
+            <input type="text" id="dep-gh-desc" class="deploy-input" placeholder="Проект создан Ant Colony AI">
+          </div>
+          <div class="deploy-form-row" style="display:flex; align-items:center; gap:8px;">
+            <input type="checkbox" id="dep-gh-private">
+            <label for="dep-gh-private" style="margin:0; cursor:pointer;">Приватный репозиторий</label>
+          </div>
+          <button class="btn-deploy-run" id="btn-deploy-github">Создать репо и push</button>
+        </div>
+
+        <!-- Netlify tab -->
+        <div class="deploy-tab-panel hidden" data-panel="netlify">
+          <div class="deploy-form-row">
+            <label class="deploy-label">Netlify PAT</label>
+            <input type="password" id="dep-nf-token" class="deploy-input" placeholder="nfp_...">
+          </div>
+          <div class="deploy-form-row">
+            <label class="deploy-label">Название сайта (необязательно)</label>
+            <input type="text" id="dep-nf-name" class="deploy-input" placeholder="my-site (будет my-site.netlify.app)">
+          </div>
+          <button class="btn-deploy-run" id="btn-deploy-netlify">Deploy на Netlify</button>
+        </div>
+
+        <div class="deploy-result" id="dep-result" style="display:none;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCRIPTS -->
+  <script src="/static/three.min.js"></script>
+  <script src="/static/OrbitControls.js"></script>
+  <script src="/static/hive3d.js?t=1787057000"></script>
+  <script src="/static/app.js?t=1787057000"></script>
+</body>
+</html>

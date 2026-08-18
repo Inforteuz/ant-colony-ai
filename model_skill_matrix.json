@@ -1,0 +1,392 @@
+{
+  "models": {
+    "gemini-3.7-flash": {
+      "model_id": "gemini-3.7-flash",
+      "model_name": "Gemini 3.7 Flash (1M Context)",
+      "provider": "gemini",
+      "total_evaluations": 1,
+      "average_score": 84.2,
+      "category_scores": {
+        "planning_pm": 85.0,
+        "frontend_ui": 79.0,
+        "backend_api": 92.0,
+        "algorithms": 85.0,
+        "qa_testing": 80.0,
+        "devops": 88.0,
+        "security": 82.0,
+        "research": 83.0
+      },
+      "history": [
+        {
+          "timestamp": 1786972192.445001,
+          "role_id": "frontend_architect",
+          "category": "frontend_ui",
+          "score": 68.0,
+          "feedback": "Kamchiliklar tuzatildi.\nBaho: 93/100"
+        }
+      ]
+    },
+    "gemini-3.6-flash": {
+      "model_id": "gemini-3.6-flash",
+      "model_name": "Gemini 3.6 Flash (1M Context)",
+      "provider": "gemini",
+      "total_evaluations": 1,
+      "average_score": 83.4,
+      "category_scores": {
+        "planning_pm": 85.0,
+        "frontend_ui": 72.1,
+        "backend_api": 92.0,
+        "algorithms": 85.0,
+        "qa_testing": 80.0,
+        "devops": 88.0,
+        "security": 82.0,
+        "research": 83.0
+      },
+      "history": [
+        {
+          "timestamp": 1786972253.55357,
+          "role_id": "frontend_architect",
+          "category": "frontend_ui",
+          "score": 54.2,
+          "feedback": "matn"
+        }
+      ]
+    },
+    "gemini-3.5-flash-lite": {
+      "model_id": "gemini-3.5-flash-lite",
+      "model_name": "Gemini 3.5 Flash Lite",
+      "provider": "gemini",
+      "total_evaluations": 1,
+      "average_score": 85.1,
+      "category_scores": {
+        "planning_pm": 85.0,
+        "frontend_ui": 85.6,
+        "backend_api": 92.0,
+        "algorithms": 85.0,
+        "qa_testing": 80.0,
+        "devops": 88.0,
+        "security": 82.0,
+        "research": 83.0
+      },
+      "history": [
+        {
+          "timestamp": 1786983799.723281,
+          "role_id": "ui_designer",
+          "category": "frontend_ui",
+          "score": 81.2,
+          "feedback": "**QA Test Natijalari**\n\n**Fayl tarkibi (list_dir):**\n- `index.html` (638 bayt)\n- `script.js` (2263 bayt)\n\n**Kod oqimi (read_file) va tahlili:**\n\n1. **index.html** - To'liq to'g'ri struktura, canvas el"
+        }
+      ]
+    },
+    "gemini-2.5-flash": {
+      "model_id": "gemini-2.5-flash",
+      "model_name": "Gemini 2.5 Flash",
+      "provider": "gemini",
+      "total_evaluations": 1,
+      "average_score": 86.1,
+      "category_scores": {
+        "planning_pm": 94.0,
+        "frontend_ui": 65.0,
+        "backend_api": 92.0,
+        "algorithms": 93.0,
+        "qa_testing": 80.0,
+        "devops": 88.0,
+        "security": 82.0,
+        "research": 95.0
+      },
+      "history": [
+        {
+          "timestamp": 1786985122.383581,
+          "role_id": "frontend_architect",
+          "category": "frontend_ui",
+          "score": 40.0,
+          "feedback": "Port 8000 already has a process running. Let me try running the server on a different port and test the application.\n<tool_call>\n<function=run_shell_command>\n<parameter=timeout>\n10\n</parameter>\n<param"
+        }
+      ]
+    },
+    "posiden/deepseek-v4-flash": {
+      "model_id": "posiden/deepseek-v4-flash",
+      "model_name": "DeepSeek V4 Flash",
+      "provider": "17_wtf",
+      "total_evaluations": 4,
+      "average_score": 93.0,
+      "category_scores": {
+        "planning_pm": 96.0,
+        "frontend_ui": 90.8,
+        "backend_api": 96.0,
+        "algorithms": 95.0,
+        "qa_testing": 90.0,
+        "devops": 94.0,
+        "security": 90.0,
+        "research": 92.0
+      },
+      "history": [
+        {
+          "timestamp": 1786968171.186871,
+          "role_id": "frontend_architect",
+          "category": "frontend_ui",
+          "score": 75.0,
+          "feedback": "read_file: /Users/apple/Desktop/04_Loyihalar/gullayotgan_daraxt_animatsiyasini_html"
+        },
+        {
+          "timestamp": 1786989283.413471,
+          "role_id": "performance_optimizer",
+          "category": "frontend_ui",
+          "score": 89.2,
+          "feedback": "# QA & Test Automation Specialist Hisoboti\n\n## 1. Umumiy ko'riblick\nLoyihada 5 ta fayl mavjud: `audit_profile.py` va `modules/` papkasi ichidagi 4 ta modul. Barcha fayllarni o'qib, ularni ishga tushir"
+        },
+        {
+          "timestamp": 1787032637.671493,
+          "role_id": "frontend_architect",
+          "category": "frontend_ui",
+          "score": 92.9,
+          "feedback": "## QA Test Automation Report\n\n### Ishlab chiqarilgan natija / Результат выполнения\n\nMening fuqarolikimda: `/Users/apple/Desktop/04_Loyihalar/beautiful_stopwatch` papkasida 3 ta asosiy fayl topildi:\n\n1"
+        },
+        {
+          "timestamp": 1787037351.6939478,
+          "role_id": "frontend_architect",
+          "category": "frontend_ui",
+          "score": 91.0,
+          "feedback": "# QA Test Results: Animated Clock Project\n\n## Fayl tarkibi (Files Overview)\n- `index.html` — 1 fayl, 56 qator\n- `styles.css` — 1 fayl, 187 qator  \n- `script.js` — 1 fayl, 53 qator\n\n## 1. `index.html` "
+        }
+      ]
+    },
+    "posiden/nemotron-3.5-lightning": {
+      "model_id": "posiden/nemotron-3.5-lightning",
+      "model_name": "Nemotron 3.5 Lightning",
+      "provider": "17_wtf",
+      "total_evaluations": 3,
+      "average_score": 86.3,
+      "category_scores": {
+        "planning_pm": 85.0,
+        "frontend_ui": 82.0,
+        "backend_api": 84.0,
+        "algorithms": 85.0,
+        "qa_testing": 97.8,
+        "devops": 80.0,
+        "security": 94.0,
+        "research": 83.0
+      },
+      "history": [
+        {
+          "timestamp": 1786968171.187489,
+          "role_id": "qa_test_automation",
+          "category": "qa_testing",
+          "score": 95.0,
+          "feedback": "QA test tahlili muvaffaqiyatli o'tkazildi"
+        },
+        {
+          "timestamp": 1786983799.726627,
+          "role_id": "qa_test_automation",
+          "category": "qa_testing",
+          "score": 100.0,
+          "feedback": "Hisobot to'liqligi va ball berilganiga qarab baholandi"
+        },
+        {
+          "timestamp": 1787032637.6733172,
+          "role_id": "qa_test_automation",
+          "category": "qa_testing",
+          "score": 100.0,
+          "feedback": "Hisobot to'liqligi va ball berilganiga qarab baholandi"
+        }
+      ]
+    },
+    "posiden/hy3": {
+      "model_id": "posiden/hy3",
+      "model_name": "HY3 Enterprise",
+      "provider": "17_wtf",
+      "total_evaluations": 0,
+      "average_score": 88.0,
+      "category_scores": {
+        "planning_pm": 85.0,
+        "frontend_ui": 82.0,
+        "backend_api": 84.0,
+        "algorithms": 85.0,
+        "qa_testing": 80.0,
+        "devops": 94.0,
+        "security": 82.0,
+        "research": 83.0
+      },
+      "history": []
+    },
+    "posiden/nemotron-3-ultra": {
+      "model_id": "posiden/nemotron-3-ultra",
+      "model_name": "Nemotron 3 Ultra (1M Context)",
+      "provider": "17_wtf",
+      "total_evaluations": 2,
+      "average_score": 85.6,
+      "category_scores": {
+        "planning_pm": 85.0,
+        "frontend_ui": 82.0,
+        "backend_api": 84.0,
+        "algorithms": 85.0,
+        "qa_testing": 92.0,
+        "devops": 80.0,
+        "security": 94.0,
+        "research": 83.0
+      },
+      "history": [
+        {
+          "timestamp": 1786972192.445827,
+          "role_id": "qa_test_automation",
+          "category": "qa_testing",
+          "score": 80.0,
+          "feedback": "Hisobot to'liqligi va ball berilganiga qarab baholandi"
+        },
+        {
+          "timestamp": 1787037351.695779,
+          "role_id": "qa_test_automation",
+          "category": "qa_testing",
+          "score": 100.0,
+          "feedback": "Hisobot to'liqligi va ball berilganiga qarab baholandi"
+        }
+      ]
+    },
+    "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free": {
+      "model_id": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "model_name": "Nemotron 3 Nano Omni Reasoning",
+      "provider": "openrouter",
+      "total_evaluations": 2,
+      "average_score": 85.6,
+      "category_scores": {
+        "planning_pm": 85.0,
+        "frontend_ui": 82.0,
+        "backend_api": 84.0,
+        "algorithms": 85.0,
+        "qa_testing": 92.0,
+        "devops": 80.0,
+        "security": 94.0,
+        "research": 83.0
+      },
+      "history": [
+        {
+          "timestamp": 1786985122.3865411,
+          "role_id": "qa_test_automation",
+          "category": "qa_testing",
+          "score": 100.0,
+          "feedback": "Hisobot to'liqligi va ball berilganiga qarab baholandi"
+        },
+        {
+          "timestamp": 1786989283.414339,
+          "role_id": "qa_test_automation",
+          "category": "qa_testing",
+          "score": 80.0,
+          "feedback": "Hisobot to'liqligi va ball berilganiga qarab baholandi"
+        }
+      ]
+    },
+    "nvidia/nemotron-3-ultra-550b-a55b:free": {
+      "model_id": "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "model_name": "Nemotron 3 Ultra 550B",
+      "provider": "openrouter",
+      "total_evaluations": 1,
+      "average_score": 83.9,
+      "category_scores": {
+        "planning_pm": 85.0,
+        "frontend_ui": 82.0,
+        "backend_api": 84.0,
+        "algorithms": 85.0,
+        "qa_testing": 78.0,
+        "devops": 80.0,
+        "security": 94.0,
+        "research": 83.0
+      },
+      "history": [
+        {
+          "timestamp": 1786972253.554549,
+          "role_id": "qa_test_automation",
+          "category": "qa_testing",
+          "score": 60.0,
+          "feedback": "Hisobot to'liqligi va ball berilganiga qarab baholandi"
+        }
+      ]
+    },
+    "cohere/north-mini-code:free": {
+      "model_id": "cohere/north-mini-code:free",
+      "model_name": "Cohere North Mini Code",
+      "provider": "openrouter",
+      "total_evaluations": 0,
+      "average_score": 88.0,
+      "category_scores": {
+        "planning_pm": 85.0,
+        "frontend_ui": 82.0,
+        "backend_api": 84.0,
+        "algorithms": 85.0,
+        "qa_testing": 80.0,
+        "devops": 80.0,
+        "security": 82.0,
+        "research": 83.0
+      },
+      "history": []
+    },
+    "poolside/laguna-xs-2.1:free": {
+      "model_id": "poolside/laguna-xs-2.1:free",
+      "model_name": "Poolside Laguna XS 2.1",
+      "provider": "openrouter",
+      "total_evaluations": 0,
+      "average_score": 88.0,
+      "category_scores": {
+        "planning_pm": 85.0,
+        "frontend_ui": 82.0,
+        "backend_api": 84.0,
+        "algorithms": 85.0,
+        "qa_testing": 80.0,
+        "devops": 80.0,
+        "security": 82.0,
+        "research": 83.0
+      },
+      "history": []
+    },
+    "dots-studio/dots-3-note-preview:free": {
+      "model_id": "dots-studio/dots-3-note-preview:free",
+      "model_name": "Dots 3 Note Preview",
+      "provider": "openrouter",
+      "total_evaluations": 0,
+      "average_score": 88.0,
+      "category_scores": {
+        "planning_pm": 85.0,
+        "frontend_ui": 82.0,
+        "backend_api": 84.0,
+        "algorithms": 85.0,
+        "qa_testing": 80.0,
+        "devops": 80.0,
+        "security": 82.0,
+        "research": 83.0
+      },
+      "history": []
+    },
+    "liquid/lfm-2.5-2.6b:free": {
+      "model_id": "liquid/lfm-2.5-2.6b:free",
+      "model_name": "Liquid LFM 2.5 2.6B",
+      "provider": "openrouter",
+      "total_evaluations": 0,
+      "average_score": 88.0,
+      "category_scores": {
+        "planning_pm": 85.0,
+        "frontend_ui": 82.0,
+        "backend_api": 84.0,
+        "algorithms": 85.0,
+        "qa_testing": 80.0,
+        "devops": 80.0,
+        "security": 82.0,
+        "research": 83.0
+      },
+      "history": []
+    }
+  },
+  "role_assignments": {
+    "pm_orchestrator": "posiden/hy3",
+    "frontend_architect": "gemini-3.5-flash-lite",
+    "ui_designer": "posiden/deepseek-v4-flash",
+    "backend_engineer": "posiden/deepseek-v4-flash",
+    "algorithm_solver": "gemini-2.5-flash",
+    "qa_test_automation": "posiden/nemotron-3.5-lightning",
+    "devops_deployer": "posiden/hy3",
+    "database_architect": "posiden/deepseek-v4-flash",
+    "security_auditor": "posiden/nemotron-3.5-lightning",
+    "data_miner_researcher": "gemini-2.5-flash",
+    "performance_optimizer": "posiden/deepseek-v4-flash",
+    "system_troubleshooter": "posiden/deepseek-v4-flash"
+  },
+  "last_updated": 1787051843.7410738
+}
