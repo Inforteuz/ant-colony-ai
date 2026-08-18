@@ -4262,7 +4262,8 @@ body.light-theme .code-editor-textarea {
 /* 1550px'gacha: kichik podpistlarni yashiramiz */
 @media (max-width: 1550px) {
   .hud-kpi-pill .kpi-sub {
-    display: none !important;
+    font-size: 8.5px !important;
+    padding: 1px 4px !important;
   }
   .hud-kpi-pill .kpi-label {
     font-size: 10px !important;
@@ -4669,3 +4670,28 @@ body.light-theme .ant-toast .toast-desc { color: #475569; }
 @media (max-width: 720px) {
   .gen-grid { grid-template-columns: 1fr; }
 }
+
+
+.hud-kpi-pill {
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+}
+
+.hud-kpi-pill:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  border-color: rgba(255, 255, 255, 0.25) !important;
+}
+
+.kpi-icon {
+  width: 12px;
+  height: 12px;
+  opacity: 0.85;
+  flex-shrink: 0;
+}
+.kpi-purple .kpi-icon { color: var(--color-purple); }
+.kpi-emerald .kpi-icon { color: var(--color-emerald); }
+.kpi-amber .kpi-icon { color: var(--color-amber); }

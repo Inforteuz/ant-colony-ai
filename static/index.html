@@ -34,26 +34,30 @@
         </div>
       </div>
 
-      <!-- Compact KPI HUD Stats -->
+      <!-- Clear, Intuitive KPI HUD Stats with Icons and Clickable Triggers -->
       <div class="hud-kpi-bar">
-        <div class="hud-kpi-pill kpi-purple" title="Доступные AI модели">
-          <span class="kpi-label">Модели:</span>
+        <!-- 1. AI Models -->
+        <div class="hud-kpi-pill kpi-purple" id="pill-models-kpi" title="AI Модели: 21 нейросеть подключена (нажмите для открытия рейтинга ELO)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="kpi-icon"><path d="M12 2a8 8 0 0 0-8 8c0 3.36 2.07 6.24 5 7.42V20a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-2.58c2.93-1.18 5-4.06 5-7.42a8 8 0 0 0-8-8z"/><path d="M9 10h.01"/><path d="M15 10h.01"/><path d="M9.5 15a3.5 3.5 0 0 0 5 0"/></svg>
+          <span class="kpi-label">AI Модели:</span>
           <span class="kpi-val" id="val-total-models">21</span>
-          <span class="kpi-sub" id="sub-online-models">11 онлайн</span>
+          <span class="kpi-sub" id="sub-online-models">11 активны</span>
         </div>
-        <div class="hud-kpi-pill kpi-emerald" title="Prompt Caching и экономия токенов">
-          <span class="kpi-label">Кэш:</span>
+
+        <!-- 2. Token Savings (Prompt Cache) -->
+        <div class="hud-kpi-pill kpi-emerald" id="pill-cache-kpi" title="Экономия токенов: умный кэш сэкономил токены и ускорил генерацию (нажмите для аналитики)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="kpi-icon"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          <span class="kpi-label">Экономия:</span>
           <span class="kpi-val" id="val-cache-tokens">0</span>
-          <span class="kpi-sub" id="sub-cache-hit">Хит 0%</span>
+          <span class="kpi-sub" id="sub-cache-hit">токен</span>
         </div>
-        <div class="hud-kpi-pill kpi-amber" title="Объем рабочей среды и файлов">
-          <span class="kpi-label">Среда:</span>
+
+        <!-- 3. Projects Storage -->
+        <div class="hud-kpi-pill kpi-amber" id="pill-workspace-kpi" title="Папка проектов на Рабочем столе (04_Loyihalar): нажмите для открытия файлов">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="kpi-icon"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          <span class="kpi-label">Проекты:</span>
           <span class="kpi-val" id="val-workspace-bytes">0 KB</span>
           <span class="kpi-sub" id="sub-workspace-files">0 файлов</span>
-        </div>
-        <div class="hud-kpi-pill kpi-yellow" title="Средняя задержка API">
-          <span class="kpi-label">Задержка:</span>
-          <span class="kpi-val" id="val-avg-latency">850 ms</span>
         </div>
       </div>
 
