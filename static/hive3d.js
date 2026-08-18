@@ -477,14 +477,12 @@ class IsometricHive3D {
       }
 
       ctx.beginPath();
-      ctx.roundRect(8, 8, 624, 184, 24);
       ctx.fill();
       ctx.stroke();
 
       // Top glowing bar
       ctx.fillStyle = colorHex;
       ctx.beginPath();
-      ctx.roundRect(24, 14, 592, 4, 2);
       ctx.fill();
 
       // Role title
@@ -768,15 +766,30 @@ class IsometricHive3D {
     canvas.height = 64;
     const ctx = canvas.getContext('2d');
 
+    // Helper: draw pill/rounded rect (no roundRect — cross-browser safe)
+    const drawPill = (x, y, w, h, r) => {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.arcTo(x + w, y, x + w, y + r, r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+      ctx.lineTo(x + r, y + h);
+      ctx.arcTo(x, y + h, x, y + h - r, r);
+      ctx.lineTo(x, y + r);
+      ctx.arcTo(x, y, x + r, y, r);
+      ctx.closePath();
+    };
+
     // Background badge pill
     ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
-    ctx.beginPath();
-    ctx.roundRect(10, 10, 236, 44, 22);
+    drawPill(10, 10, 236, 44, 22);
     ctx.fill();
 
-    // Glowing border matching station
+    // Glowing border
     ctx.strokeStyle = colorHex || '#38bdf8';
-    ctx.lineWidth = 3.5;
+    ctx.lineWidth = 3;
+    drawPill(10, 10, 236, 44, 22);
     ctx.stroke();
 
     // Status beacon dot
@@ -787,14 +800,14 @@ class IsometricHive3D {
 
     // Role Name
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 21px Plus Jakarta Sans, sans-serif';
+    ctx.font = 'bold 20px monospace';
     ctx.fillText(roleName, 50, 39);
 
     const texture = new THREE.CanvasTexture(canvas);
     const mat = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
     const sprite = new THREE.Sprite(mat);
     sprite.scale.set(1.9, 0.48, 1.0);
-    sprite.position.set(0, 2.22, 0); // Directly above robot head!
+    sprite.position.set(0, 2.22, 0);
     return sprite;
   }
 
@@ -996,7 +1009,6 @@ class IsometricHive3D {
     ctx.strokeStyle = '#06b6d4';
     ctx.lineWidth = 4;
     ctx.beginPath();
-    ctx.roundRect(8, 8, 496, 164, 20);
     ctx.fill();
     ctx.stroke();
 
@@ -1179,7 +1191,7 @@ class IsometricHive3D {
     lctx.fillStyle = isLight ? 'rgba(255, 255, 255, 0.94)' : 'rgba(10, 25, 20, 0.92)';
     lctx.strokeStyle = '#10b981';
     lctx.lineWidth = 3;
-    lctx.beginPath(); lctx.roundRect(8, 8, 424, 64, 16); lctx.fill(); lctx.stroke();
+    lctx.beginPath(); llctx.fill(); lctx.stroke();
 
     lctx.fillStyle = '#10b981';
     lctx.font = 'bold 22px Plus Jakarta Sans, sans-serif';
@@ -1334,7 +1346,6 @@ class IsometricHive3D {
     ctx.strokeStyle = '#10b981';
     ctx.lineWidth = 4;
     ctx.beginPath();
-    ctx.roundRect(8, 8, 784, 164, 20);
     ctx.fill();
     ctx.stroke();
 
@@ -2503,7 +2514,6 @@ class IsometricHive3D {
     ctx.strokeStyle = typeof colorHex === 'string' ? colorHex : ('#' + colorHex.toString(16).padStart(6, '0'));
     ctx.lineWidth = 4;
     ctx.beginPath();
-    ctx.roundRect(8, 8, 384, 96, 16);
     ctx.fill();
     ctx.stroke();
 
