@@ -1184,40 +1184,108 @@ async def post_pm_generate_doc(req: PMDocGenerateRequest):
     res = pm_proactive_engine.generate_recommended_doc(req.filename)
     return res
 
+# --- Dynamic AI Joke Generator with LRU Non-Repeating Pool ---
+_SERVED_JOKES_HISTORY = set()
+_DYNAMIC_AI_JOKES_CACHE = []
+
+STATIC_DEV_JOKES_POOL = [
+    # Coder & QA
+    {"speaker_a": "coder", "speaker_b": "tester", "text_a": "QA, я написал 500 строк кода без единого бага!", "text_b": "Отлично! Сейчас я отправлю пустой массив и нажму Enter 100 раз.", "tokens": 24},
+    {"speaker_a": "tester", "speaker_b": "coder", "text_a": "Захожу в бар, заказываю: 1 кружку, 0 кружек, 999999 кружек, NULL кружек.", "text_b": "И бар выдержал? А потом пришел клиент и спросил, где туалет...", "tokens": 28},
+    {"speaker_a": "coder", "speaker_b": "tester", "text_a": "Этот баг невозможно воспроизвести на моей локальной машине!", "text_b": "Тогда отдадим твой MacBook клиенту в качестве продакшн сервера.", "tokens": 22},
+    {"speaker_a": "tester", "speaker_b": "coder", "text_a": "Я нашел критическую ошибку в релизной ветке.", "text_b": "Это не баг, это недокументированная фича для опытных пользователей.", "tokens": 25},
+    {"speaker_a": "coder", "speaker_b": "tester", "text_a": "Мои unit-тесты покрывают 100% кода!", "text_b": "Но проверяют только то, что 2 + 2 = 4, верно?", "tokens": 21},
+
+    # DevOps & Coder
+    {"speaker_a": "deployer", "speaker_b": "coder", "text_a": "Кто запустил деплой в пятницу в 18:00?!", "text_b": "Я просто хотел протестировать CI/CD пайплайн перед выходными...", "tokens": 23},
+    {"speaker_a": "deployer", "speaker_b": "coder", "text_a": "Почему Docker образ весит 4.8 гигабайта?", "text_b": "Там просто node_modules и немного душевного тепла.", "tokens": 24},
+    {"speaker_a": "coder", "speaker_b": "deployer", "text_a": "Kubernetes под снова упал с ошибкой OOMKilled!", "text_b": "Дай ему еще 16 гигабайт оперативной памяти, пусть подавится.", "tokens": 26},
+    {"speaker_a": "deployer", "speaker_b": "coder", "text_a": "Мы переходим на serverless архитектуру.", "text_b": "Значит, теперь наши баги будут масштабироваться автоматически?", "tokens": 22},
+    {"speaker_a": "coder", "speaker_b": "deployer", "text_a": "Скрипт миграции базы данных выполняется уже 4 часа.", "text_b": "Главное — не нажимай Ctrl+C, иначе база превратится в тыкву.", "tokens": 25},
+
+    # PM & Coder
+    {"speaker_a": "pm", "speaker_b": "coder", "text_a": "Ты оценил эту задачу в 2 часа, почему делаешь её третий день?", "text_b": "2 часа ушло на код, и 60 часов на выбор правильного имени переменной.", "tokens": 27},
+    {"speaker_a": "pm", "speaker_b": "coder", "text_a": "Заказчик попросил сделать кнопку немного круглее и более синей.", "text_b": "Хорошо, переписываю всю архитектуру на микросервисы.", "tokens": 24},
+    {"speaker_a": "pm", "speaker_b": "designer", "text_a": "Где макеты для нового спринта?", "text_b": "Я подбираю идеальный оттенок черного между #0a0f1d и #0b1122.", "tokens": 23},
+    {"speaker_a": "pm", "speaker_b": "coder", "text_a": "Давайте проведем ретроспективу, чтобы обсудить почему мы не успели.", "text_b": "Если бы мы не проводили столько митингов, мы бы всё успели вовремя.", "tokens": 26},
+    {"speaker_a": "coder", "speaker_b": "pm", "text_a": "Техдолг проекта достиг критического уровня.", "text_b": "Запланируем рефакторинг на следующий квартал... то есть никогда.", "tokens": 24},
+
+    # Security & Coder
+    {"speaker_a": "monitor", "speaker_b": "coder", "text_a": "Я нашел пароль от продакшн базы прямо в открытом README!", "text_b": "Зато дежурный инженер никогда его не потеряет.", "tokens": 25},
+    {"speaker_a": "monitor", "speaker_b": "deployer", "text_a": "Кто выставил права chmod 777 на корневую папку?", "text_b": "Зато теперь ни у одного сервиса нет проблем с доступом!", "tokens": 23},
+    {"speaker_a": "monitor", "speaker_b": "coder", "text_a": "В коде обнаружена потенциальная SQL инъекция.", "text_b": "Это не инъекция, это прямое общение пользователя с базой данных.", "tokens": 26},
+    {"speaker_a": "coder", "speaker_b": "monitor", "text_a": "Нам правда нужна двухфакторная аутентификация для тестового стенда?", "text_b": "Да, и биометрия сетчатки глаза тоже не помешает.", "tokens": 24},
+
+    # Designer & Frontend
+    {"speaker_a": "designer", "speaker_b": "coder", "text_a": "Сдвинь, пожалуйста, эту плашку на 1.5 пикселя влево.", "text_b": "У дисплеев нет полупикселей! Ладно, включу subpixel anti-aliasing.", "tokens": 26},
+    {"speaker_a": "designer", "speaker_b": "coder", "text_a": "В светлой теме этот фиолетовый выглядит слишком неоново.", "text_b": "Это не баг, это киберпанк эстетика Ant Colony!", "tokens": 22},
+    {"speaker_a": "coder", "speaker_b": "designer", "text_a": "Зачем нам 14 разных состояний для одной кнопки?", "text_b": "Пользователь должен чувствовать эмоциональную связь с интерфейсом.", "tokens": 25},
+
+    # Data Analyst & PM
+    {"speaker_a": "researcher", "speaker_b": "pm", "text_a": "Наш ELO алгоритм показал 99.8% точности на тестовых данных!", "text_b": "Поздравляю, вы только что заново изобрели переобучение (overfitting).", "tokens": 25},
+    {"speaker_a": "researcher", "speaker_b": "coder", "text_a": "Prompt Caching сэкономил нам 1.4 миллиона токенов за неделю.", "text_b": "Отлично, теперь мы можем с чистой совестью генерировать новые мемы!", "tokens": 27},
+    {"speaker_a": "researcher", "speaker_b": "tester", "text_a": "Датасет очищен от выбросов и аномалий.", "text_b": "Теперь запустим наши тесты и вернем все аномалии обратно.", "tokens": 23}
+]
+
+async def _generate_live_ai_joke() -> Optional[Dict[str, Any]]:
+    """Generates a fresh, unique AI joke using fast LLM in background with minimal tokens."""
+    try:
+        from llm_client import generate_completion
+        prompt = (
+            "Сгенерируй 1 свежую, смешную шутку или забавный диалог из 2 реплик между двумя IT специалистами "
+            "(выбери пару из: coder, tester, deployer, pm, monitor, designer, researcher). "
+            "Шутка должна быть про код, деплой, баги, кэш или архитектуру. "
+            "Верни ТОЛЬКО валидный JSON: {\"speaker_a\": \"coder\", \"speaker_b\": \"tester\", \"text_a\": \"...\", \"text_b\": \"...\"}"
+        )
+        res = await generate_completion(
+            model_id="gemini-2.5-flash",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.9,
+            max_tokens=80
+        )
+        if res.get("text"):
+            text = res["text"].strip()
+            # Extract JSON block
+            m = re.search(r'\{.*?\}', text, re.DOTALL)
+            if m:
+                d = json.loads(m.group(0))
+                if "speaker_a" in d and "text_a" in d and "text_b" in d:
+                    d["tokens"] = res.get("usage", {}).get("total_tokens", 25)
+                    return d
+    except Exception:
+        pass
+    return None
+
 @app.get("/api/hive/dialogue")
 async def get_swarm_dialogue():
-    """3D sahnadagi bo'sh robotlar o'rtasidagi professional suhbatlar va aqlli dasturchilar hazillari."""
+    """3D sahnadagi bo'sh robotlar o'rtasidagi takrorlanmas, jonli professional suhbatlar va hazillar."""
     import random
-    
-    JOKES_AND_DIALOGUES = [
-        # Coder & QA
-        {"speaker_a": "coder", "speaker_b": "tester", "text_a": "QA, я только что написал 500 строк кода без единого бага!", "text_b": "Отлично! Сейчас я отправлю пустой массив и нажму Enter 100 раз.", "tokens": 28},
-        {"speaker_a": "tester", "speaker_b": "coder", "text_a": "Захожу в бар, заказываю: 1 кружку, 0 кружек, 99999999 кружек, NULL кружек.", "text_b": "И бар выдержал? А потом пришел клиент и спросил, где туалет...", "tokens": 32},
-        {"speaker_a": "coder", "speaker_b": "tester", "text_a": "Этот баг невозможно воспроизвести на локальной машине!", "text_b": "Тогда отдадим твой MacBook клиенту в качестве сервера.", "tokens": 25},
+    global _SERVED_JOKES_HISTORY, _DYNAMIC_AI_JOKES_CACHE
+
+    # 1. Try to fetch dynamically generated AI joke from cache or trigger live generation
+    if _DYNAMIC_AI_JOKES_CACHE:
+        diag = _DYNAMIC_AI_JOKES_CACHE.pop(0)
+    else:
+        # 2. Pick non-repeating joke from diverse static pool
+        available = [i for i in range(len(STATIC_DEV_JOKES_POOL)) if i not in _SERVED_JOKES_HISTORY]
+        if not available:
+            _SERVED_JOKES_HISTORY.clear()
+            available = list(range(len(STATIC_DEV_JOKES_POOL)))
         
-        # DevOps & Coder
-        {"speaker_a": "deployer", "speaker_b": "coder", "text_a": "Кто запустил деплой в пятницу в 18:00?!", "text_b": "Я просто хотел протестировать CI/CD пайплайн перед выходными...", "tokens": 26},
-        {"speaker_a": "deployer", "speaker_b": "coder", "text_a": "Почему Docker образ весит 4.8 гигабайта?", "text_b": "Там просто node_modules и немного душевного тепла.", "tokens": 24},
-        {"speaker_a": "coder", "speaker_b": "deployer", "text_a": "Kubernetes под снова упал с OOMKilled!", "text_b": "Дай ему еще 16 гигабайт оперативной памяти, пусть подавится.", "tokens": 27},
-        
-        # PM & Coder
-        {"speaker_a": "pm", "speaker_b": "coder", "text_a": "Ты оценил эту задачу в 2 часа, почему делаешь её третий день?", "text_b": "2 часа ушло на код, и 60 часов на выбор имени переменной.", "tokens": 29},
-        {"speaker_a": "pm", "speaker_b": "coder", "text_a": "Заказчик попросил сделать кнопку немного круглее и более синей.", "text_b": "Хорошо, переписываю всю архитектуру на микросервисы.", "tokens": 28},
-        {"speaker_a": "pm", "speaker_b": "designer", "text_a": "Где макеты для нового спринта?", "text_b": "Я подбираю идеальный оттенок черного между #0a0f1d и #0b1122.", "tokens": 26},
+        idx = random.choice(available)
+        _SERVED_JOKES_HISTORY.add(idx)
+        diag = dict(STATIC_DEV_JOKES_POOL[idx])
 
-        # Security & Coder
-        {"speaker_a": "monitor", "speaker_b": "coder", "text_a": "Я нашел пароль от продакшн базы прямо в открытом README!", "text_b": "Зато дежурный инженер никогда его не потеряет.", "tokens": 27},
-        {"speaker_a": "monitor", "speaker_b": "deployer", "text_a": "Кто выставил права chmod 777 на корневую папку?", "text_b": "Зато теперь ни у одного скрипта нет проблем с доступом!", "tokens": 26},
+        # Asynchronously schedule 1 live AI joke generation in background if spare capacity
+        asyncio.create_task(_populate_dynamic_jokes_cache())
 
-        # Designer & Frontend
-        {"speaker_a": "designer", "speaker_b": "coder", "text_a": "Сдвинь, пожалуйста, эту плашку на 1.5 пикселя влево.", "text_b": "Но у дисплеев нет полупикселей! Ладно, добавлю subpixel anti-aliasing.", "tokens": 30},
-        {"speaker_a": "designer", "speaker_b": "coder", "text_a": "В светлой теме этот фиолетовый выглядит слишком неоново.", "text_b": "Это не баг, это киберпанк эстетика Ant Colony!", "tokens": 25},
-
-        # Data Analyst & PM
-        {"speaker_a": "researcher", "speaker_b": "pm", "text_a": "Наш ELO алгоритм показал 99.8% точности на обучающей выборке!", "text_b": "Поздравляю, вы только что заново изобрели оверфиттинг.", "tokens": 28},
-        {"speaker_a": "researcher", "speaker_b": "coder", "text_a": "Prompt Caching сэкономил нам 1.4 миллиона токенов за неделю.", "text_b": "Отлично, теперь мы можем с чистой совестью генерировать мемы!", "tokens": 29}
-    ]
-
-    diag = random.choice(JOKES_AND_DIALOGUES)
-    models_hub.record_usage(prompt_tokens=diag["tokens"], completion_tokens=10)
+    # Record lightweight token usage in telemetry (15-30 tokens)
+    tokens_used = diag.get("tokens", 22)
+    models_hub.record_usage(prompt_tokens=tokens_used, completion_tokens=8)
     return diag
+
+async def _populate_dynamic_jokes_cache():
+    if len(_DYNAMIC_AI_JOKES_CACHE) < 5:
+        joke = await _generate_live_ai_joke()
+        if joke:
+            _DYNAMIC_AI_JOKES_CACHE.append(joke)

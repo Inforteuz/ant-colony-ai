@@ -1390,8 +1390,8 @@ class IsometricHive3D {
     if (_doFootball && this.footballState && this.footballBall) {
       const fb = this.footballState;
 
-      if (strikerReady && keeperReady) {
-        fb.time += delta;
+      fb.time += delta;
+      if (true) {
         const cycle = fb.time % 5.0; // 5.0s full penalty shootout sequence
 
         if (cycle < 1.6) {
@@ -2380,7 +2380,15 @@ class IsometricHive3D {
       // Check if AI chatter is enabled in settings
       if (localStorage.getItem('ant_ai_chatter_enabled') === 'false') return;
       // Trigger dialogue only when idle and window is active
-      const idleList = Object.keys(this.agents).filter(id => {
+      // Filter agents: prioritize lounge couch, hallway roamers, and warm-up gym agents over active sports
+      const restingList = Object.keys(this.agents).filter(id => {
+        const ag = this.agents[id];
+        return ag && ag.state !== 'WORKING' && ag.state !== 'WALK_TO_DESK' &&
+               ag.activityState !== 'FB_STRIKER' && ag.activityState !== 'FB_KEEPER' &&
+               ag.activityState !== 'T1_A' && ag.activityState !== 'T1_B';
+      });
+
+      const idleList = restingList.length >= 2 ? restingList : Object.keys(this.agents).filter(id => {
         const ag = this.agents[id];
         return ag && ag.state !== 'WORKING' && ag.state !== 'WALK_TO_DESK';
       });
