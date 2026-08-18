@@ -2297,10 +2297,6 @@ class IsometricHive3D {
 
     this.renderer.render(this.scene, this.camera);
   }
-}
-
-window.IsometricHive3D = IsometricHive3D;
-
 
   // =============================================================
   // Dynamic 3D Speech Bubbles & Idle Robot Chatter Engine
@@ -2345,7 +2341,7 @@ window.IsometricHive3D = IsometricHive3D;
     const roleName = st ? st.name.split(' ')[0] : agentId.toUpperCase();
     ctx.fillStyle = ctx.strokeStyle;
     ctx.font = 'bold 16px Plus Jakarta Sans, sans-serif';
-    ctx.fillText(`💬 ${roleName}`, 24, 34);
+    ctx.fillText(`[ ${roleName} ]`, 24, 34);
 
     // Dialog Text
     ctx.fillStyle = isLight ? '#0f172a' : '#f8fafc';
@@ -2422,3 +2418,9 @@ window.IsometricHive3D = IsometricHive3D;
       }
     }, 14000);
   }
+
+}
+
+window.IsometricHive3D = IsometricHive3D;
+
+

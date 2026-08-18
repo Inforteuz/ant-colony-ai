@@ -679,8 +679,8 @@ class AgentEngine:
         ):
             repair_rounds += 1
             reason = (
-                f"QA bahosi {qa_score}/100 (chegara {threshold})" if qa_score is not None and qa_score < threshold
-                else ("Hech qanday fayl yozilmadi" if not coder_result.files_written else "Agent xatolik bilan tugadi")
+                f"Оценка QA {qa_score}/100 (порог {threshold})" if qa_score is not None and qa_score < threshold
+                else ("Файлы не были записаны" if not coder_result.files_written else "Агент завершился с ошибкой")
             )
 
             yield {
@@ -702,13 +702,13 @@ class AgentEngine:
             }
 
             repair_context = (
-                f"Siz avval bu loyiha ustida ishlagansiz. Papka: `{project_dir}`\n"
-                f"Yozilgan fayllar: {', '.join(coder_result.files_written) or '(hech narsa yozilmagan)'}\n\n"
-                f"## QA hisoboti\n{qa_text[:4000]}\n\n"
-                f"## Xavfsizlik hisoboti\n{security_text[:2500]}\n\n"
-                "Yuqorida ko'rsatilgan KAMCHILIKLARNI tuzating. Avval `read_file` bilan mavjud "
-                "kodni o'qing, so'ng `edit_file` yoki `write_file` bilan tuzatishlarni kiritib, "
-                "natijani tekshirib ko'ring. Yangi loyihani noldan boshlamang."
+                f"Вы ранее работали над этим проектом. Каталог: `{project_dir}`\n"
+                f"Записанные файлы: {', '.join(coder_result.files_written) or '(файлы еще не созданы)'}\n\n"
+                f"## Отчет QA тестирования\n{qa_text[:4000]}\n\n"
+                f"## Отчет безопасности\n{security_text[:2500]}\n\n"
+                "Устраните указанные ЗАМЕЧАНИЯ. Avval `read_file` bilan mavjud "
+                "kodni o'qing, затем внесите точечные исправления через `edit_file` или `write_file`, "
+                "и проверьте результат. Не создавайте проект с нуля."
             )
 
             repair_result: Optional[AgentRunResult] = None
@@ -787,7 +787,7 @@ class AgentEngine:
         qa_self_score = 60.0 + (20.0 if qa_useful else 0.0) + (20.0 if qa_gave_score else 0.0)
         qa_eval = skill_matrix.record_evaluation(
             role_id="qa_test_automation", model_id=tester_model, score=qa_self_score,
-            feedback="Hisobot to'liqligi va ball berilganiga qarab baholandi",
+            feedback="Оценка на основе полноты отчета и покрытия тестами",
         )
 
         yield {
@@ -796,16 +796,16 @@ class AgentEngine:
             "coder_role": coder_role_id, "coder_model": coder_model,
             "score": evaluated_score, "score_breakdown": eval_input["breakdown"],
             "agent_metrics": coder_result.as_dict(),
-            "message": (f"Baholash: {coder_model} -> {coder_role_id}: {evaluated_score}/100 "
+            "message": (f"Оценка: {coder_model} -> {coder_role_id}: {evaluated_score}/100 "
                         f"(QA: {qa_score if qa_score is not None else '—'}, "
-                        f"fayllar: {len(coder_result.files_written)}, "
-                        f"asbob muvaffaqiyati: {round(coder_result.tool_success_rate * 100)}%)"),
+                        f"файлов: {len(coder_result.files_written)}, "
+                        f"успешность инструментов: {round(coder_result.tool_success_rate * 100)}%)"),
         }
 
         # --- Phase 6: Yakun ---
         yield {
             "type": "workflow_phase", "phase_id": "deploy", "station": "deployer",
-            "title": "Natijalarni paketlash", "agent_name": "DevOps Agent", "status": "active",
+            "title": "Сборка и упаковка артефактов", "agent_name": "DevOps Agent", "status": "active",
         }
 
         tree = list_dir()
@@ -813,13 +813,13 @@ class AgentEngine:
 
         yield {
             "type": "workflow_phase", "phase_id": "completed", "station": "pm",
-            "title": "Vazifa yakunlandi va natija topshirildi",
+            "title": "Задача завершена, результаты сохранены",
             "agent_name": "Project Manager", "status": "completed",
         }
         yield {
             "type": "ceo_briefing", "progress_pct": 100,
-            "phase_title": "Loyiha yakunlandi",
-            "active_agent": "CEO Qabul Qiluvchi",
+            "phase_title": "Проект успешно завершен",
+            "active_agent": "Приемка результатов (CEO)",
             "status_message": (f"{len(created_files)} fayl {project_dir} manzilida. "
                                f"Yakuniy baho: {evaluated_score}/100."),
             "bottleneck_alert": None, "eta_seconds": 0, "project_dir": str(project_dir),
@@ -827,7 +827,7 @@ class AgentEngine:
 
         models_hub.record_task_completed()
 
-        files_block = "\n".join(f"- `{f}`" for f in created_files) or "- (fayl yaratilmadi)"
+        files_block = "\n".join(f"- `{f}`" for f in created_files) or "- (файлы не были созданы)"
         coder_summary = coder_result.final_text or "(xulosa yo'q)"
         total_tokens = coder_result.usage["prompt_tokens"] + coder_result.usage["completion_tokens"]
         repair_block = ("\n\n**Tuzatish sikllari:** " + str(repair_rounds) + "\n"

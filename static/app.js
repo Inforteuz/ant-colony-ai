@@ -1,87 +1,4 @@
 
-  async loadPMProactiveInsights() {
-    try {
-      const res = await fetch('/api/pm/proactive');
-      if (!res.ok) return;
-      const data = await res.json();
-
-      const container = document.getElementById('pm-proactive-container');
-      if (!container) return;
-
-      container.innerHTML = '';
-      const proposals = data.proposals || [];
-      const questions = data.pending_questions || [];
-
-      if (proposals.length === 0 && questions.length === 0) {
-        container.innerHTML = '<div style="font-size: 12px; color: var(--text-muted); padding: 8px 0;">Все архитектурные документы в порядке, рекомендаций нет.</div>';
-        return;
-      }
-
-      // 1. Proactive proposals
-      proposals.forEach(p => {
-        const item = document.createElement('div');
-        item.className = 'pm-proposal-item';
-        item.innerHTML = `
-          <div class="pm-proposal-info">
-            <div class="pm-proposal-title">📄 ${p.title}</div>
-            <div class="pm-proposal-desc">${p.description}</div>
-          </div>
-          <button class="btn-pm-action" data-file="${p.target_file}">${p.action_label}</button>
-        `;
-        const btn = item.querySelector('.btn-pm-action');
-        btn.addEventListener('click', async () => {
-          btn.disabled = true;
-          btn.textContent = 'Создание...';
-          const r = await fetch('/api/pm/generate-doc', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ filename: p.target_file })
-          });
-          const d = await r.json();
-          if (d.success) {
-            window.showToast('Документ создан', `Файл ${p.target_file} успешно сгенерирован PM`, 'success');
-            item.remove();
-          } else {
-            window.showToast('Ошибка', 'Не удалось создать документ', 'error');
-            btn.disabled = false;
-          }
-        });
-        container.appendChild(item);
-      });
-
-      // 2. Interactive Questions for CEO
-      questions.forEach(q => {
-        const qBox = document.createElement('div');
-        qBox.className = 'pm-proposal-item';
-        qBox.style.flexDirection = 'column';
-        qBox.style.alignItems = 'flex-start';
-
-        let btnsHtml = q.options.map(opt => `<button class="lb-filter-btn q-opt-btn" style="margin: 2px 4px 2px 0; font-size: 11px;">${opt}</button>`).join('');
-
-        qBox.innerHTML = `
-          <div class="pm-proposal-title">❓ Вопрос от PM: ${q.question}</div>
-          <div style="display: flex; flex-wrap: wrap; margin-top: 6px;">${btnsHtml}</div>
-        `;
-
-        qBox.querySelectorAll('.q-opt-btn').forEach(b => {
-          b.addEventListener('click', async () => {
-            const chosen = b.textContent;
-            await fetch('/api/pm/feedback', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ question_id: q.id, question_text: q.question, answer_chosen: chosen })
-            });
-            window.showToast('Ответ сохранен', `PM запомнил ваше решение: "${chosen}"`, 'info');
-            qBox.remove();
-          });
-        });
-        container.appendChild(qBox);
-      });
-
-    } catch (e) {
-      console.warn('Error loading PM proactive insights:', e);
-    }
-  }
 
 
 // Global Toast Notification Helper
@@ -1357,6 +1274,8 @@ class AntColonyApp {
     const emptyPlaceholder = document.getElementById('pm-empty-placeholder');
     if (emptyPlaceholder) emptyPlaceholder.style.display = 'none';
 
+    this.isRunning = true;
+    this.lastUserActivity = Date.now();
     this.canvas.setActiveStation('pm', 'Составление плана...');
     this.updateLiveHUD('Центральное управление (PM)', 'DeepSeek V4 Flash', `Анализ задачи: ${taskText.slice(0, 35)}...`, 10);
 
