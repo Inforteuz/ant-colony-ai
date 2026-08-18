@@ -137,34 +137,48 @@ def get_workspace_projects_summary() -> str:
         return f"Loyihalarni skanerlashda xatolik: {err}"
 
 
-def is_conversational_query(text: str) -> bool:
-    """Foydalanuvchi xabari umumiy savol, salomlashish yoki imkoniyatlar haqidami?"""
-    t = (text or "").strip().lower()
+def is_code_creation_intent(text: str) -> bool:
+    """Foydalanuvchi haqiqatan yangi dasturiy kod/loyiha yaratishni so'rayaptimi yoki savol beryaptimi?"""
+    t = (text or "").lower().strip()
     if not t:
-        return True
-    greetings = [
-        "salom", "assalomu alaykum", "hello", "hi", "hey", "qale", "qandaysiz", "nima gap",
-        "привет", "здравствуйте", "добрый день", "добрый вечер", "хай", "салам", "как дела"
+        return False
+
+    # 1. Aniq savol belgilari yoki umumiy suhbat
+    question_indicators = [
+        "?", "nima", "qanday", "nega", "qachon", "kim", "qaysi", "qanaqa", "bormi", "bila olasanmi",
+        "tushuntir", "farqi", "haqida", "maslahat", "fikring", "aytib ber", "sanab ber", "qaysi biri",
+        "eshityapsanmi", "taniysanmi", "eslaysanmi", "qayerda", "qanaqangi", "qanday qilib",
+        "что", "как", "почему", "зачем", "где", "какой", "какие", "когда", "кто", "ли",
+        "объясни", "расскажи", "в чем разница", "посоветуй", "подскажи", "каково", "помнишь",
+        "what", "how", "why", "when", "who", "which", "explain", "tell me", "difference", "advice"
     ]
-    if any(t == g or t.startswith(g + " ") for g in greetings) and len(t.split()) <= 4:
-        return True
-    keywords = [
-        "qo'lingdan nima keladi", "qolingdan nima keladi", "nimalar qila olasan", "nima qila olasan",
-        "kim san", "kimsan", "qanday yordam", "qanday ishlaysan", "qaysi tillar", "imkoniyatlaring",
-        "nima ish qila olasan", "nima qilaolasan", "what can you do", "who are you", "help me understand",
-        "что ты умеешь", "что ты можешь", "кто ты", "какие языки", "как ты работаешь", "твои возможности",
-        "помощь", "чем можешь помочь", "расскажи о себе",
-        # Project history & status queries
-        "oxirgi loyiha", "oxirgi bajargan", "qaysi loyiha", "oxirgi loyihamiz", "qanday loyihalar",
-        "qilingan ishlar", "loyiha tarixi", "oldin nima", "oldingi loyiha", "bajargan loyiha",
-        "oxirgi qilgan", "oxirgi ish", "nima loyiha qildik", "oxirgi loyihamiz qaysi",
-        "последний проект", "какой был последний", "какие проекты", "история проектов",
-        "список проектов", "что мы делали", "что создали", "последняя задача", "какой проект",
-        "last project", "recent project", "project history"
+
+    # 2. Kod va loyiha yaratish/yozish buyruqlari
+    creation_verbs = [
+        "yarat", "yoz", "tuz", "yasa", "qur", "ishlab chiq", "dasturla", "kodini yoz", "generatsiya qil",
+        "ochib ber", "tayyorla", "loyihasini tuz", "script yoz", "sayt yarat", "bot yoz", "api yoz",
+        "создай", "напиши", "разработай", "сделай", "построй", "запрограммируй", "собери", "сгенерируй",
+        "подготовь", "создать", "написать", "разработать", "сделать", "построить", "собрать",
+        "create", "build", "write", "develop", "make", "code", "generate", "implement", "scaffold"
     ]
-    if any(kw in t for kw in keywords):
+
+    has_creation_verb = any(_keyword_matches(v, t) for v in creation_verbs)
+    has_question_word = any(q in t for q in question_indicators) or t.endswith("?")
+
+    # Agar savol so'zi bo'lsa va to'g'ridan-to'g'ri yaratish buyrug'i bo'lmasa -> 100% suhbat/savol
+    if has_question_word and not has_creation_verb:
+        return False
+
+    # Agar yaratish buyrug'i bo'lsa -> kod loyihasi
+    if has_creation_verb:
         return True
+
     return False
+
+
+def is_conversational_query(text: str) -> bool:
+    """Tekshiradi: topshiriq savol/suhbatmi (kod loyihasi emasmi)?"""
+    return not is_code_creation_intent(text)
 
 
 def detect_query_lang(text: str) -> str:
@@ -431,7 +445,11 @@ class AgentEngine:
         reasoning = (res.get("reasoning") or "") + ("\n" + inline_reasoning if inline_reasoning else "")
         spec = extract_json_block(text) or {}
 
-        task_type = spec.get("task_type") or ("conversational" if is_conv else "code_project")
+        # If user did not ask to create/write code, strictly force conversational task_type
+        if is_conv:
+            task_type = "conversational"
+        else:
+            task_type = spec.get("task_type") or "code_project"
         role = spec.get("specialist_role")
         valid_roles = {r["id"] for r in DEFAULT_ROLE_DEFINITIONS}
         if role not in valid_roles or role == "pm_orchestrator":
