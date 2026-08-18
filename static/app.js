@@ -1105,12 +1105,17 @@ class AntColonyApp {
       const res = await fetch('/api/hive/real-stats');
       const data = await res.json();
 
-      document.getElementById('val-total-models').textContent = data.total_models || '14';
-      document.getElementById('sub-online-models').textContent = `${data.online_models || 11} онлайн`;
-      document.getElementById('val-tasks-run').textContent = data.total_tasks_run || '0';
+      const setEl = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val;
+      };
+
+      setEl('val-total-models', data.total_models || '21');
+      setEl('sub-online-models', `${data.online_models || 11} онлайн`);
+      setEl('val-tasks-run', data.total_tasks_run || '0');
       
-      const totalK = (data.total_tokens_consumed / 1000).toFixed(1);
-      document.getElementById('val-total-tokens').textContent = `${data.total_tokens_consumed > 1000 ? totalK + 'K' : data.total_tokens_consumed} tkn`;
+      const totalK = ((data.total_tokens_consumed || 0) / 1000).toFixed(1);
+      setEl('val-total-tokens', `${(data.total_tokens_consumed || 0) > 1000 ? totalK + 'K' : (data.total_tokens_consumed || 0)} tkn`);
       
       const bytes = data.workspace_bytes || 0;
       let sizeStr = '0 KB';
@@ -1121,10 +1126,9 @@ class AntColonyApp {
       } else {
         sizeStr = `${(bytes / 1024).toFixed(0)} KB`;
       }
-      document.getElementById('val-workspace-bytes').textContent = sizeStr;
-      document.getElementById('sub-workspace-files').textContent = `${data.workspace_files_count || 0} файлов`;
-      
-      document.getElementById('val-avg-latency').textContent = `${data.avg_latency_ms || 850} ms`;
+      setEl('val-workspace-bytes', sizeStr);
+      setEl('sub-workspace-files', `${data.workspace_files_count || 0} файлов`);
+      setEl('val-avg-latency', `${data.avg_latency_ms || 850} ms`);
 
       // Dynamic Health Widget Update
       const healthVal = document.getElementById('val-colony-health');
@@ -2993,3 +2997,30 @@ window.addEventListener('DOMContentLoaded', () => {
   const btnCreateNewMd = document.getElementById('btn-create-new-md');
   if (btnCreateNewMd) btnCreateNewMd.addEventListener('click', () => createNewMdFile());
 });
+
+
+// Anti-Inspect and Code Protection Guard
+(function() {
+  // 1. Disable context menu (right click)
+  document.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+    return false;
+  }, { capture: true });
+
+  // 2. Intercept DevTools and View Source Shortcuts
+  document.addEventListener('keydown', function(e) {
+    const isCtrlOrCmd = e.ctrlKey || e.metaKey;
+    const key = e.key ? e.key.toLowerCase() : '';
+    
+    // F12, Ctrl+U, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C
+    if (
+      e.key === 'F12' ||
+      (isCtrlOrCmd && key === 'u') ||
+      (isCtrlOrCmd && e.shiftKey && (key === 'i' || key === 'j' || key === 'c'))
+    ) {
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
+    }
+  }, { capture: true });
+})();

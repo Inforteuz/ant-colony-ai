@@ -1145,6 +1145,43 @@ async def deploy_to_netlify(req: NetlifyDeployRequest):
 # --- Mount Static Files ---
 
 STATIC_DIR = BASE_DIR / "static"
+# --- Single-Line Code Obfuscation & Minification Router ---
+def _minify_code_stream(content: str, content_type: str = "text/html") -> str:
+    """Kommentlar va bo'shliqlarni zichlab, bitta uzun qatorda xavfsiz qaytaradi."""
+    if "html" in content_type:
+        # Strip HTML comments
+        content = re.sub(r'<!--(?!\[if).*?-->', '', content, flags=re.DOTALL)
+        # Collapse multi-line whitespace
+        lines = [line.strip() for line in content.split('\n') if line.strip()]
+        return " ".join(lines)
+    elif "javascript" in content_type or "js" in content_type:
+        # Strip block comments
+        content = re.sub(r'/\*.*?\*/', '', content, flags=re.DOTALL)
+        # Strip single line comments that are safe
+        lines = []
+        for line in content.split('\n'):
+            line_str = line.strip()
+            if line_str.startswith('//') and not line_str.startswith('///'):
+                continue
+            if line_str:
+                lines.append(line_str)
+        return " ".join(lines)
+    elif "css" in content_type:
+        content = re.sub(r'/\*.*?\*/', '', content, flags=re.DOTALL)
+        lines = [line.strip() for line in content.split('\n') if line.strip()]
+        return " ".join(lines)
+    return content
+
+@app.get("/", response_class=HTMLResponse)
+async def index_root():
+    """Bosh sahifani zichlangan bitta qatorda xavfsiz qaytaradi."""
+    html_file = STATIC_DIR / "index.html"
+    if html_file.exists():
+        raw_html = html_file.read_text(encoding="utf-8")
+        minified_html = _minify_code_stream(raw_html, "text/html")
+        return HTMLResponse(content=minified_html, headers={"Content-Type": "text/html; charset=utf-8", "X-Content-Type-Options": "nosniff"})
+    return HTMLResponse("<h1>Ant Colony</h1>")
+
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 @app.get("/")
