@@ -393,6 +393,13 @@ body.light-theme .toast-msg {
   display: none !important;
 }
 
+/* Portal rejimi: menyu <body> ga ko'chirilgan, chunki .hud-topbar da
+   overflow-x: auto / overflow-y: hidden bor va u dropdown'ni kesib tashlaydi.
+   Joylashuv (top/left) JS'da hisoblanadi va inline !important bilan qo'yiladi. */
+.tools-dropdown-menu.portaled {
+  position: fixed !important;
+}
+
 body.light-theme .tools-dropdown-menu {
   background: #ffffff !important;
   border: 1px solid rgba(0, 0, 0, 0.12) !important;
@@ -4777,4 +4784,447 @@ body.light-theme .hud-kpi-pill:hover {
 
 @media (max-width: 1200px) {
   .kpi-label { display: none !important; }
+}
+
+/* ============================================================
+   EDITOR MODAL FIX — fayl ro'yxati siqilib qolmasin, sarlavha
+   "Сохранить" tugmasi ostiga kirib ketmasin
+   ============================================================ */
+
+/* .editor-file-list — column flex konteyner. Flex item'lar default holda
+   flex-shrink: 1 bo'lgani uchun ro'yxat uzun bo'lsa har bir tugma konteynerga
+   sig'ish uchun siqilib, matni tepa-pastdan kesilib ketardi (scroll ham
+   chiqmasdi). flex-shrink: 0 — har bir qator o'z balandligini saqlaydi va
+   ro'yxat normal scroll bo'ladi. */
+.editor-file-list > * {
+  flex-shrink: 0 !important;
+}
+.editor-file-btn {
+  flex: 0 0 auto !important;
+  min-height: 32px !important;
+  line-height: 1.45 !important;
+  display: block !important;
+  width: 100% !important;
+}
+
+/* Toolbar: uzun fayl nomi tugmalar ustiga chiqib ketmasin */
+.editor-toolbar {
+  gap: 12px !important;
+}
+.editor-current-file {
+  min-width: 0 !important;
+  flex: 1 1 auto !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+.editor-toolbar-actions {
+  flex: 0 0 auto !important;
+}
+
+/* Sidebar sarlavhasi ikki qatorga bo'linib ro'yxatni surib yubormasin */
+.editor-sidebar-header {
+  gap: 8px !important;
+  flex-shrink: 0 !important;
+}
+.editor-sidebar-label {
+  min-width: 0 !important;
+  line-height: 1.35 !important;
+}
+.btn-editor-add {
+  flex-shrink: 0 !important;
+  white-space: nowrap !important;
+}
+
+/* ============================================================
+   KPI PILL MODALLARI — tejamkorlik va loyihalar oynasi
+   ============================================================ */
+
+.hud-kpi-pill[role="button"] {
+  cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+.hud-kpi-pill[role="button"]:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+.hud-kpi-pill[role="button"]:focus-visible {
+  outline: 2px solid var(--color-purple);
+  outline-offset: 2px;
+}
+
+.kpi-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.kpi-stat-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--bg-card-elevated);
+  border: 1px solid var(--border-subtle);
+}
+
+.kpi-stat-label {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.kpi-stat-value {
+  font-size: 21px;
+  font-weight: 800;
+  line-height: 1.2;
+  font-family: var(--font-mono);
+  color: var(--text-main);
+}
+
+.kpi-stat-sub {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.kpi-stat-emerald { border-color: rgba(16, 185, 129, 0.35); }
+.kpi-stat-emerald .kpi-stat-value { color: #10b981; }
+.kpi-stat-purple { border-color: rgba(139, 92, 246, 0.35); }
+.kpi-stat-purple .kpi-stat-value { color: #a78bfa; }
+.kpi-stat-blue { border-color: rgba(59, 130, 246, 0.35); }
+.kpi-stat-blue .kpi-stat-value { color: #60a5fa; }
+.kpi-stat-amber { border-color: rgba(245, 158, 11, 0.35); }
+.kpi-stat-amber .kpi-stat-value { color: #fbbf24; }
+
+.kpi-modal-section-title {
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin: 0 0 10px;
+}
+
+.kpi-modal-note {
+  margin: 14px 0 0;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.kpi-modal-loading {
+  padding: 18px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+/* Loyihalar ro'yxati */
+.kpi-project-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.kpi-project-row {
+  padding: 11px 13px;
+  border-radius: 11px;
+  background: var(--bg-card-elevated);
+  border: 1px solid var(--border-subtle);
+}
+
+.kpi-project-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 7px;
+}
+
+.kpi-project-name {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-main);
+  overflow-wrap: anywhere;
+}
+
+.kpi-project-meta {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.kpi-project-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.kpi-file-chip {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: rgba(148, 163, 184, 0.12);
+  border: 1px solid var(--border-subtle);
+}
+
+.kpi-file-chip.kpi-file-more {
+  color: var(--color-purple);
+  background: rgba(139, 92, 246, 0.14);
+  border-color: rgba(139, 92, 246, 0.3);
+}
+
+body.light-theme .kpi-file-chip {
+  background: rgba(15, 23, 42, 0.06);
+}
+
+/* ============================================================
+   PM KONSOL + CEO BRIFING — AI takliflar va boshqaruvlar
+   ============================================================ */
+
+/* --- Takliflar sarlavhasi --- */
+.suggestions-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 7px;
+}
+
+.suggestions-title {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.suggestions-badge {
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+.suggestions-badge.is-ai {
+  color: #a78bfa;
+  background: rgba(139, 92, 246, 0.16);
+  border: 1px solid rgba(139, 92, 246, 0.35);
+}
+.suggestions-badge.is-static {
+  color: var(--text-muted);
+  background: rgba(148, 163, 184, 0.12);
+  border: 1px solid var(--border-subtle);
+}
+
+.btn-refresh-suggestions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  margin-left: auto;
+  border-radius: 7px;
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 0.16s ease, border-color 0.16s ease;
+}
+.btn-refresh-suggestions svg { width: 12px; height: 12px; }
+.btn-refresh-suggestions:hover {
+  color: var(--color-purple);
+  border-color: rgba(139, 92, 246, 0.45);
+}
+.btn-refresh-suggestions.is-loading svg {
+  animation: kpi-spin 0.9s linear infinite;
+}
+@keyframes kpi-spin { to { transform: rotate(360deg); } }
+
+.quick-chips-row.is-loading { opacity: 0.55; pointer-events: none; }
+
+/* --- Stop tugmasi va yuborish guruhi --- */
+.pm-send-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-pm-stop {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  color: #fecaca;
+  background: rgba(239, 68, 68, 0.16);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  transition: background 0.16s ease;
+}
+.btn-pm-stop svg { width: 13px; height: 13px; }
+.btn-pm-stop:hover { background: rgba(239, 68, 68, 0.26); }
+.btn-pm-stop.hidden { display: none !important; }
+
+.btn-pm-send:disabled,
+.btn-pm-send.is-busy {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.pm-feed-error {
+  border-left: 3px solid #ef4444;
+  padding-left: 10px;
+}
+
+/* --- CEO AI tavsiyalari --- */
+.ceo-insights-box {
+  margin: 14px 0;
+  padding: 13px 15px;
+  border-radius: 13px;
+  background: var(--bg-card-elevated);
+  border: 1px solid var(--border-subtle);
+}
+
+.ceo-insights-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.ceo-insights-title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.ceo-insights-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ceo-insight-row {
+  display: flex;
+  gap: 10px;
+  padding: 9px 11px;
+  border-radius: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+}
+
+.ceo-insight-dot {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+.ceo-insight-row.sev-high { border-color: rgba(239, 68, 68, 0.4); }
+.ceo-insight-row.sev-high .ceo-insight-dot { background: #ef4444; box-shadow: 0 0 7px rgba(239, 68, 68, 0.7); }
+.ceo-insight-row.sev-medium { border-color: rgba(245, 158, 11, 0.35); }
+.ceo-insight-row.sev-medium .ceo-insight-dot { background: #f59e0b; box-shadow: 0 0 7px rgba(245, 158, 11, 0.6); }
+.ceo-insight-row.sev-ok { border-color: rgba(16, 185, 129, 0.32); }
+.ceo-insight-row.sev-ok .ceo-insight-dot { background: #10b981; box-shadow: 0 0 7px rgba(16, 185, 129, 0.6); }
+
+.ceo-insight-body { min-width: 0; }
+
+.ceo-insight-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 2px;
+}
+
+.ceo-insight-detail {
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+/* --- Terminal boshqaruvlari --- */
+.ceo-terminal-box .terminal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.btn-terminal-clear {
+  padding: 2px 9px;
+  border-radius: 7px;
+  font-size: 10.5px;
+  font-weight: 700;
+  cursor: pointer;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+}
+.btn-terminal-clear:hover { color: var(--text-main); }
+
+.terminal-hint {
+  margin-top: 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.terminal-output {
+  max-height: 260px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+#btn-ceo-terminal-run:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Takliflar chiplari: gorizontal kesilib qolmasin — ikki qatorga o'ralsin.
+   Ilgari overflow-x: auto edi va oxirgi chip yarim ko'rinib turardi. */
+.quick-chips-row {
+  flex-wrap: wrap !important;
+  overflow-x: visible !important;
+  max-height: 76px;
+  overflow-y: auto;
+  row-gap: 6px !important;
+}
+.quick-chips-row .quick-chip-btn {
+  flex: 0 1 auto;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* PM konsolining bo'sh holat ikonkasi ko'rinsin */
+.empty-feed-placeholder .placeholder-icon-wrap svg {
+  width: 42px;
+  height: 42px;
+  color: var(--text-muted);
+  opacity: 0.55;
+}
+.empty-feed-placeholder .placeholder-icon-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 10px;
 }

@@ -897,7 +897,10 @@ class AntColonyApp {
 
     // Send task
     on('btn-pm-send-task', 'click', () => this.dispatchPMTask());
-    // Quick chips
+    // Stop tugmasi — ishlab turgan orkestratsiyani to'xtatish
+    on('btn-pm-stop-task', 'click', () => this.stopPMTask());
+
+    // AI takliflari (chips)
     const quickChips = document.getElementById('pm-quick-chips');
     if (quickChips) {
       quickChips.addEventListener('click', (e) => {
@@ -908,16 +911,22 @@ class AntColonyApp {
         if (input && taskText) {
           input.value = taskText;
           input.focus();
+          this.autoGrowPMInput();
         }
       });
     }
+    on('btn-refresh-suggestions', 'click', () => this.loadPMSuggestions(true));
+    this.loadPMSuggestions(false);
 
     on('pm-task-input', 'keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
+      // isComposing — IME (masalan, kirill/xitoy klaviaturasi) matn kiritayotgan
+      // paytda Enter bosilsa, so'z tasdiqlanishi kerak, topshiriq yuborilmasligi.
+      if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && e.keyCode !== 229) {
         e.preventDefault();
         this.dispatchPMTask();
       }
     });
+    on('pm-task-input', 'input', () => this.autoGrowPMInput());
 
     // AI Leaderboard Modal
     on('btn-top-leaderboard', 'click', () => this.openLeaderboardModal());
@@ -942,6 +951,13 @@ class AntColonyApp {
     on('btn-sidebar-ceo-briefing', 'click', () => this.openCEOBriefingModal());
     on('btn-close-ceo-modal', 'click', () => this.closeCEOBriefingModal());
     on('btn-ceo-terminal-run', 'click', () => this.runCEOTerminalCommand());
+    on('btn-ceo-terminal-clear', 'click', () => this.clearCEOTerminal());
+    on('btn-refresh-ceo-insights', 'click', () => this.loadCEOInsights(true));
+    on('ceo-terminal-input', 'keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); this.runCEOTerminalCommand(); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); this.navigateTerminalHistory(-1); }
+      else if (e.key === 'ArrowDown') { e.preventDefault(); this.navigateTerminalHistory(1); }
+    });
 
     // Setup Wizard
     on('btn-top-setup', 'click', () => this.openSetupModal());
@@ -970,9 +986,36 @@ class AntColonyApp {
   saveChatHistory() {
     const feed = document.getElementById('pm-feed-list');
     if (!feed) return;
+
+    // localStorage ~5MB bilan cheklangan. Ilgari kvota oshib ketsa xato jimgina
+    // yutilardi va tarix umuman saqlanmay qolardi. Endi eng eski elementlarni
+    // tashlab, qayta urinamiz.
+    const MAX_CHARS = 900000;
+    const write = (html) => {
+      localStorage.setItem('ant_chat_history', html);
+    };
+
     try {
-      localStorage.setItem('ant_chat_history', feed.innerHTML);
-    } catch (e) {}
+      let html = feed.innerHTML;
+      if (html.length <= MAX_CHARS) {
+        write(html);
+        return;
+      }
+      // Juda uzun bo'lsa — faqat oxirgi 40 ta elementni saqlaymiz.
+      const clone = feed.cloneNode(true);
+      while (clone.children.length > 40) clone.removeChild(clone.firstElementChild);
+      write(clone.innerHTML);
+    } catch (e) {
+      // Kvota oshdi — tarixni yanada qisqartirib bir marta qayta urinamiz.
+      try {
+        const clone = feed.cloneNode(true);
+        while (clone.children.length > 12) clone.removeChild(clone.firstElementChild);
+        write(clone.innerHTML);
+      } catch (e2) {
+        try { localStorage.removeItem('ant_chat_history'); } catch (e3) {}
+        console.warn('Chat history saqlanmadi (localStorage to\'lgan):', e2 && e2.name);
+      }
+    }
   }
 
   restoreChatHistory() {
@@ -984,6 +1027,10 @@ class AntColonyApp {
       const placeholder = document.getElementById('pm-empty-placeholder');
       if (placeholder) placeholder.style.display = 'none';
 
+      // Saqlangan "o'ylayapti" kartochkalari abadiy aylanib qolmasin —
+      // sahifa yangilanganda ular allaqachon tugagan bo'ladi.
+      this.finalizeThinkingCards(feed);
+
       // Re-attach accordion click handlers to any saved thinking cards
       feed.querySelectorAll('.chat-thinking-card').forEach(card => {
         const header = card.querySelector('.thinking-header');
@@ -991,20 +1038,74 @@ class AntColonyApp {
           header.onclick = () => card.classList.toggle('collapsed');
         }
       });
+
+      feed.scrollTop = feed.scrollHeight;
     }
   }
 
   clearChatHistory() {
-    localStorage.removeItem('ant_chat_history');
     const feed = document.getElementById('pm-feed-list');
     if (!feed) return;
+
+    // Tasodifan bosilganda butun tarix yo'qolib ketmasin.
+    const hasContent = feed.querySelector('.pm-feed-item, .chat-thinking-card, .exec-summary-card');
+    if (hasContent && !window.confirm('Очистить всю историю Project Manager? Это действие необратимо.')) {
+      return;
+    }
+
+    try { localStorage.removeItem('ant_chat_history'); } catch (e) {}
+
+    // Placeholder markup index.html dagi bilan bir xil bo'lishi kerak —
+    // ilgari boshqa klass ishlatilgani uchun tozalashdan keyin ko'rinish buzilardi.
     feed.innerHTML = `
       <div class="empty-feed-placeholder" id="pm-empty-placeholder">
-        <svg class="placeholder-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        <div class="placeholder-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        </div>
         <h4>Project Manager в режиме ожидания</h4>
         <p>Поставьте задачу. PM составит архитектурный план, распределит подзадачи между AI агентами (Разработчик, Дизайнер, QA, DevOps) и полностью создаст готовый проект в рабочей среде.</p>
       </div>
     `;
+    this.toast('История очищена', 'Лента Project Manager пуста', 'ok');
+  }
+
+  // --- AI takliflari: kontekstga mos topshiriq chiplarini yuklaydi ---
+  async loadPMSuggestions(refresh = false) {
+    const row = document.getElementById('pm-quick-chips');
+    const btn = document.getElementById('btn-refresh-suggestions');
+    if (!row) return;
+
+    if (btn) btn.classList.add('is-loading');
+    row.classList.add('is-loading');
+
+    try {
+      const res = await fetch(`/api/pm/suggestions${refresh ? '?refresh=true' : ''}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const items = Array.isArray(data.suggestions) ? data.suggestions : [];
+      if (!items.length) return;
+
+      row.innerHTML = items.map(it => `
+        <button class="quick-chip-btn" data-task="${this.esc(it.task)}" title="${this.esc(it.task)}">
+          ${this.esc(it.label)}
+        </button>`).join('');
+
+      const badge = document.getElementById('suggestions-source-badge');
+      if (badge) {
+        const isAi = data.source === 'ai';
+        badge.textContent = isAi ? 'AI' : 'база';
+        badge.className = `suggestions-badge ${isAi ? 'is-ai' : 'is-static'}`;
+        badge.title = isAi
+          ? 'Сгенерировано моделью на основе памяти PM и недавних проектов'
+          : 'Модели недоступны — показан базовый набор задач';
+      }
+    } catch (e) {
+      // Tarmoq xatosi bo'lsa mavjud chiplar joyida qoladi — UI bo'sh qolmaydi.
+      console.warn('Suggestions error:', e);
+    } finally {
+      if (btn) btn.classList.remove('is-loading');
+      row.classList.remove('is-loading');
+    }
   }
 
   togglePMDrawer(open) {
@@ -1374,55 +1475,147 @@ class AntColonyApp {
   }
 
   async readSSEStream(response, feed) {
+    // Ba'zi xato holatlarida response.body null bo'ladi — ilgari bu TypeError berardi.
+    if (!response || !response.body) {
+      this.pmFeedError(feed, 'Пустой ответ сервера', 'Оркестратор не вернул поток событий.');
+      this.saveChatHistory();
+      return;
+    }
+
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
 
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
 
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop();
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
 
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          try {
-            const event = JSON.parse(line.substring(6));
-            this.handleOrchestratorEvent(event, feed);
-          } catch (err) {}
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const event = JSON.parse(line.substring(6));
+              this.handleOrchestratorEvent(event, feed);
+            } catch (err) {
+              console.warn('SSE parse error:', err, line.slice(0, 200));
+            }
+          }
         }
       }
+
+      // Oxirgi to'liq bo'lmagan qatorni ham qayta ishlaymiz.
+      const tail = (buffer || '').trim();
+      if (tail.startsWith('data: ')) {
+        try {
+          this.handleOrchestratorEvent(JSON.parse(tail.substring(6)), feed);
+        } catch (err) {}
+      }
+    } catch (err) {
+      // Oqim uzilib qolsa (server qulashi, tarmoq) — foydalanuvchi buni ko'rsin.
+      this.pmFeedError(feed, 'Поток прерван', err.message);
+    } finally {
+      try { reader.releaseLock(); } catch (e) {}
+      this.finalizeThinkingCards(feed);
+      this.saveChatHistory();
     }
-    this.saveChatHistory();
+  }
+
+  // Oqim tugagach "o'ylayapti" kartochkalari abadiy aylanib qolmasin.
+  finalizeThinkingCards(feed) {
+    if (!feed) return;
+    feed.querySelectorAll('.chat-thinking-card.is-thinking').forEach(card => {
+      card.classList.remove('is-thinking');
+      card.classList.add('collapsed');
+    });
+  }
+
+  // PM konsoli "band" holatini bitta joydan boshqaramiz: tugmalar, isRunning
+  // va Stop tugmasi doim bir-biriga mos bo'lishi uchun.
+  setPMRunning(running) {
+    this.isRunning = Boolean(running);
+    const sendBtn = document.getElementById('btn-pm-send-task');
+    const stopBtn = document.getElementById('btn-pm-stop-task');
+    const input = document.getElementById('pm-task-input');
+
+    if (sendBtn) {
+      sendBtn.disabled = this.isRunning;
+      sendBtn.classList.toggle('is-busy', this.isRunning);
+      const label = sendBtn.querySelector('span');
+      if (label) label.textContent = this.isRunning ? 'Выполняется...' : 'Отправить';
+    }
+    if (stopBtn) stopBtn.classList.toggle('hidden', !this.isRunning);
+    if (input) input.setAttribute('aria-busy', String(this.isRunning));
+  }
+
+  pmFeedError(feed, title, message) {
+    if (!feed) return;
+    const errItem = document.createElement('div');
+    errItem.className = 'pm-feed-item pm-feed-error';
+    errItem.innerHTML = `<div class="pm-feed-title" style="color:#ef4444">${this.esc(title)}</div>` +
+                        `<div>${this.esc(message)}</div>`;
+    feed.appendChild(errItem);
+    feed.scrollTop = feed.scrollHeight;
+  }
+
+  async stopPMTask() {
+    try {
+      await fetch('/api/orchestrator/cancel', { method: 'POST' });
+      this.toast('Остановка', 'Запрос на отмену отправлен оркестратору', 'warn');
+    } catch (e) {
+      this.toast('Не удалось остановить', e.message, 'error');
+    } finally {
+      this.setPMRunning(false);
+    }
   }
 
   async dispatchPMTask() {
     const input = document.getElementById('pm-task-input');
+    const feed = document.getElementById('pm-feed-list');
+    if (!input || !feed) return;
+
+    // Ikki marta yuborishdan himoya — avval bu tekshiruv yo'q edi va bir vaqtda
+    // bir nechta orkestratsiya ishga tushib ketishi mumkin edi.
+    if (this.isRunning) {
+      this.toast('Задача уже выполняется', 'Дождитесь завершения или нажмите «Стоп»', 'warn');
+      return;
+    }
+
     const taskText = input.value.trim();
     if (!taskText) return;
 
     input.value = '';
-    const feed = document.getElementById('pm-feed-list');
+    this.autoGrowPMInput();
     const emptyPlaceholder = document.getElementById('pm-empty-placeholder');
     if (emptyPlaceholder) emptyPlaceholder.style.display = 'none';
 
     // "Запомни..." naqshini aniqlab, orkestratsiya boshlanmasdan xotiraga yozamiz
-    const remembered = await this.detectAndSaveFuturePlan(taskText);
+    let remembered = null;
+    try {
+      remembered = await this.detectAndSaveFuturePlan(taskText);
+    } catch (e) {
+      // Xotira xatosi butun topshiriqni to'xtatmasin.
+      console.warn('Memory detect error:', e);
+    }
     if (remembered) {
       const info = document.createElement('div');
       info.className = 'pm-feed-item';
-      info.innerHTML = `<div class="pm-feed-title" style="color:#22c55e;">💾 Запомнено в долговременной памяти</div><div>${this.esc(remembered)}</div><div style="font-size:11px;opacity:0.7;margin-top:4px;">Я буду учитывать это при планировании будущих задач.</div>`;
+      info.innerHTML = `<div class="pm-feed-title" style="color:#22c55e;">Запомнено в долговременной памяти</div><div>${this.esc(remembered)}</div><div style="font-size:11px;opacity:0.7;margin-top:4px;">Я буду учитывать это при планировании будущих задач.</div>`;
       feed.appendChild(info);
       feed.scrollTop = feed.scrollHeight;
+      this.saveChatHistory();
       this.toast('Запомнено в памяти PM', remembered.slice(0, 80), 'ok');
       return;
     }
 
-    this.isRunning = true;
+    this.setPMRunning(true);
     this.lastUserActivity = Date.now();
-    this.canvas.setActiveStation('pm', 'Составление плана...');
+    if (this.canvas && this.canvas.setActiveStation) {
+      this.canvas.setActiveStation('pm', 'Составление плана...');
+    }
     this.updateLiveHUD('Центральное управление (PM)', 'DeepSeek V4 Flash', `Анализ задачи: ${taskText.slice(0, 35)}...`, 10);
 
     ['requirements', 'analysis', 'coding', 'testing', 'deploy', 'monitoring'].forEach(id => {
@@ -1437,14 +1630,35 @@ class AntColonyApp {
         body: JSON.stringify({ task: taskText })
       });
 
+      // Ilgari status tekshirilmasdi: server 500 qaytarsa oqim jimgina bo'sh qolardi.
+      if (!response.ok) {
+        let detail = `HTTP ${response.status}`;
+        try {
+          const body = await response.text();
+          if (body) detail += ` — ${body.slice(0, 300)}`;
+        } catch (e) {}
+        throw new Error(detail);
+      }
+
       await this.readSSEStream(response, feed);
     } catch (err) {
-      const errItem = document.createElement('div');
-      errItem.className = 'pm-feed-item';
-      errItem.innerHTML = `<div class="pm-feed-title" style="color:#ef4444">Произошла ошибка</div><div>${this.esc(err.message)}</div>`;
-      feed.appendChild(errItem);
+      this.pmFeedError(feed, 'Произошла ошибка', err.message);
+      this.toast('Ошибка оркестратора', err.message.slice(0, 120), 'error');
       this.saveChatHistory();
+    } finally {
+      // KRITIK: ilgari isRunning hech qachon false ga qaytmasdi — natijada
+      // PM boshqa hech qachon "bo'sh" holatga o'tmasdi (idle-so'rov, rekreatsiya
+      // ko'rinishi va qayta yuborish himoyasi buzilib qolardi).
+      this.setPMRunning(false);
     }
+  }
+
+  // Textarea matn hajmiga qarab o'sadi (maks 160px), keyin scroll bo'ladi.
+  autoGrowPMInput() {
+    const input = document.getElementById('pm-task-input');
+    if (!input) return;
+    input.style.height = 'auto';
+    input.style.height = `${Math.min(160, Math.max(44, input.scrollHeight))}px`;
   }
 
   esc(value) {
@@ -1809,6 +2023,8 @@ class AntColonyApp {
       return;
     }
     if (type === 'orchestration_completed' || type === 'orchestration_failed') {
+      // Replay (tarixni qayta o'qish) paytida holatni o'zgartirmaymiz.
+      if (!this._isReplay) this.setPMRunning(false);
       if (this.liveWorkspace) {
         this.liveWorkspace.setLive(false, type === 'orchestration_completed' ? 'Готово' : 'Остановлено');
         this.liveWorkspace.refreshTree();
@@ -2182,20 +2398,92 @@ class AntColonyApp {
 
   // --- CEO Modal & Terminal Executor ---
   openCEOBriefingModal() {
-    document.getElementById('modal-ceo-briefing').classList.remove('hidden');
+    const modal = document.getElementById('modal-ceo-briefing');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    // Ilgari oyna faqat ochilardi — ma'lumot keyingi poll'gacha eskirgan holda turardi.
+    this.fetchRealStats();
+    this.loadCEOInsights(false);
   }
 
   closeCEOBriefingModal() {
-    document.getElementById('modal-ceo-briefing').classList.add('hidden');
+    const m = document.getElementById('modal-ceo-briefing');
+    if (m) m.classList.add('hidden');
+  }
+
+  // --- CEO uchun AI tahlili ---
+  async loadCEOInsights(refresh = false) {
+    const box = document.getElementById('ceo-insights-list');
+    const btn = document.getElementById('btn-refresh-ceo-insights');
+    const badge = document.getElementById('ceo-insights-badge');
+    if (!box) return;
+
+    if (btn) btn.classList.add('is-loading');
+    if (!box.children.length || refresh) {
+      box.innerHTML = '<div class="kpi-modal-loading">Анализ метрик...</div>';
+    }
+
+    try {
+      const res = await fetch(`/api/ceo/insights${refresh ? '?refresh=true' : ''}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const items = Array.isArray(data.insights) ? data.insights : [];
+
+      if (!items.length) {
+        box.innerHTML = '<div class="kpi-modal-loading">Рекомендаций нет — система в норме.</div>';
+      } else {
+        box.innerHTML = items.map(it => {
+          const sev = ['high', 'medium', 'ok'].includes(it.severity) ? it.severity : 'medium';
+          return `
+            <div class="ceo-insight-row sev-${sev}">
+              <span class="ceo-insight-dot"></span>
+              <div class="ceo-insight-body">
+                <div class="ceo-insight-title">${this._escapeHtml(it.title)}</div>
+                <div class="ceo-insight-detail">${this._escapeHtml(it.detail)}</div>
+              </div>
+            </div>`;
+        }).join('');
+      }
+
+      if (badge) {
+        const isAi = data.source === 'ai';
+        badge.textContent = isAi ? 'AI' : 'анализ';
+        badge.className = `suggestions-badge ${isAi ? 'is-ai' : 'is-static'}`;
+        badge.title = isAi
+          ? 'Сгенерировано моделью по текущим метрикам платформы'
+          : 'Модели недоступны — показан детерминированный анализ метрик';
+      }
+    } catch (e) {
+      box.innerHTML = `<div class="kpi-modal-loading">Не удалось получить рекомендации: ${this._escapeHtml(e.message)}</div>`;
+    } finally {
+      if (btn) btn.classList.remove('is-loading');
+    }
   }
 
   async runCEOTerminalCommand() {
     const input = document.getElementById('ceo-terminal-input');
+    const out = document.getElementById('ceo-terminal-output');
+    const runBtn = document.getElementById('btn-ceo-terminal-run');
+    if (!input || !out) return;
+
     const cmd = input.value.trim();
     if (!cmd) return;
 
-    const out = document.getElementById('ceo-terminal-output');
-    out.textContent = `Выполняется: ${cmd}...`;
+    // Buyruqlar tarixi (↑/↓ bilan aylantirish uchun)
+    this._terminalHistory = this._terminalHistory || [];
+    if (this._terminalHistory[this._terminalHistory.length - 1] !== cmd) {
+      this._terminalHistory.push(cmd);
+      if (this._terminalHistory.length > 50) this._terminalHistory.shift();
+    }
+    this._terminalHistoryIdx = this._terminalHistory.length;
+
+    // Ikki marta yuborishdan himoya — uzoq buyruqda tugma bosilaverardi.
+    if (runBtn) { runBtn.disabled = true; runBtn.textContent = 'Выполняется...'; }
+    input.disabled = true;
+
+    const prev = out.textContent && !out.textContent.startsWith('//') ? `${out.textContent}\n\n` : '';
+    out.textContent = `${prev}$ ${cmd}\n(выполняется...)`;
+    out.scrollTop = out.scrollHeight;
 
     try {
       const res = await fetch('/api/terminal/exec', {
@@ -2203,11 +2491,43 @@ class AntColonyApp {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ command: cmd })
       });
+      // Ilgari res.ok tekshirilmasdi — 500 javobda "undefined" chiqardi.
+      if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
       const data = await res.json();
-      out.textContent = `$ ${cmd}\n\n[Код возврата: ${data.returncode}, CWD: ${data.cwd}]\n\nSTDOUT:\n${data.stdout || '(bo‘sh)'}\n\nSTDERR:\n${data.stderr || '(bo‘sh)'}`;
+
+      const rc = data.returncode ?? '—';
+      const blocked = data.blocked ? '  [ЗАБЛОКИРОВАНО ПОЛИТИКОЙ БЕЗОПАСНОСТИ]' : '';
+      out.textContent =
+        `${prev}$ ${cmd}${blocked}\n` +
+        `[Код возврата: ${rc}, CWD: ${data.cwd || '—'}]\n\n` +
+        `STDOUT:\n${data.stdout || '(пусто)'}\n\n` +
+        `STDERR:\n${data.stderr || '(пусто)'}`;
+      input.value = '';
     } catch (e) {
-      out.textContent = `Ошибка: ${e.message}`;
+      out.textContent = `${prev}$ ${cmd}\n\nОшибка: ${e.message}`;
+    } finally {
+      out.scrollTop = out.scrollHeight;
+      input.disabled = false;
+      if (runBtn) { runBtn.disabled = false; runBtn.textContent = 'Выполнить'; }
+      input.focus();
     }
+  }
+
+  clearCEOTerminal() {
+    const out = document.getElementById('ceo-terminal-output');
+    if (out) out.textContent = '// Результаты выполнения команд отобразятся здесь';
+  }
+
+  navigateTerminalHistory(direction) {
+    const input = document.getElementById('ceo-terminal-input');
+    const hist = this._terminalHistory || [];
+    if (!input || !hist.length) return;
+
+    if (this._terminalHistoryIdx === undefined) this._terminalHistoryIdx = hist.length;
+    this._terminalHistoryIdx = Math.max(0, Math.min(hist.length, this._terminalHistoryIdx + direction));
+    input.value = this._terminalHistoryIdx >= hist.length ? '' : hist[this._terminalHistoryIdx];
+    // Kursorni oxiriga suramiz
+    requestAnimationFrame(() => input.setSelectionRange(input.value.length, input.value.length));
   }
 
   // --- Roles & MD Skills Modal ---
@@ -2375,6 +2695,156 @@ class AntColonyApp {
     document.getElementById('modal-roles-matrix').classList.add('hidden');
   }
 
+
+  // --- KPI Pill Modallari: modellar / token tejamkorligi / loyihalar ---
+
+  _fmtTokens(n) {
+    const v = Number(n) || 0;
+    if (v >= 1000000) return `${(v / 1000000).toFixed(2)}M`;
+    if (v >= 1000) return `${(v / 1000).toFixed(1)}K`;
+    return String(v);
+  }
+
+  _fmtBytes(bytes) {
+    const b = Number(bytes) || 0;
+    if (b >= 1024 ** 3) return `${(b / 1024 ** 3).toFixed(2)} GB`;
+    if (b >= 1024 ** 2) return `${(b / 1024 ** 2).toFixed(1)} MB`;
+    if (b >= 1024) return `${(b / 1024).toFixed(0)} KB`;
+    return `${b} B`;
+  }
+
+  _statTile(label, value, sub = '', accent = 'purple') {
+    return `
+      <div class="kpi-stat-tile kpi-stat-${accent}">
+        <span class="kpi-stat-label">${label}</span>
+        <span class="kpi-stat-value">${value}</span>
+        ${sub ? `<span class="kpi-stat-sub">${sub}</span>` : ''}
+      </div>`;
+  }
+
+  _escapeHtml(str) {
+    return String(str == null ? '' : str)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  // 2-pill: token tejamkorligi va model kesimi
+  async openSavingsModal() {
+    const modal = document.getElementById('modal-token-savings');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+
+    const grid = document.getElementById('savings-summary-grid');
+    const tbody = document.getElementById('savings-models-tbody');
+    if (grid) grid.innerHTML = '<div class="kpi-modal-loading">Загрузка статистики кэша...</div>';
+    if (tbody) tbody.innerHTML = '';
+
+    try {
+      const res = await fetch('/api/cache/stats');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const d = await res.json();
+
+      if (grid) {
+        grid.innerHTML = [
+          this._statTile('Сэкономлено токенов', this._fmtTokens(d.tokens_saved), 'за всё время', 'emerald'),
+          this._statTile('Попаданий в кэш', d.cache_hits || 0, `промахов: ${d.cache_misses || 0}`, 'purple'),
+          this._statTile('Хит-рейт', `${d.hit_rate_pct || 0}%`, 'доля ответов из кэша', 'blue'),
+          this._statTile('Записей в кэше', `${d.total_cached_entries || 0}`, `лимит: ${d.max_entries || 0}`, 'amber'),
+        ].join('');
+      }
+
+      const rows = Array.isArray(d.by_model) ? d.by_model : [];
+      if (tbody) {
+        if (!rows.length) {
+          tbody.innerHTML = `<tr><td colspan="5" class="kpi-modal-loading">
+            Кэш пока пуст — разбивка появится после первых запросов к моделям.</td></tr>`;
+        } else {
+          tbody.innerHTML = rows.map(r => `
+            <tr>
+              <td><code>${this._escapeHtml(r.model_id)}</code></td>
+              <td>${r.hits || 0}</td>
+              <td class="text-emerald"><strong>${this._fmtTokens(r.tokens_saved)}</strong></td>
+              <td>${r.entries || 0}</td>
+              <td class="text-secondary-sub">${this._fmtTokens(r.cached_tokens)}</td>
+            </tr>`).join('');
+        }
+      }
+    } catch (e) {
+      if (grid) grid.innerHTML = `<div class="kpi-modal-loading">Ошибка загрузки: ${this._escapeHtml(e.message)}</div>`;
+    }
+  }
+
+  closeSavingsModal() {
+    const m = document.getElementById('modal-token-savings');
+    if (m) m.classList.add('hidden');
+  }
+
+  // 3-pill: loyihalar ro'yxati
+  async openProjectsModal() {
+    const modal = document.getElementById('modal-projects-list');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+
+    const grid = document.getElementById('projects-summary-grid');
+    const box = document.getElementById('projects-list-box');
+    const pathEl = document.getElementById('projects-base-path');
+    if (box) box.innerHTML = '<div class="kpi-modal-loading">Загрузка списка проектов...</div>';
+    if (grid) grid.innerHTML = '';
+
+    try {
+      const [projRes, statsRes] = await Promise.all([
+        fetch('/api/desktop/projects'),
+        fetch('/api/hive/real-stats')
+      ]);
+      if (!projRes.ok) throw new Error(`HTTP ${projRes.status}`);
+      const d = await projRes.json();
+      const stats = statsRes.ok ? await statsRes.json() : {};
+
+      if (pathEl) pathEl.innerHTML = `Расположение: <code>${this._escapeHtml(d.base_path || '—')}</code>`;
+
+      const projects = Array.isArray(d.projects) ? d.projects : [];
+      const totalFiles = projects.reduce((a, p) => a + (p.files_count || 0), 0);
+
+      if (grid) {
+        grid.innerHTML = [
+          this._statTile('Проектов', d.total_projects ?? projects.length, 'папок в рабочей директории', 'amber'),
+          this._statTile('Файлов в проектах', totalFiles, 'суммарно по всем папкам', 'purple'),
+          this._statTile('Объём рабочей среды', this._fmtBytes(stats.workspace_bytes), `${stats.workspace_files_count || 0} файлов всего`, 'blue'),
+        ].join('');
+      }
+
+      if (box) {
+        if (!projects.length) {
+          box.innerHTML = '<div class="kpi-modal-loading">Проектов пока нет.</div>';
+        } else {
+          box.innerHTML = projects.map(pr => {
+            const dt = pr.modified ? new Date(pr.modified * 1000).toLocaleString('ru-RU') : '—';
+            const files = Array.isArray(pr.files) ? pr.files : [];
+            const shown = files.slice(0, 12);
+            const rest = files.length - shown.length;
+            return `
+              <div class="kpi-project-row">
+                <div class="kpi-project-head">
+                  <span class="kpi-project-name">${this._escapeHtml(pr.name)}</span>
+                  <span class="kpi-project-meta">${pr.files_count || 0} файлов • ${dt}</span>
+                </div>
+                <div class="kpi-project-files">
+                  ${shown.map(f => `<span class="kpi-file-chip">${this._escapeHtml(f)}</span>`).join('')}
+                  ${rest > 0 ? `<span class="kpi-file-chip kpi-file-more">+${rest}</span>` : ''}
+                </div>
+              </div>`;
+          }).join('');
+        }
+      }
+    } catch (e) {
+      if (box) box.innerHTML = `<div class="kpi-modal-loading">Ошибка загрузки: ${this._escapeHtml(e.message)}</div>`;
+    }
+  }
+
+  closeProjectsModal() {
+    const m = document.getElementById('modal-projects-list');
+    if (m) m.classList.add('hidden');
+  }
 
   // --- Auto Monitoring Models Table ---
   async openModelsModal() {
@@ -3174,26 +3644,115 @@ async function deleteMdFile() {
 window.addEventListener('DOMContentLoaded', () => {
   window.antApp = new AntColonyApp();
 
+  // KPI pill'lari — bosilganda batafsil modal ochiladi
+  const kpiPillWiring = [
+    ['pill-models-kpi', () => window.antApp.openModelsModal()],
+    ['pill-cache-kpi', () => window.antApp.openSavingsModal()],
+    ['pill-workspace-kpi', () => window.antApp.openProjectsModal()],
+  ];
+  kpiPillWiring.forEach(([id, handler]) => {
+    const pill = document.getElementById(id);
+    if (!pill) return;
+    pill.style.cursor = 'pointer';
+    pill.setAttribute('role', 'button');
+    pill.setAttribute('tabindex', '0');
+    pill.addEventListener('click', handler);
+    pill.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handler(); }
+    });
+  });
+
+  const btnCloseSavings = document.getElementById('btn-close-savings-modal');
+  if (btnCloseSavings) btnCloseSavings.addEventListener('click', () => window.antApp.closeSavingsModal());
+  const btnCloseProjects = document.getElementById('btn-close-projects-modal');
+  if (btnCloseProjects) btnCloseProjects.addEventListener('click', () => window.antApp.closeProjectsModal());
+
+  // Fon (backdrop) bosilganda yopilsin
+  ['modal-token-savings', 'modal-projects-list'].forEach(mid => {
+    const m = document.getElementById(mid);
+    if (m) m.addEventListener('click', (e) => { if (e.target === m) m.classList.add('hidden'); });
+  });
+
   // Tools Dropdown Toggle (Direct & Reliable)
+  //
+  // MUHIM: .hud-topbar da `overflow-x: auto / overflow-y: hidden` bor (topbar
+  // tor ekranda gorizontal scroll bo'lishi uchun). Shu sababli topbar ichida
+  // absolute joylashgan dropdown 48px balandlikdan pastga chiqqan qismi bilan
+  // butunlay kesib tashlanardi — menyu "ochilgan" bo'lsa ham ko'rinmasdi.
+  // Yechim: menyuni <body> ga ko'chiramiz (portal) va position: fixed bilan
+  // tugma tagiga aniq joylashtiramiz. Bunda topbar scrolli ham buzilmaydi.
   const btnToolsDropdown = document.getElementById('btn-top-tools-dropdown');
   const toolsMenu = document.getElementById('tools-dropdown-menu');
   if (btnToolsDropdown && toolsMenu) {
+    // Portal: klip qiluvchi ota-elementdan chiqarib olamiz.
+    document.body.appendChild(toolsMenu);
+    toolsMenu.classList.add('portaled');
+
+    const positionToolsMenu = () => {
+      const r = btnToolsDropdown.getBoundingClientRect();
+      const menuW = toolsMenu.offsetWidth || 220;
+      const menuH = toolsMenu.offsetHeight || 160;
+      const margin = 8;
+
+      // Gorizontal: tugmaning chap qirrasiga tekislaymiz, ekrandan chiqsa suramiz.
+      let left = r.left;
+      left = Math.min(left, window.innerWidth - menuW - margin);
+      left = Math.max(margin, left);
+
+      // Vertikal: tugma tagida joy bo'lmasa — tepasiga ochamiz.
+      let top = r.bottom + margin;
+      if (top + menuH > window.innerHeight - margin) {
+        top = Math.max(margin, r.top - menuH - margin);
+      }
+
+      // CSS'da top/left `!important` — shuning uchun inline ham important bo'lishi shart.
+      toolsMenu.style.setProperty('top', `${Math.round(top)}px`, 'important');
+      toolsMenu.style.setProperty('left', `${Math.round(left)}px`, 'important');
+      toolsMenu.style.setProperty('right', 'auto', 'important');
+    };
+
+    const closeToolsMenu = () => {
+      toolsMenu.classList.add('hidden');
+      btnToolsDropdown.setAttribute('aria-expanded', 'false');
+    };
+
+    const openToolsMenu = () => {
+      toolsMenu.classList.remove('hidden');
+      positionToolsMenu();
+      btnToolsDropdown.setAttribute('aria-expanded', 'true');
+    };
+
+    btnToolsDropdown.setAttribute('aria-haspopup', 'true');
+    btnToolsDropdown.setAttribute('aria-expanded', 'false');
+
     btnToolsDropdown.onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();
-      toolsMenu.classList.toggle('hidden');
+      if (toolsMenu.classList.contains('hidden')) openToolsMenu();
+      else closeToolsMenu();
     };
 
     document.addEventListener('click', (e) => {
       if (!btnToolsDropdown.contains(e.target) && !toolsMenu.contains(e.target)) {
-        toolsMenu.classList.add('hidden');
+        closeToolsMenu();
       }
     });
 
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeToolsMenu();
+    });
+
+    // Oyna o'lchami / topbar scroll o'zgarsa — menyu tugmadan ajralib qolmasin.
+    const keepAligned = () => {
+      if (!toolsMenu.classList.contains('hidden')) positionToolsMenu();
+    };
+    window.addEventListener('resize', keepAligned);
+    window.addEventListener('scroll', keepAligned, true);
+    const topbarEl = document.querySelector('.hud-topbar');
+    if (topbarEl) topbarEl.addEventListener('scroll', keepAligned, { passive: true });
+
     toolsMenu.querySelectorAll('.menu-dropdown-item').forEach(item => {
-      item.onclick = () => {
-        toolsMenu.classList.add('hidden');
-      };
+      item.addEventListener('click', () => closeToolsMenu());
     });
   }
 

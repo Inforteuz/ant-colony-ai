@@ -1446,6 +1446,239 @@ async def post_pm_generate_doc(req: PMDocGenerateRequest):
     res = pm_proactive_engine.generate_recommended_doc(req.filename)
     return res
 
+# --- AI Suggestions: PM konsoli va CEO brifingi uchun ---
+
+_SUGGESTION_CACHE: Dict[str, Any] = {"pm": None, "ceo": None}
+_SUGGESTION_TTL_S = 120.0
+
+
+def _extract_json_array(text: str) -> Optional[list]:
+    """LLM javobidan birinchi JSON massivni ajratib oladi."""
+    if not text:
+        return None
+    cleaned = re.sub(r"^```(?:json)?|```$", "", text.strip(), flags=re.MULTILINE).strip()
+    match = re.search(r"\[.*\]", cleaned, re.DOTALL)
+    if not match:
+        return None
+    try:
+        parsed = json.loads(match.group(0))
+        return parsed if isinstance(parsed, list) else None
+    except Exception:
+        return None
+
+
+def _pm_fallback_suggestions() -> list:
+    """LLM mavjud bo'lmaganda ishlatiladigan statik zaxira (UI hech qachon bo'sh qolmaydi)."""
+    return [
+        {"label": "3D сайт на Three.js", "task": "Создать 3D интерактивную страницу на Three.js с анимацией и частицами"},
+        {"label": "FastAPI REST API", "task": "Написать REST API сервер на FastAPI с Pydantic моделями и SQLite базой данных"},
+        {"label": "Анализ рынка (SWOT)", "task": "Провести глубокий анализ рынка и конкурентов для AI SaaS продукта с SWOT матрицей"},
+        {"label": "30-дневный SMM план", "task": "Составить 30-дневный SMM контент-план и 5 продающих постов для Telegram и Instagram"},
+        {"label": "Аудит договора (PRD)", "task": "Провести аудит договора оказания услуг и составить перечень рисков и PRD"},
+        {"label": "Скрипты продаж", "task": "Написать скрипты продаж и отработку 10 главных возражений клиентов"},
+    ]
+
+
+@app.get("/api/pm/suggestions")
+async def get_pm_suggestions(refresh: bool = False):
+    """
+    PM konsoli uchun kontekstga mos AI takliflari.
+    Kontekst: PM xotirasi (oxirgi loyihalar, rejalar) + ishchi papkadagi loyihalar.
+    LLM ishlamasa — statik zaxira qaytadi, UI hech qachon bo'sh qolmaydi.
+    """
+    now = time.time()
+    cached = _SUGGESTION_CACHE.get("pm")
+    if cached and not refresh and (now - cached["ts"]) < _SUGGESTION_TTL_S:
+        return {**cached["data"], "cached": True}
+
+    context_lines = []
+    try:
+        mem = get_memory()
+        if mem:
+            context_lines.append(mem.as_context_snippet(max_projects=5))
+    except Exception:
+        pass
+
+    try:
+        recent = []
+        if PROJECTS_BASE_DIR.exists():
+            dirs = [d for d in PROJECTS_BASE_DIR.iterdir()
+                    if d.is_dir() and not d.name.startswith(".")]
+            dirs.sort(key=lambda d: d.stat().st_mtime, reverse=True)
+            recent = [d.name for d in dirs[:6]]
+        if recent:
+            context_lines.append("Недавние проекты в рабочей папке: " + ", ".join(recent))
+    except Exception:
+        pass
+
+    context = "\n".join(l for l in context_lines if l).strip() or "История пуста — это первый запуск."
+
+    suggestions = None
+    source = "fallback"
+    try:
+        from llm_client import llm_client
+        prompt = (
+            "Ты — Project Manager AI платформы, которая создаёт проекты силами AI-агентов "
+            "(разработчик, дизайнер, QA, DevOps, аналитик, маркетолог, юрист).\n\n"
+            f"КОНТЕКСТ:\n{context}\n\n"
+            "Предложи РОВНО 6 конкретных следующих задач для CEO: логичное продолжение начатого, "
+            "плюс 2 новые полезные идеи. Каждая задача — самостоятельная и выполнимая.\n"
+            "Верни ТОЛЬКО валидный JSON-массив без пояснений, формат:\n"
+            '[{"label": "короткая метка до 26 символов", "task": "полная формулировка задачи одним предложением"}]'
+        )
+        res = await llm_client.complete(
+            "gemini-3.5-flash-lite",
+            [{"role": "user", "content": prompt}],
+            temperature=0.75,
+            max_tokens=500,
+            use_cache=False,
+        )
+        parsed = _extract_json_array(res.get("text", ""))
+        if parsed:
+            cleaned = []
+            for item in parsed:
+                if not isinstance(item, dict):
+                    continue
+                label = str(item.get("label") or "").strip()[:34]
+                task = str(item.get("task") or "").strip()
+                if label and task:
+                    cleaned.append({"label": label, "task": task})
+            if cleaned:
+                suggestions = cleaned[:6]
+                source = "ai"
+    except Exception:
+        suggestions = None
+
+    if not suggestions:
+        suggestions = _pm_fallback_suggestions()
+
+    data = {"suggestions": suggestions, "source": source, "generated_at": now}
+    _SUGGESTION_CACHE["pm"] = {"ts": now, "data": data}
+    return {**data, "cached": False}
+
+
+def _ceo_heuristic_insights(stats: Dict[str, Any]) -> list:
+    """Real ko'rsatkichlardan deterministik tavsiyalar — LLM'siz ham foydali javob."""
+    out = []
+    total = stats.get("total_models", 0) or 0
+    online = stats.get("online_models", 0) or 0
+    cache = stats.get("prompt_cache") or {}
+    hit_rate = cache.get("hit_rate_pct", 0) or 0
+    saved = cache.get("tokens_saved", 0) or 0
+    ws_bytes = stats.get("workspace_bytes", 0) or 0
+    files = stats.get("workspace_files_count", 0) or 0
+
+    if total and online / max(total, 1) < 0.5:
+        out.append({
+            "severity": "high",
+            "title": f"Онлайн только {online} из {total} моделей",
+            "detail": "Половина провайдеров недоступна или в лимите. Проверьте API-ключи в Настройках "
+                      "и запустите ping всех моделей — иначе задачи будут падать на фолбэках.",
+        })
+    if hit_rate < 25:
+        out.append({
+            "severity": "medium",
+            "title": f"Низкий хит-рейт кэша ({hit_rate}%)",
+            "detail": "Большая часть запросов уникальна. Переиспользуйте формулировки системных "
+                      "промптов и шаблоны задач — это напрямую снижает расход токенов.",
+        })
+    else:
+        out.append({
+            "severity": "ok",
+            "title": f"Кэш работает эффективно ({hit_rate}%)",
+            "detail": f"Уже сэкономлено {saved} токенов. Продолжайте использовать типовые формулировки задач.",
+        })
+    if ws_bytes > 2 * 1024 ** 3:
+        out.append({
+            "severity": "medium",
+            "title": "Рабочая папка выросла больше 2 GB",
+            "detail": f"{files} файлов на диске. Запустите Janitor или заархивируйте завершённые проекты, "
+                      "чтобы индексация и сканирование не замедляли пайплайн.",
+        })
+    if not out:
+        out.append({
+            "severity": "ok",
+            "title": "Критичных узких мест нет",
+            "detail": "Система в норме. Можно ставить новую задачу Project Manager.",
+        })
+    return out
+
+
+@app.get("/api/ceo/insights")
+async def get_ceo_insights(refresh: bool = False):
+    """
+    CEO brifingi uchun AI tahlili: real ko'rsatkichlar asosida tavsiyalar.
+    LLM javob bermasa — deterministik evristik tahlil qaytadi.
+    """
+    now = time.time()
+    cached = _SUGGESTION_CACHE.get("ceo")
+    if cached and not refresh and (now - cached["ts"]) < _SUGGESTION_TTL_S:
+        return {**cached["data"], "cached": True}
+
+    stats = models_hub.get_real_hive_stats()
+    heuristics = _ceo_heuristic_insights(stats)
+
+    insights = heuristics
+    source = "heuristic"
+    try:
+        from llm_client import llm_client
+        cache_stats = stats.get("prompt_cache") or {}
+        summary = (
+            f"Моделей всего: {stats.get('total_models')}, онлайн: {stats.get('online_models')}. "
+            f"LLM вызовов: {stats.get('total_llm_calls')}, токенов израсходовано: {stats.get('total_tokens_consumed')}. "
+            f"Кэш: хит-рейт {cache_stats.get('hit_rate_pct')}%, сэкономлено {cache_stats.get('tokens_saved')} токенов. "
+            f"Рабочая папка: {stats.get('workspace_files_count')} файлов, {stats.get('workspace_bytes')} байт. "
+            f"Здоровье системы: {stats.get('health_status')}."
+        )
+        prompt = (
+            "Ты — технический директор AI-платформы. По метрикам ниже дай РОВНО 3 коротких, "
+            "конкретных и практичных рекомендации для CEO. Без воды и общих фраз.\n\n"
+            f"МЕТРИКИ:\n{summary}\n\n"
+            "Верни ТОЛЬКО валидный JSON-массив, формат:\n"
+            '[{"severity": "high|medium|ok", "title": "суть до 50 символов", "detail": "что именно сделать, 1-2 предложения"}]'
+        )
+        res = await llm_client.complete(
+            "gemini-3.5-flash-lite",
+            [{"role": "user", "content": prompt}],
+            temperature=0.4,
+            max_tokens=420,
+            use_cache=False,
+        )
+        parsed = _extract_json_array(res.get("text", ""))
+        if parsed:
+            cleaned = []
+            for item in parsed:
+                if not isinstance(item, dict):
+                    continue
+                title = str(item.get("title") or "").strip()
+                detail = str(item.get("detail") or "").strip()
+                sev = str(item.get("severity") or "medium").strip().lower()
+                if sev not in ("high", "medium", "ok"):
+                    sev = "medium"
+                if title and detail:
+                    cleaned.append({"severity": sev, "title": title[:80], "detail": detail[:320]})
+            if cleaned:
+                insights = cleaned[:3]
+                source = "ai"
+    except Exception:
+        pass
+
+    data = {
+        "insights": insights,
+        "heuristics": heuristics,
+        "source": source,
+        "generated_at": now,
+        "stats_snapshot": {
+            "online_models": stats.get("online_models"),
+            "total_models": stats.get("total_models"),
+            "hit_rate_pct": (stats.get("prompt_cache") or {}).get("hit_rate_pct"),
+            "tokens_saved": (stats.get("prompt_cache") or {}).get("tokens_saved"),
+        },
+    }
+    _SUGGESTION_CACHE["ceo"] = {"ts": now, "data": data}
+    return {**data, "cached": False}
+
+
 # --- Dynamic AI Joke Generator with LRU Non-Repeating Pool ---
 _SERVED_JOKES_HISTORY = set()
 _DYNAMIC_AI_JOKES_CACHE = []
@@ -1492,18 +1725,19 @@ STATIC_DEV_JOKES_POOL = [
 async def _generate_live_ai_joke() -> Optional[Dict[str, Any]]:
     """Generates a fresh, unique AI joke using fast LLM in background with minimal tokens."""
     try:
-        from llm_client import generate_completion
+        from llm_client import llm_client
         prompt = (
             "Сгенерируй 1 свежую, смешную шутку или забавный диалог из 2 реплик между двумя IT специалистами "
             "(выбери пару из: coder, tester, deployer, pm, monitor, designer, researcher). "
             "Шутка должна быть про код, деплой, баги, кэш или архитектуру. "
             "Верни ТОЛЬКО валидный JSON: {\"speaker_a\": \"coder\", \"speaker_b\": \"tester\", \"text_a\": \"...\", \"text_b\": \"...\"}"
         )
-        res = await generate_completion(
-            model_id="gemini-2.5-flash",
-            messages=[{"role": "user", "content": prompt}],
+        res = await llm_client.complete(
+            "gemini-3.5-flash-lite",
+            [{"role": "user", "content": prompt}],
             temperature=0.9,
-            max_tokens=80
+            max_tokens=80,
+            use_cache=False,
         )
         if res.get("text"):
             text = res["text"].strip()

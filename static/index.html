@@ -215,6 +215,13 @@
 
     <!-- Footer Input Area with Quick Suggestion Chips -->
     <div class="drawer-footer">
+      <div class="suggestions-head">
+        <span class="suggestions-title">Предложения задач</span>
+        <span class="suggestions-badge is-static" id="suggestions-source-badge" title="Источник предложений">база</span>
+        <button class="btn-refresh-suggestions" id="btn-refresh-suggestions" title="Обновить предложения (AI подберёт новые под ваш контекст)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        </button>
+      </div>
       <div class="quick-chips-row" id="pm-quick-chips">
         <button class="quick-chip-btn" data-task="Создать 3D интерактивную страницу на Three.js с анимацией и частицами">3D Сайт на Three.js</button>
         <button class="quick-chip-btn" data-task="Написать REST API сервер на FastAPI с Pydantic моделями и SQLite базой данных">FastAPI REST API</button>
@@ -227,10 +234,16 @@
         <textarea id="pm-task-input" class="pm-textarea" placeholder="Поставьте задачу для Project Manager (например: 'Создать интерактивную страницу на HTML + CSS + JS')..." rows="2"></textarea>
         <div class="pm-input-bottom-bar">
           <span class="pm-input-hint">Нажмите <strong>Enter</strong> для отправки, <strong>Shift+Enter</strong> для новой строки</span>
-          <button class="btn-pm-send" id="btn-pm-send-task">
-            <span>Отправить</span>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-          </button>
+          <div class="pm-send-group">
+            <button class="btn-pm-stop hidden" id="btn-pm-stop-task" title="Остановить текущую оркестрацию">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+              <span>Стоп</span>
+            </button>
+            <button class="btn-pm-send" id="btn-pm-send-task">
+              <span>Отправить</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -313,13 +326,31 @@
           <div class="ceo-kpi-tile"><div class="ceo-kpi-label">Папка рабочей среды</div><div class="ceo-kpi-val" id="ceo-kpi-dir" style="font-size:11px">/Users/apple/Desktop/04_Loyihalar</div></div>
           <div class="ceo-kpi-tile"><div class="ceo-kpi-label">Экономия кэша промптов</div><div class="ceo-kpi-val text-purple" id="ceo-kpi-cache">0 токенов сэкономлено</div></div>
         </div>
+        <!-- AI TAVSIYALAR — real ko'rsatkichlar asosida -->
+        <div class="ceo-insights-box">
+          <div class="ceo-insights-head">
+            <span class="ceo-insights-title">AI-рекомендации по системе</span>
+            <span class="suggestions-badge is-static" id="ceo-insights-badge" title="Источник рекомендаций">анализ</span>
+            <button class="btn-refresh-suggestions" id="btn-refresh-ceo-insights" title="Пересчитать рекомендации">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            </button>
+          </div>
+          <div class="ceo-insights-list" id="ceo-insights-list">
+            <div class="kpi-modal-loading">Анализ метрик...</div>
+          </div>
+        </div>
+
         <div class="ceo-terminal-box">
-          <div class="terminal-header"><span>Системный терминал (В папке проекта)</span></div>
+          <div class="terminal-header">
+            <span>Системный терминал (В папке проекта)</span>
+            <button class="btn-terminal-clear" id="btn-ceo-terminal-clear" title="Очистить вывод">Очистить</button>
+          </div>
           <div class="terminal-input-row">
-            <input type="text" id="ceo-terminal-input" placeholder="Команда терминала (например: ls -la, python -m py_compile ..., npm test)...">
+            <input type="text" id="ceo-terminal-input" autocomplete="off" spellcheck="false" placeholder="Команда терминала (например: ls -la, python -m py_compile ..., npm test)...">
             <button id="btn-ceo-terminal-run">Выполнить</button>
           </div>
           <pre class="terminal-output" id="ceo-terminal-output">// Результаты выполнения команд отобразятся здесь</pre>
+          <div class="terminal-hint">Enter — выполнить · ↑ / ↓ — история команд</div>
         </div>
       </div>
     </div>
@@ -373,6 +404,60 @@
             <tbody id="colony-models-tbody"></tbody>
           </table>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOKEN SAVINGS MODAL — KPI pill "сэкономлено" bosilganda ochiladi -->
+  <div class="modal-backdrop hidden" id="modal-token-savings">
+    <div class="colony-modal-card modal-large">
+      <div class="modal-top">
+        <div>
+          <h3>Экономия токенов — умный кэш</h3>
+          <small class="text-secondary-sub">Сколько токенов сэкономлено и на каких моделях</small>
+        </div>
+        <button class="btn-modal-x" id="btn-close-savings-modal">✕</button>
+      </div>
+      <div class="modal-scroll-body">
+        <div class="kpi-stat-grid" id="savings-summary-grid"></div>
+        <h4 class="kpi-modal-section-title">Разбивка по моделям</h4>
+        <div class="modal-models-table-wrap">
+          <table class="colony-table">
+            <thead>
+              <tr>
+                <th>Модель</th>
+                <th>Попаданий в кэш</th>
+                <th>Сэкономлено токенов</th>
+                <th>Записей в кэше</th>
+                <th>Резерв (потенциал)</th>
+              </tr>
+            </thead>
+            <tbody id="savings-models-tbody"></tbody>
+          </table>
+        </div>
+        <p class="kpi-modal-note">
+          Кэш хранит ответы моделей: при повторе одинакового запроса ответ берётся из памяти,
+          токены не тратятся заново. «Резерв» — сколько токенов ещё можно сэкономить
+          на уже сохранённых записях.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROJECTS LIST MODAL — KPI pill "проекты" bosilganda ochiladi -->
+  <div class="modal-backdrop hidden" id="modal-projects-list">
+    <div class="colony-modal-card modal-large">
+      <div class="modal-top">
+        <div>
+          <h3>Проекты рабочей папки</h3>
+          <small class="text-secondary-sub" id="projects-base-path">Загрузка...</small>
+        </div>
+        <button class="btn-modal-x" id="btn-close-projects-modal">✕</button>
+      </div>
+      <div class="modal-scroll-body">
+        <div class="kpi-stat-grid" id="projects-summary-grid"></div>
+        <h4 class="kpi-modal-section-title">Список проектов</h4>
+        <div class="kpi-project-list" id="projects-list-box"></div>
       </div>
     </div>
   </div>

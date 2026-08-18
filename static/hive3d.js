@@ -63,18 +63,36 @@ class IsometricHive3D {
     this.targetCameraLookAt = this.cameraPresets.overview.target.clone();
 
     this.initThree();
-    this.createEnvironment();
-    this.createWorkstations();
-    this.createAgents();
-    this.createPingPongArea();
-    this.createGymArea();
-    this.createFootballArea();
-    this.createConferenceRoom();
-    this.createMarketingAnalyticsWing();
-    this.createLegalDocsOffice();
-    this.createDataStreamSystem();
-    this.setupInteractions();
-    this.setupCameraControlsUI();
+
+    // Sahna bloklari alohida-alohida quriladi: bittasi xato bersa ham
+    // qolgan sahna (va animate loop) ishlashda davom etadi — qora ekran bo'lmaydi.
+    // TODO: createConferenceRoom / createMarketingAnalyticsWing / createLegalDocsOffice
+    // hali yozilmagan — kamera presetlari (conference/marketing/legal) tayyor turibdi.
+    const buildSteps = [
+      'createEnvironment',
+      'createWorkstations',
+      'createAgents',
+      'createPingPongArea',
+      'createGymArea',
+      'createFootballArea',
+      'createConferenceRoom',
+      'createMarketingAnalyticsWing',
+      'createLegalDocsOffice',
+      'createDataStreamSystem',
+      'setupInteractions',
+      'setupCameraControlsUI'
+    ];
+    for (const step of buildSteps) {
+      if (typeof this[step] !== 'function') {
+        console.warn(`[Hive3D] "${step}" hali implement qilinmagan — o'tkazib yuborildi.`);
+        continue;
+      }
+      try {
+        this[step]();
+      } catch (err) {
+        console.error(`[Hive3D] "${step}" qurilishida xato:`, err);
+      }
+    }
 
     this.restoreSwarmState();
     this.setRecreationVisibility();
@@ -305,8 +323,15 @@ class IsometricHive3D {
         roughness: 0.2,
         metalness: isLight ? 0.1 : 0.8
       });
+      // Stol va stul o'rni endi station ma'lumotidan olinadi (deskPos/chairPos).
+      // Ilgari z < 0 stansiyalarda geometriya oynadagidek teskari qo'yilardi,
+      // lekin robot baribir chairPos ga borib o'tirardi — natijada stul stolning
+      // narigi tomonida, kameradan yashirin qolib ketardi ("stul yo'q" bug'i).
+      const deskOffsetZ = st.deskPos.z - st.pos.z;
+      const chairOffsetZ = st.chairPos.z - st.pos.z;
+
       const deskTop = new THREE.Mesh(deskTopGeo, deskMat);
-      deskTop.position.set(0, 0.95, st.id === 'pm' ? 0.8 : (st.pos.z > 0 ? 0.7 : -0.7));
+      deskTop.position.set(0, 0.95, deskOffsetZ);
       deskTop.castShadow = true;
       deskTop.receiveShadow = true;
       group.add(deskTop);
@@ -329,8 +354,7 @@ class IsometricHive3D {
 
       // 3. Ergonomic Cyber Chair — endi rangi kontrast (avval fon bilan qo'shilib ketardi)
       const chairGroup = new THREE.Group();
-      chairGroup.position.set(0, 0, st.id === 'pm' ? 2.1 : (st.pos.z > 0 ? 1.9 : -1.9));
-      if (st.pos.z < 0 && st.id !== 'pm') chairGroup.rotation.y = Math.PI;
+      chairGroup.position.set(0, 0, chairOffsetZ);
 
       // Stul rangi station color'idan olinadi — har mutaxassis o'zining rangida
       const chairAccent = new THREE.Color(st.color || 0x8b5cf6);
@@ -402,7 +426,8 @@ class IsometricHive3D {
       const monScreenGeo = new THREE.BoxGeometry(1.2, 0.65, 0.04);
       const screen = new THREE.Mesh(monScreenGeo, monMat);
       screen.position.set(0, 1.4, deskTop.position.z);
-      if (st.pos.z < 0 && st.id !== 'pm') screen.rotation.y = Math.PI;
+      // Ekran har doim o'tirgan robot tomonga qaraydi.
+      if (chairOffsetZ < deskOffsetZ) screen.rotation.y = Math.PI;
       group.add(screen);
       group.monitorTexture = monTexture;
 
@@ -410,7 +435,7 @@ class IsometricHive3D {
       const kbGeo = new THREE.BoxGeometry(0.7, 0.02, 0.25);
       const kbMat = new THREE.MeshStandardMaterial({ color: 0x020617, roughness: 0.3 });
       const kb = new THREE.Mesh(kbGeo, kbMat);
-      kb.position.set(0, 1.0, deskTop.position.z + (st.pos.z > 0 || st.id === 'pm' ? 0.25 : -0.25));
+      kb.position.set(0, 1.0, deskTop.position.z + (chairOffsetZ >= deskOffsetZ ? 0.25 : -0.25));
       group.add(kb);
 
       // 5. Overhead Floating Holographic 3D Badge
@@ -476,13 +501,16 @@ class IsometricHive3D {
         ctx.lineWidth = isActive ? 5 : 3;
       }
 
-      ctx.beginPath();
+      // Kartochka fonini chizamiz. Ilgari bu yerda beginPath() dan keyin
+      // hech qanday yo'l (path) qurilmagan edi — natijada fill()/stroke()
+      // bo'sh ishlab, matn shaffof havoda osilib qolar edi.
+      this.drawRoundedCard(ctx, 6, 6, 628, 188, 22);
       ctx.fill();
       ctx.stroke();
 
       // Top glowing bar
       ctx.fillStyle = colorHex;
-      ctx.beginPath();
+      this.drawRoundedCard(ctx, 6, 6, 628, 12, 6);
       ctx.fill();
 
       // Role title
@@ -759,6 +787,33 @@ class IsometricHive3D {
 
   // --- Create All 7 AI Agents ---
 
+  // --- Matnni berilgan kenglikka sig'diruvchi yordamchi ---
+  // Kirill sarlavhalar lotinchadan kengroq chiqadi va kartochkadan oshib ketardi.
+  fitText(ctx, text, maxWidth, maxPx, weight = 'bold', family = 'Plus Jakarta Sans, sans-serif') {
+    let px = maxPx;
+    ctx.font = `${weight} ${px}px ${family}`;
+    while (px > 9 && ctx.measureText(text).width > maxWidth) {
+      px -= 1;
+      ctx.font = `${weight} ${px}px ${family}`;
+    }
+    return px;
+  }
+
+  // --- Rounded card path helper (roundRect'siz, cross-browser xavfsiz) ---
+  drawRoundedCard(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.arcTo(x + w, y, x + w, y + r, r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+    ctx.lineTo(x + r, y + h);
+    ctx.arcTo(x, y + h, x, y + h - r, r);
+    ctx.lineTo(x, y + r);
+    ctx.arcTo(x, y, x + r, y, r);
+    ctx.closePath();
+  }
+
   // --- 3D Floating Avatar Role Nametag Generator ---
   createAgentNametag(roleName, colorHex) {
     const canvas = document.createElement('canvas');
@@ -985,8 +1040,10 @@ class IsometricHive3D {
 
     const scoreMat = new THREE.SpriteMaterial({ map: this.pingPongScoreTex, transparent: true });
     this.pingPongScoreboard = new THREE.Sprite(scoreMat);
-    this.pingPongScoreboard.position.set(0, 2.6, 0);
-    this.pingPongScoreboard.scale.set(4.6, 1.6, 1);
+    // Tablo o'yinchilar boshidan ancha tepada tursin — ilgari 2.6 balandlikda
+    // robotlarning ustiga tushib, ularni to'sib qo'yardi.
+    this.pingPongScoreboard.position.set(0, 5.2, -3.4);
+    this.pingPongScoreboard.scale.set(5.2, 1.85, 1);
     group.add(this.pingPongScoreboard);
 
     this.redrawPingPongScoreboard();
@@ -1008,30 +1065,32 @@ class IsometricHive3D {
     ctx.fillStyle = isLight ? 'rgba(255, 255, 255, 0.94)' : 'rgba(10, 15, 30, 0.92)';
     ctx.strokeStyle = '#06b6d4';
     ctx.lineWidth = 4;
-    ctx.beginPath();
+    this.drawRoundedCard(ctx, 4, 4, 504, 172, 16);
     ctx.fill();
     ctx.stroke();
 
     // Top Header
     ctx.fillStyle = '#06b6d4';
-    ctx.font = 'bold 20px Plus Jakarta Sans, sans-serif';
     ctx.textAlign = 'center';
+    this.fitText(ctx, 'ТУРНИР ПО НАСТОЛЬНОМУ ТЕННИСУ (ДО 11 ОЧКОВ)', 468, 20);
     ctx.fillText('ТУРНИР ПО НАСТОЛЬНОМУ ТЕННИСУ (ДО 11 ОЧКОВ)', 256, 36);
 
     // Court 1 Status
     ctx.fillStyle = isLight ? '#0f172a' : '#ffffff';
-    ctx.font = 'bold 22px JetBrains Mono, monospace';
+    const c1Status_font = 22;
     const c1Status = c1.matchOver ? `Победа: ${c1.winner} (${c1.scoreA}:${c1.scoreB})` : `Стол 1: ${c1.playerAName}  ${c1.scoreA} : ${c1.scoreB}  ${c1.playerBName}`;
+    this.fitText(ctx, c1Status, 468, c1Status_font, 'bold', 'JetBrains Mono, monospace');
     ctx.fillText(c1Status, 256, 76);
 
     // Court 2 Status
     ctx.fillStyle = isLight ? '#047857' : '#34d399';
     const c2Status = c2.matchOver ? `Победа: ${c2.winner} (${c2.scoreA}:${c2.scoreB})` : `Стол 2: ${c2.playerAName}  ${c2.scoreA} : ${c2.scoreB}  ${c2.playerBName}`;
+    this.fitText(ctx, c2Status, 468, 22, 'bold', 'JetBrains Mono, monospace');
     ctx.fillText(c2Status, 256, 114);
 
     // Sub Status
     ctx.fillStyle = isLight ? '#64748b' : '#94a3b8';
-    ctx.font = '600 16px Plus Jakarta Sans, sans-serif';
+    this.fitText(ctx, 'Свободные специалисты ожидают на диване очереди', 468, 16, '600');
     ctx.fillText('Свободные специалисты ожидают на диване очереди', 256, 150);
 
     this.pingPongScoreTex.needsUpdate = true;
@@ -1191,17 +1250,23 @@ class IsometricHive3D {
     lctx.fillStyle = isLight ? 'rgba(255, 255, 255, 0.94)' : 'rgba(10, 25, 20, 0.92)';
     lctx.strokeStyle = '#10b981';
     lctx.lineWidth = 3;
-    lctx.beginPath(); llctx.fill(); lctx.stroke();
+    lctx.beginPath();
+    lctx.moveTo(16, 4); lctx.lineTo(424, 4);
+    lctx.arcTo(436, 4, 436, 16, 12); lctx.lineTo(436, 64);
+    lctx.arcTo(436, 76, 424, 76, 12); lctx.lineTo(16, 76);
+    lctx.arcTo(4, 76, 4, 64, 12); lctx.lineTo(4, 16);
+    lctx.arcTo(4, 4, 16, 4, 12); lctx.closePath();
+    lctx.fill(); lctx.stroke();
 
     lctx.fillStyle = '#10b981';
-    lctx.font = 'bold 22px Plus Jakarta Sans, sans-serif';
     lctx.textAlign = 'center';
+    this.fitText(lctx, 'ЗОНА РАЗМИНКИ И КАЛИБРОВКИ', 400, 22);
     lctx.fillText('ЗОНА РАЗМИНКИ И КАЛИБРОВКИ', 220, 48);
 
     const lTex = new THREE.CanvasTexture(labelCvs);
     const lSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: lTex, transparent: true }));
-    lSprite.position.set(0, 2.6, 0);
-    lSprite.scale.set(4.0, 0.75, 1);
+    lSprite.position.set(0, 4.4, -3.2);
+    lSprite.scale.set(4.4, 0.8, 1);
     group.add(lSprite);
 
     this.scene.add(group);
@@ -1345,7 +1410,7 @@ class IsometricHive3D {
     ctx.fillStyle = isLight ? 'rgba(255, 255, 255, 0.96)' : 'rgba(6, 25, 20, 0.94)';
     ctx.strokeStyle = '#10b981';
     ctx.lineWidth = 4;
-    ctx.beginPath();
+    this.drawRoundedCard(ctx, 4, 4, 792, 172, 16);
     ctx.fill();
     ctx.stroke();
 
@@ -1360,11 +1425,13 @@ class IsometricHive3D {
     const kpName = this.getShortRoleName(fb.keeperName);
 
     ctx.fillStyle = isLight ? '#0f172a' : '#ffffff';
-    ctx.font = 'bold 24px Plus Jakarta Sans, sans-serif';
+    // Uzun rol nomlari markazdagi hisob bilan ustma-ust tushmasin.
     ctx.textAlign = 'left';
+    this.fitText(ctx, `${strName} (Удар)`, 250, 24);
     ctx.fillText(`${strName} (Удар)`, 36, 96);
 
     ctx.textAlign = 'right';
+    this.fitText(ctx, `${kpName} (Вратарь)`, 250, 24);
     ctx.fillText(`${kpName} (Вратарь)`, 764, 96);
 
     // Center Score Box
@@ -2513,7 +2580,9 @@ class IsometricHive3D {
     ctx.fillStyle = isLight ? 'rgba(255, 255, 255, 0.96)' : 'rgba(15, 23, 42, 0.94)';
     ctx.strokeStyle = typeof colorHex === 'string' ? colorHex : ('#' + colorHex.toString(16).padStart(6, '0'));
     ctx.lineWidth = 4;
-    ctx.beginPath();
+    // Bu yerda ham beginPath() dan keyin yo'l qurilmagan edi — hazil matni
+    // shaffof havoda osilib qolardi, kartochka fon chizilmasdi.
+    this.drawRoundedCard(ctx, 6, 6, 388, 98, 18);
     ctx.fill();
     ctx.stroke();
 
@@ -2537,16 +2606,37 @@ class IsometricHive3D {
     ctx.fillStyle = isLight ? '#0f172a' : '#f8fafc';
     ctx.font = '600 15px Plus Jakarta Sans, sans-serif';
     
-    // Simple wrap text
-    const words = text.split(' ');
-    let line1 = '', line2 = '';
-    words.forEach(w => {
-      if ((line1 + w).length < 32 && !line2) line1 += w + ' ';
-      else line2 += w + ' ';
-    });
+    // Matnni haqiqiy kenglik bo'yicha o'raymiz (ilgari belgilar soni bo'yicha
+    // taxmin qilinardi va uzun so'zlarda matn kartochkadan chiqib ketardi).
+    const maxWidth = 352;
+    const words = String(text || '').split(/\s+/).filter(Boolean);
+    const lines = [];
+    let current = '';
+    for (const w of words) {
+      const candidate = current ? `${current} ${w}` : w;
+      if (ctx.measureText(candidate).width <= maxWidth) {
+        current = candidate;
+      } else {
+        if (current) lines.push(current);
+        current = w;
+        if (lines.length === 2) break;
+      }
+    }
+    if (current && lines.length < 2) lines.push(current);
 
-    ctx.fillText(line1.trim(), 24, 62);
-    if (line2) ctx.fillText(line2.trim(), 24, 86);
+    // Uchinchi qatorga sig'magani "…" bilan qisqartiriladi.
+    if (lines.length === 2) {
+      const consumed = lines.join(' ').split(/\s+/).length;
+      if (words.length > consumed) {
+        let tail = lines[1];
+        while (tail && ctx.measureText(`${tail}…`).width > maxWidth) {
+          tail = tail.slice(0, -1);
+        }
+        lines[1] = `${tail}…`;
+      }
+    }
+
+    lines.forEach((ln, i) => ctx.fillText(ln, 24, 62 + i * 24));
 
     const tex = new THREE.CanvasTexture(cvs);
     const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });

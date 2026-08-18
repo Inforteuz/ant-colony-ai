@@ -38,7 +38,10 @@ class PromptCache:
             "misses": 0,
             "tokens_saved": 0,
             "evictions": 0,
-            "last_hit_time": None
+            "last_hit_time": None,
+            # Model kesimida tejamkorlik: {model_id: {"hits": n, "tokens_saved": n}}
+            # UI'da "qaysi model qancha token tejadi" ni ko'rsatish uchun.
+            "by_model": {}
         }
         self._dirty_count = 0
         self._last_flush = 0.0
@@ -67,6 +70,12 @@ class PromptCache:
         self.stats["last_hit_time"] = time.time()
         tokens_saved = entry.get("tokens_saved", 0)
         self.stats["tokens_saved"] += tokens_saved
+
+        entry_model = entry.get("model_id") or model_id or "unknown"
+        per_model = self.stats.setdefault("by_model", {})
+        bucket = per_model.setdefault(entry_model, {"hits": 0, "tokens_saved": 0})
+        bucket["hits"] += 1
+        bucket["tokens_saved"] += tokens_saved
 
         return {
             "cached": True,
@@ -103,6 +112,30 @@ class PromptCache:
     def get_stats(self) -> Dict[str, Any]:
         total = self.stats["hits"] + self.stats["misses"]
         hit_rate = round((self.stats["hits"] / total) * 100, 1) if total > 0 else 0.0
+
+        # Model kesimi: real tejalgan (hit orqali) + hozir keshda turgan zaxira.
+        by_model = {}
+        for model_id, bucket in (self.stats.get("by_model") or {}).items():
+            by_model[model_id] = {
+                "model_id": model_id,
+                "hits": bucket.get("hits", 0),
+                "tokens_saved": bucket.get("tokens_saved", 0),
+                "entries": 0,
+                "cached_tokens": 0,
+            }
+        for entry in self.cache.values():
+            model_id = entry.get("model_id") or "unknown"
+            row = by_model.setdefault(model_id, {
+                "model_id": model_id, "hits": 0, "tokens_saved": 0,
+                "entries": 0, "cached_tokens": 0,
+            })
+            row["entries"] += 1
+            row["cached_tokens"] += entry.get("tokens_saved", 0)
+
+        breakdown = sorted(by_model.values(),
+                           key=lambda r: (r["tokens_saved"], r["cached_tokens"]),
+                           reverse=True)
+
         return {
             "total_cached_entries": len(self.cache),
             "max_entries": MAX_ENTRIES,
@@ -111,7 +144,8 @@ class PromptCache:
             "hit_rate_pct": hit_rate,
             "tokens_saved": self.stats["tokens_saved"],
             "evictions": self.stats["evictions"],
-            "last_hit_time": self.stats["last_hit_time"]
+            "last_hit_time": self.stats["last_hit_time"],
+            "by_model": breakdown
         }
 
     def load_cache(self):
