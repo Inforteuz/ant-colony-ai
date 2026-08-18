@@ -650,13 +650,87 @@
         </div>
 
         <div class="leaderboard-filters-bar" id="setup-mode-tabs" style="margin-bottom: 18px;">
-          <button class="lb-filter-btn active" data-mode="single">Единый API провайдер (Рекомендуется)</button>
+          <button class="lb-filter-btn active" data-mode="byok">Мои провайдеры (BYOK)</button>
+          <button class="lb-filter-btn" data-mode="single">Быстрый старт (один ключ)</button>
           <button class="lb-filter-btn" data-mode="multi">Гибридный / Мульти-провайдер</button>
           <button class="lb-filter-btn" data-mode="custom">Локальный / Свой (Ollama, LM Studio)</button>
           <button class="lb-filter-btn" data-mode="recreation">Зоны отдыха и спорта</button>
           <button class="lb-filter-btn" data-mode="telegram">Telegram Bot</button>
         </div>
-        <div class="setup-mode-panel" id="panel-setup-single">
+        <!-- BYOK: foydalanuvchi o'z provayder kalitini ulaydi -->
+        <div class="setup-mode-panel" id="panel-setup-byok">
+          <div class="byok-intro">
+            <h4>Подключите своего AI-провайдера</h4>
+            <p>
+              Выберите провайдера, вставьте свой API-ключ и нажмите «Проверить».
+              Ключ шифруется (AES-256-GCM) и никогда не возвращается в браузер —
+              в интерфейсе виден только отпечаток вида <code>sk-...ABCD</code>.
+              Список моделей загружается прямо от провайдера, поэтому он всегда актуален.
+            </p>
+          </div>
+
+          <div class="byok-layout">
+            <!-- Chap: provayder tanlash -->
+            <div class="byok-providers">
+              <div class="byok-section-label">Провайдер</div>
+              <div class="byok-provider-grid" id="byok-provider-grid">
+                <div class="kpi-modal-loading">Загрузка каталога...</div>
+              </div>
+            </div>
+
+            <!-- O'ng: credential formasi -->
+            <div class="byok-form">
+              <div class="byok-selected-head" id="byok-selected-head">
+                <span class="byok-selected-name">Выберите провайдера слева</span>
+              </div>
+
+              <div class="byok-field" id="byok-field-base-url" style="display:none;">
+                <label for="byok-base-url">Base URL</label>
+                <input type="text" id="byok-base-url" class="search-input" autocomplete="off"
+                       placeholder="https://llm.example.com/v1">
+                <small class="byok-hint" id="byok-base-url-hint"></small>
+              </div>
+
+              <div class="byok-field" id="byok-field-key">
+                <label for="byok-api-key">API-ключ</label>
+                <input type="password" id="byok-api-key" class="search-input" autocomplete="off"
+                       spellcheck="false" placeholder="Вставьте ключ провайдера">
+                <small class="byok-hint" id="byok-key-hint">
+                  Ключ уходит только на ваш backend и сохраняется в зашифрованном виде.
+                </small>
+              </div>
+
+              <div class="byok-field">
+                <label for="byok-display-name">Название подключения <span class="byok-optional">необязательно</span></label>
+                <input type="text" id="byok-display-name" class="search-input" autocomplete="off"
+                       placeholder="Например: OpenRouter (личный)">
+              </div>
+
+              <div class="byok-actions">
+                <button class="btn-hive-action" id="btn-byok-test">Проверить</button>
+                <button class="btn-hive-action byok-connect" id="btn-byok-connect" disabled>
+                  Подключить и загрузить модели
+                </button>
+              </div>
+
+              <div class="byok-result hidden" id="byok-result"></div>
+            </div>
+          </div>
+
+          <div class="byok-connections">
+            <div class="byok-section-label byok-connections-head">
+              <span>Подключённые провайдеры</span>
+              <button class="btn-refresh-suggestions" id="btn-byok-refresh" title="Обновить список">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              </button>
+            </div>
+            <div class="byok-connection-list" id="byok-connection-list">
+              <div class="kpi-modal-loading">Загрузка...</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="setup-mode-panel hidden" id="panel-setup-single">
           <div style="background: var(--bg-card-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 16px; margin-bottom: 14px;">
             <h4 style="font-size: 13px; font-weight: 700; margin-bottom: 6px; color: var(--text-main);">Быстрый старт с единым провайдером</h4>
             <div style="display: flex; flex-direction: column; gap: 10px;">

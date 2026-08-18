@@ -21,6 +21,10 @@ from ant_colony.config import (
     WORKSTATIONS, AGENT_CONFIG,
 )
 from ant_colony.llm.models_hub import models_hub
+from ant_colony.providers import registry as provider_registry
+from ant_colony.providers import secrets as provider_secrets
+from ant_colony.providers import service as provider_service
+from ant_colony.providers import store as provider_store
 from ant_colony.core.agent_engine import agent_engine
 from ant_colony.core.skill_matrix import skill_matrix
 from ant_colony.llm.prompt_cache import prompt_cache
@@ -290,6 +294,141 @@ async def get_hive_stations():
 @app.get("/api/hive/real-stats")
 async def get_real_stats():
     return models_hub.get_real_hive_stats()
+
+# ==========================================================
+# BYOK — Provider Connections API
+# ==========================================================
+# Qoidalar (BYOK spetsifikatsiyasi):
+#   * API kalit FAQAT yozuv endpointlarida qabul qilinadi;
+#   * o'qish endpointlari hech qachon raw kalit qaytarmaydi —
+#     faqat `masked_key` va status;
+#   * kalit muvaffaqiyatli testdan keyingina shifrlanib saqlanadi.
+
+class ProviderTestRequest(BaseModel):
+    provider: str
+    api_key: str = ""
+    base_url: str = ""
+    metadata: Optional[Dict[str, Any]] = None
+
+
+class ProviderConnectRequest(BaseModel):
+    provider: str
+    api_key: str = ""
+    base_url: str = ""
+    display_name: str = ""
+    default_model_id: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+    connection_id: Optional[str] = None
+
+
+class ProviderPatchRequest(BaseModel):
+    display_name: Optional[str] = None
+    enabled: Optional[bool] = None
+    default_model_id: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+
+
+@app.get("/api/providers/catalog")
+async def providers_catalog():
+    """Qo'llab-quvvatlanadigan provayderlar katalogi (secretsiz)."""
+    return {
+        "providers": provider_registry.list_providers(),
+        "secret_key_source": provider_secrets.key_source(),
+    }
+
+
+@app.post("/api/provider-connections/test")
+async def provider_connection_test(req: ProviderTestRequest):
+    """Ulanishni tekshiradi — hech narsa saqlanmaydi."""
+    try:
+        return await provider_service.test_connection(
+            req.provider, req.api_key, req.base_url, req.metadata
+        )
+    except provider_service.ProviderValidationError as exc:
+        return {"ok": False, "error": {"code": exc.code, "safe_message": str(exc)}}
+
+
+@app.post("/api/provider-connections")
+async def provider_connection_create(req: ProviderConnectRequest):
+    """Test -> model sinxronizatsiyasi -> shifrlab saqlash."""
+    try:
+        return await provider_service.test_and_save(
+            provider_id=req.provider,
+            api_key=req.api_key,
+            base_url=req.base_url,
+            display_name=req.display_name,
+            metadata=req.metadata,
+            default_model_id=req.default_model_id,
+            conn_id=req.connection_id,
+        )
+    except provider_service.ProviderValidationError as exc:
+        return {"ok": False, "error": {"code": exc.code, "safe_message": str(exc)}}
+
+
+@app.get("/api/provider-connections")
+async def provider_connections_list(include_models: bool = False):
+    return {"connections": provider_store.list_connections(include_models=include_models)}
+
+
+@app.get("/api/provider-connections/models")
+async def provider_connected_models():
+    """Barcha ulangan provayderlarning modellari — model tanlash uchun."""
+    return {"models": provider_service.connected_models()}
+
+
+@app.get("/api/provider-connections/{conn_id}")
+async def provider_connection_get(conn_id: str):
+    conn = provider_store.get_connection(conn_id)
+    if not conn:
+        raise HTTPException(status_code=404, detail="Подключение не найдено")
+    view = provider_store.public_view(conn)
+    view["models"] = conn.get("models", [])
+    return view
+
+
+@app.post("/api/provider-connections/{conn_id}/test")
+async def provider_connection_retest(conn_id: str):
+    try:
+        return await provider_service.retest(conn_id)
+    except provider_service.ProviderValidationError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.post("/api/provider-connections/{conn_id}/sync-models")
+async def provider_connection_sync(conn_id: str):
+    try:
+        return await provider_service.sync_models(conn_id)
+    except provider_service.ProviderValidationError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.patch("/api/provider-connections/{conn_id}")
+async def provider_connection_patch(conn_id: str, req: ProviderPatchRequest):
+    conn = provider_store.patch_connection(
+        conn_id,
+        display_name=req.display_name,
+        enabled=req.enabled,
+        default_model_id=req.default_model_id,
+        metadata=req.metadata,
+    )
+    if not conn:
+        raise HTTPException(status_code=404, detail="Подключение не найдено")
+    return {"ok": True, "connection": provider_store.public_view(conn)}
+
+
+@app.delete("/api/provider-connections/{conn_id}")
+async def provider_connection_delete(conn_id: str):
+    removed = provider_store.delete_connection(conn_id)
+    if not removed:
+        raise HTTPException(status_code=404, detail="Подключение не найдено")
+    # Muhim farq: platformadagi yozuv o'chdi, lekin provayder tomonidagi kalit
+    # avtomatik bekor bo'lmaydi — foydalanuvchi uni konsolda ham o'chirishi kerak.
+    return {
+        "ok": True,
+        "note": "Подключение удалено. Ключ на стороне провайдера НЕ отозван — "
+                "отзовите его в консоли провайдера, если он больше не нужен.",
+    }
+
 
 # --- Prompt Cache Endpoints ---
 

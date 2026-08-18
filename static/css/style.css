@@ -5444,3 +5444,261 @@ body.light-theme .cam-popover {
   transition: background 0.16s ease;
 }
 .setup-key-links a:hover { background: rgba(245, 158, 11, 0.26); }
+
+/* ============================================================
+   BYOK — provayder ulash paneli
+   ============================================================ */
+
+.byok-intro h4 {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-main);
+}
+.byok-intro p {
+  margin: 0 0 16px;
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--text-secondary);
+}
+.byok-intro code,
+.byok-conn-meta code {
+  padding: 1px 5px;
+  border-radius: 5px;
+  font-size: 11px;
+  background: rgba(148, 163, 184, 0.16);
+}
+.byok-keysource { display: block; margin-top: 6px; opacity: 0.85; }
+
+.byok-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 320px) 1fr;
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 860px) {
+  .byok-layout { grid-template-columns: 1fr; }
+}
+
+.byok-section-label {
+  margin-bottom: 8px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.byok-provider-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 6px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.byok-provider-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 9px 11px;
+  border-radius: 10px;
+  text-align: left;
+  cursor: pointer;
+  background: var(--bg-card-elevated);
+  border: 1px solid var(--border-subtle);
+  transition: border-color 0.16s ease, background 0.16s ease;
+}
+.byok-provider-card:hover { border-color: rgba(139, 92, 246, 0.45); }
+.byok-provider-card.is-selected {
+  border-color: var(--color-purple);
+  background: rgba(139, 92, 246, 0.12);
+}
+
+.byok-provider-name {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+.byok-provider-driver {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--text-muted);
+}
+.byok-nokey {
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.16);
+}
+
+.byok-form {
+  padding: 15px 16px;
+  border-radius: 13px;
+  background: var(--bg-card-elevated);
+  border: 1px solid var(--border-subtle);
+}
+
+.byok-selected-head { margin-bottom: 14px; }
+.byok-selected-name {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-main);
+}
+.byok-getkey {
+  margin-left: 10px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--color-purple);
+  text-decoration: none;
+}
+.byok-getkey:hover { text-decoration: underline; }
+.byok-note {
+  margin: 6px 0 0;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.byok-field { margin-bottom: 12px; }
+.byok-field label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+.byok-optional {
+  font-weight: 600;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+.byok-hint {
+  display: block;
+  margin-top: 5px;
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.byok-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+.byok-connect { background: var(--color-purple) !important; color: #fff !important; }
+.byok-connect:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.byok-result {
+  margin-top: 13px;
+  padding: 11px 13px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.6;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+}
+.byok-result.hidden { display: none !important; }
+.byok-result-ok { border-color: rgba(16, 185, 129, 0.42); }
+.byok-result-error { border-color: rgba(239, 68, 68, 0.45); }
+.byok-result-warn { border-color: rgba(245, 158, 11, 0.45); }
+.byok-result code {
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: rgba(148, 163, 184, 0.16);
+}
+.byok-warn { margin-top: 6px; color: #fbbf24; }
+.byok-info-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 7px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.byok-connections { margin-top: 22px; }
+.byok-connections-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.byok-connection-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.byok-conn-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: 11px;
+  background: var(--bg-card-elevated);
+  border: 1px solid var(--border-subtle);
+}
+
+.byok-conn-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 4px;
+}
+.byok-conn-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+.byok-status {
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 9.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.byok-status-ok { color: #34d399; background: rgba(16, 185, 129, 0.16); }
+.byok-status-err { color: #f87171; background: rgba(239, 68, 68, 0.16); }
+.byok-status-warn { color: #fbbf24; background: rgba(245, 158, 11, 0.16); }
+
+.byok-conn-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.byok-conn-error {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #f87171;
+}
+
+.byok-conn-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 6px;
+}
+.byok-mini {
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  transition: color 0.16s ease, border-color 0.16s ease;
+}
+.byok-mini:hover { color: var(--text-main); border-color: rgba(139, 92, 246, 0.45); }
+.byok-mini:disabled { opacity: 0.5; cursor: not-allowed; }
+.byok-mini-danger:hover { color: #f87171; border-color: rgba(239, 68, 68, 0.45); }

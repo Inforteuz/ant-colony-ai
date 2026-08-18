@@ -32,6 +32,8 @@ class ModelsHub:
         self.provider_cooldowns: Dict[str, float] = {}
         # Provayder tarixi — telemetriya uchun.
         self.provider_last_failure: Dict[str, str] = {}
+        # provider_id -> (vaqt, credential) — BYOK deshifrlash keshi.
+        self._byok_cache: Dict[str, Any] = {}
         self.telemetry = {
             "total_llm_calls": 0,
             "total_tasks_run": 0,
@@ -192,7 +194,11 @@ class ModelsHub:
         """
         if custom_keys and custom_keys.get(provider_id):
             return True
-        return bool((PROVIDERS.get(provider_id) or {}).get("default_key", "").strip())
+        if (PROVIDERS.get(provider_id) or {}).get("default_key", "").strip():
+            return True
+        # UI orqali ulangan BYOK provayderi ham to'liq huquqli manba.
+        creds = self._byok_credentials(provider_id)
+        return bool(creds and (creds.get("api_key") or creds.get("base_url")))
 
     def configured_providers(self) -> List[str]:
         """Kaliti mavjud provayderlar ro'yxati (diagnostika va UI uchun)."""
@@ -339,9 +345,51 @@ class ModelsHub:
         }
 
     def get_api_key(self, provider_id: str, custom_keys: Optional[Dict[str, str]] = None) -> str:
+        """
+        Kalitni topish tartibi: so'rovdagi custom kalit -> BYOK ulanishi -> muhit (.env).
+
+        BYOK ulanishlari `.env` dan USTUN: foydalanuvchi UI orqali kiritgan
+        credential aynan shu joyda birinchi bo'lib qidiriladi.
+        """
         if custom_keys and provider_id in custom_keys and custom_keys[provider_id]:
             return custom_keys[provider_id]
+
+        creds = self._byok_credentials(provider_id)
+        if creds and creds.get("api_key"):
+            return creds["api_key"]
+
         return PROVIDERS.get(provider_id, {}).get("default_key", "")
+
+    def _byok_credentials(self, provider_id: str) -> Optional[Dict[str, Any]]:
+        """
+        BYOK ulanishidan credential. Kesh 30 soniya — har chaqiruvda faylni
+        o'qib, kalitni qayta deshifrlash keraksiz.
+
+        Import ichkarida: providers qatlami models_hub'ga bog'liq bo'lishi mumkin,
+        modul darajasida import qilsak aylanma bog'liqlik hosil bo'ladi.
+        """
+        now = time.time()
+        cached = self._byok_cache.get(provider_id)
+        if cached and (now - cached[0]) < 30.0:
+            return cached[1]
+
+        try:
+            from ant_colony.providers.service import runtime_credentials
+            creds = runtime_credentials(provider_id)
+        except Exception:
+            creds = None
+
+        self._byok_cache[provider_id] = (now, creds)
+        return creds
+
+    def byok_base_url(self, provider_id: str) -> str:
+        """BYOK ulanishi bergan base URL (Custom/Ollama uchun muhim)."""
+        creds = self._byok_credentials(provider_id)
+        return (creds or {}).get("base_url", "")
+
+    def invalidate_byok_cache(self) -> None:
+        """Ulanish o'zgargach chaqiriladi — keyingi so'rov yangi kalitni oladi."""
+        self._byok_cache.clear()
 
     async def ping_model(self, model_id: str, custom_keys: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
         meta = next((m for m in MODELS_CATALOG if m["id"] == model_id), None)

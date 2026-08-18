@@ -2776,6 +2776,316 @@ class AntColonyApp {
   }
 
 
+  // ============================================================
+  // BYOK — foydalanuvchi o'z AI provayderini ulaydi
+  // ============================================================
+  // Xavfsizlik: API kalit faqat POST so'rovda backendga ketadi. U hech qachon
+  // localStorage/sessionStorage'ga yozilmaydi va javoblarda qaytmaydi —
+  // UI faqat maskalangan barmoq izini ko'radi.
+
+  async initByokPanel() {
+    if (!this._byokWired) {
+      this._byokWired = true;
+      const on = (id, ev, fn) => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener(ev, fn);
+      };
+      on('btn-byok-test', 'click', () => this.byokTest());
+      on('btn-byok-connect', 'click', () => this.byokConnect());
+      on('btn-byok-refresh', 'click', () => this.loadByokConnections());
+      on('byok-api-key', 'input', () => {
+        // Kalit o'zgardi — avvalgi test natijasi endi haqiqiy emas.
+        this._byokTested = false;
+        const btn = document.getElementById('btn-byok-connect');
+        if (btn) btn.disabled = true;
+      });
+    }
+    await Promise.all([this.loadByokCatalog(), this.loadByokConnections()]);
+  }
+
+  async loadByokCatalog() {
+    const grid = document.getElementById('byok-provider-grid');
+    if (!grid) return;
+    try {
+      const res = await fetch('/api/providers/catalog');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      this._byokCatalog = data.providers || [];
+
+      grid.innerHTML = this._byokCatalog.map(p => `
+        <button class="byok-provider-card" data-provider="${this.esc(p.id)}" title="${this.esc(p.notes || '')}">
+          <span class="byok-provider-name">${this.esc(p.label)}</span>
+          <span class="byok-provider-driver">${this.esc(p.driver)}</span>
+          ${p.key_required ? '' : '<span class="byok-nokey">без ключа</span>'}
+        </button>`).join('');
+
+      grid.querySelectorAll('.byok-provider-card').forEach(card => {
+        card.addEventListener('click', () => this.selectByokProvider(card.getAttribute('data-provider')));
+      });
+
+      // Master kalit manbai — foydalanuvchi shifrlash qanday himoyalanganini bilsin.
+      if (data.secret_key_source === 'local') {
+        const intro = document.querySelector('.byok-intro p');
+        if (intro && !intro.dataset.keyNote) {
+          intro.dataset.keyNote = '1';
+          intro.insertAdjacentHTML('beforeend',
+            ' <span class="byok-keysource">Ключ шифрования хранится локально в <code>~/.ant_colony/secret.key</code>. ' +
+            'Для сервера задайте <code>ANT_SECRET_KEY</code>.</span>');
+        }
+      }
+    } catch (e) {
+      grid.innerHTML = `<div class="kpi-modal-loading">Не удалось загрузить каталог: ${this.esc(e.message)}</div>`;
+    }
+  }
+
+  selectByokProvider(providerId) {
+    const meta = (this._byokCatalog || []).find(p => p.id === providerId);
+    if (!meta) return;
+    this._byokProvider = meta;
+    this._byokTested = false;
+
+    document.querySelectorAll('.byok-provider-card').forEach(c => {
+      c.classList.toggle('is-selected', c.getAttribute('data-provider') === providerId);
+    });
+
+    const head = document.getElementById('byok-selected-head');
+    if (head) {
+      head.innerHTML = `
+        <span class="byok-selected-name">${this.esc(meta.label)}</span>
+        ${meta.console_url ? `<a class="byok-getkey" href="${this.esc(meta.console_url)}" target="_blank" rel="noopener noreferrer">Получить ключ →</a>` : ''}
+        ${meta.notes ? `<p class="byok-note">${this.esc(meta.notes)}</p>` : ''}`;
+    }
+
+    // Base URL maydoni faqat Custom va mahalliy provayderlar uchun.
+    const needsUrl = meta.requires_base_url || meta.allow_local;
+    const urlField = document.getElementById('byok-field-base-url');
+    const urlInput = document.getElementById('byok-base-url');
+    if (urlField) urlField.style.display = needsUrl ? '' : 'none';
+    if (urlInput) urlInput.value = needsUrl ? (meta.base_url || '') : '';
+    const urlHint = document.getElementById('byok-base-url-hint');
+    if (urlHint) {
+      urlHint.textContent = meta.allow_local
+        ? 'Локальный адрес разрешён для этого провайдера.'
+        : 'Внутренние и метаданные-адреса блокируются политикой безопасности.';
+    }
+
+    // Kalit maydoni — kalit talab qilmaydigan provayderlarda yashiriladi.
+    const keyField = document.getElementById('byok-field-key');
+    if (keyField) keyField.style.display = meta.key_required ? '' : 'none';
+    const keyInput = document.getElementById('byok-api-key');
+    if (keyInput) {
+      keyInput.value = '';
+      keyInput.placeholder = meta.key_hint || 'Вставьте ключ провайдера';
+    }
+
+    const connectBtn = document.getElementById('btn-byok-connect');
+    if (connectBtn) connectBtn.disabled = true;
+    this._byokShowResult(null);
+  }
+
+  _byokPayload() {
+    return {
+      provider: this._byokProvider?.id,
+      api_key: (document.getElementById('byok-api-key')?.value || '').trim(),
+      base_url: (document.getElementById('byok-base-url')?.value || '').trim(),
+      display_name: (document.getElementById('byok-display-name')?.value || '').trim(),
+    };
+  }
+
+  _byokShowResult(html, kind = 'info') {
+    const box = document.getElementById('byok-result');
+    if (!box) return;
+    if (!html) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+    box.className = `byok-result byok-result-${kind}`;
+    box.innerHTML = html;
+  }
+
+  async byokTest() {
+    if (!this._byokProvider) {
+      this._byokShowResult('Сначала выберите провайдера.', 'warn');
+      return;
+    }
+    const btn = document.getElementById('btn-byok-test');
+    if (btn) { btn.disabled = true; btn.textContent = 'Проверяем...'; }
+    this._byokShowResult('Отправляем тестовый запрос к провайдеру...', 'info');
+
+    try {
+      const res = await fetch('/api/provider-connections/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(this._byokPayload()),
+      });
+      const data = await res.json();
+
+      if (data.ok) {
+        this._byokTested = true;
+        const info = data.info || {};
+        const extras = Object.keys(info).length
+          ? `<div class="byok-info-grid">${Object.entries(info)
+              .map(([k, v]) => `<span><b>${this.esc(k)}</b>: ${this.esc(String(v))}</span>`).join('')}</div>`
+          : '';
+        this._byokShowResult(
+          `<strong>Соединение установлено.</strong> Ключ: <code>${this.esc(data.masked_key || '—')}</code>` +
+          (data.warning ? `<div class="byok-warn">${this.esc(data.warning)}</div>` : '') + extras,
+          'ok');
+        const connectBtn = document.getElementById('btn-byok-connect');
+        if (connectBtn) connectBtn.disabled = false;
+      } else {
+        this._byokTested = false;
+        const err = data.error || {};
+        this._byokShowResult(
+          `<strong>${this.esc(err.code || 'ERROR')}</strong><div>${this.esc(err.safe_message || 'Не удалось подключиться')}</div>`,
+          'error');
+      }
+    } catch (e) {
+      this._byokShowResult(`Сетевая ошибка: ${this.esc(e.message)}`, 'error');
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Проверить'; }
+    }
+  }
+
+  async byokConnect() {
+    if (!this._byokTested) {
+      this._byokShowResult('Сначала выполните проверку соединения.', 'warn');
+      return;
+    }
+    const btn = document.getElementById('btn-byok-connect');
+    if (btn) { btn.disabled = true; btn.textContent = 'Подключаем...'; }
+
+    try {
+      const res = await fetch('/api/provider-connections', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(this._byokPayload()),
+      });
+      const data = await res.json();
+
+      if (data.ok) {
+        const c = data.connection;
+        this._byokShowResult(
+          `<strong>Провайдер подключён.</strong> Загружено моделей: ${c.models_count}. ` +
+          `Модель по умолчанию: <code>${this.esc(c.default_model_id || '—')}</code>` +
+          (data.warning ? `<div class="byok-warn">${this.esc(data.warning)}</div>` : ''),
+          'ok');
+        // Kalit maydonini darhol tozalaymiz — ekranda turishi shart emas.
+        const keyInput = document.getElementById('byok-api-key');
+        if (keyInput) keyInput.value = '';
+        this._byokTested = false;
+        await this.loadByokConnections();
+        this.fetchRealStats();
+        this.toast('Провайдер подключён', `${c.display_name}: ${c.models_count} моделей`, 'ok');
+      } else {
+        const err = data.error || {};
+        this._byokShowResult(
+          `<strong>${this.esc(err.code || 'ERROR')}</strong><div>${this.esc(err.safe_message || '')}</div>`,
+          'error');
+      }
+    } catch (e) {
+      this._byokShowResult(`Сетевая ошибка: ${this.esc(e.message)}`, 'error');
+    } finally {
+      if (btn) { btn.textContent = 'Подключить и загрузить модели'; btn.disabled = !this._byokTested; }
+    }
+  }
+
+  async loadByokConnections() {
+    const box = document.getElementById('byok-connection-list');
+    if (!box) return;
+    try {
+      const res = await fetch('/api/provider-connections');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const conns = data.connections || [];
+
+      if (!conns.length) {
+        box.innerHTML = '<div class="kpi-modal-loading">Пока нет подключений. Выберите провайдера выше.</div>';
+        return;
+      }
+
+      const statusLabel = {
+        connected: ['ok', 'Подключён'],
+        error: ['err', 'Ошибка'],
+        pending: ['warn', 'Не проверен'],
+        disabled: ['warn', 'Выключен'],
+      };
+
+      box.innerHTML = conns.map(c => {
+        const [cls, label] = statusLabel[c.status] || statusLabel.pending;
+        const synced = c.models_synced_at
+          ? new Date(c.models_synced_at * 1000).toLocaleString('ru-RU')
+          : '—';
+        return `
+          <div class="byok-conn-row" data-id="${this.esc(c.id)}">
+            <div class="byok-conn-main">
+              <div class="byok-conn-title">
+                <span class="byok-conn-name">${this.esc(c.display_name)}</span>
+                <span class="byok-status byok-status-${cls}">${label}</span>
+              </div>
+              <div class="byok-conn-meta">
+                <code>${this.esc(c.masked_key || 'без ключа')}</code>
+                <span>${c.models_count} моделей</span>
+                <span>синхронизация: ${this.esc(synced)}</span>
+              </div>
+              ${c.last_error_message ? `<div class="byok-conn-error">${this.esc(c.last_error_message)}</div>` : ''}
+            </div>
+            <div class="byok-conn-actions">
+              <button class="byok-mini" data-act="test">Проверить</button>
+              <button class="byok-mini" data-act="sync">Обновить модели</button>
+              <button class="byok-mini byok-mini-danger" data-act="delete">Удалить</button>
+            </div>
+          </div>`;
+      }).join('');
+
+      box.querySelectorAll('.byok-conn-row').forEach(row => {
+        const id = row.getAttribute('data-id');
+        row.querySelectorAll('.byok-mini').forEach(b => {
+          b.addEventListener('click', () => this.byokConnAction(id, b.getAttribute('data-act'), b));
+        });
+      });
+    } catch (e) {
+      box.innerHTML = `<div class="kpi-modal-loading">Ошибка: ${this.esc(e.message)}</div>`;
+    }
+  }
+
+  async byokConnAction(connId, action, btn) {
+    if (action === 'delete') {
+      const ok = window.confirm(
+        'Удалить подключение?\n\nВажно: ключ на стороне провайдера НЕ будет отозван — ' +
+        'отзовите его в консоли провайдера, если он больше не нужен.');
+      if (!ok) return;
+    }
+
+    const original = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = '...'; }
+
+    try {
+      let res;
+      if (action === 'delete') {
+        res = await fetch(`/api/provider-connections/${connId}`, { method: 'DELETE' });
+      } else if (action === 'sync') {
+        res = await fetch(`/api/provider-connections/${connId}/sync-models`, { method: 'POST' });
+      } else {
+        res = await fetch(`/api/provider-connections/${connId}/test`, { method: 'POST' });
+      }
+      const data = await res.json().catch(() => ({}));
+
+      if (data.error) {
+        this.toast('Не удалось выполнить', data.error.safe_message || data.error.code, 'error');
+      } else if (action === 'sync') {
+        this.toast('Модели обновлены', `${(data.models || []).length} моделей`, 'ok');
+      } else if (action === 'test') {
+        this.toast('Соединение в порядке', 'Провайдер отвечает', 'ok');
+      } else {
+        this.toast('Подключение удалено', data.note || '', 'warn');
+      }
+      await this.loadByokConnections();
+      this.fetchRealStats();
+    } catch (e) {
+      this.toast('Ошибка сети', e.message, 'error');
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = original; }
+    }
+  }
+
   // --- KPI Pill Modallari: modellar / token tejamkorligi / loyihalar ---
 
   _fmtTokens(n) {
@@ -3069,6 +3379,8 @@ class AntColonyApp {
     this.refreshWorkspaceStatus();
     this.refreshGenSettings();
     this.refreshFirstRunBanner();
+    // BYOK paneli standart holatda ochiq — tab bosilishini kutmasdan yuklaymiz.
+    this.initByokPanel();
   }
 
   // Hech qanday provayder kaliti yo'q bo'lsa — sehrgar tepasida ogohlantirish.
@@ -3863,6 +4175,11 @@ window.addEventListener('DOMContentLoaded', () => {
       setupTabs.querySelectorAll('.lb-filter-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       const mode = btn.getAttribute('data-mode');
+      const byokPanel = document.getElementById('panel-setup-byok');
+      if (byokPanel) {
+        byokPanel.classList.toggle('hidden', mode !== 'byok');
+        if (mode === 'byok') window.antApp.initByokPanel();
+      }
       document.getElementById('panel-setup-single').classList.toggle('hidden', mode !== 'single');
       document.getElementById('panel-setup-multi').classList.toggle('hidden', mode !== 'multi');
       document.getElementById('panel-setup-custom').classList.toggle('hidden', mode !== 'custom');

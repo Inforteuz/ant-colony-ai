@@ -431,8 +431,14 @@ class LLMClient:
         temperature: float, max_tokens: int, timeout_s: float,
         custom_keys: Optional[Dict[str, str]]
     ) -> Dict[str, Any]:
-        provider = PROVIDERS.get(provider_id, PROVIDERS["gemini"])
+        provider = dict(PROVIDERS.get(provider_id, PROVIDERS["gemini"]))
         api_key = models_hub.get_api_key(provider_id, custom_keys)
+
+        # BYOK ulanishi o'z base URL'ini bergan bo'lsa (Custom OpenAI-compatible,
+        # Ollama yoki self-hosted gateway), u registry qiymatidan ustun turadi.
+        byok_base = models_hub.byok_base_url(provider_id)
+        if byok_base:
+            provider["base_url"] = byok_base
         timeout = aiohttp.ClientTimeout(total=timeout_s, sock_connect=8,
                                         sock_read=max(30.0, timeout_s * 0.85))
 
