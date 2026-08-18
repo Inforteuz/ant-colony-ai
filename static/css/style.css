@@ -5702,3 +5702,299 @@ body.light-theme .cam-popover {
 .byok-mini:hover { color: var(--text-main); border-color: rgba(139, 92, 246, 0.45); }
 .byok-mini:disabled { opacity: 0.5; cursor: not-allowed; }
 .byok-mini-danger:hover { color: #f87171; border-color: rgba(239, 68, 68, 0.45); }
+
+/* ============================================================
+   PM KONSOLI — yangilangan dizayn va materiallar paneli
+   ============================================================ */
+
+/* --- Drawer: chuqurroq fon va yumshoq chegara --- */
+.pm-console-drawer {
+  background:
+    radial-gradient(120% 60% at 100% 0%, rgba(139, 92, 246, 0.13), transparent 62%),
+    radial-gradient(90% 50% at 0% 100%, rgba(34, 211, 238, 0.09), transparent 60%),
+    var(--bg-card) !important;
+  border-left: 1px solid rgba(139, 92, 246, 0.22) !important;
+}
+body.light-theme .pm-console-drawer {
+  background:
+    radial-gradient(120% 60% at 100% 0%, rgba(139, 92, 246, 0.09), transparent 62%),
+    radial-gradient(90% 50% at 0% 100%, rgba(34, 211, 238, 0.07), transparent 60%),
+    #ffffff !important;
+}
+
+/* Sarlavha: PM avatari jonli puls bilan */
+.pm-console-drawer .drawer-header {
+  position: relative;
+  border-bottom: 1px solid var(--border-subtle);
+  backdrop-filter: blur(10px);
+}
+.pm-console-drawer .drawer-header::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: -1px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.6), transparent);
+}
+
+.pm-avatar-icon {
+  position: relative;
+  box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.55);
+}
+.pm-console-drawer.is-busy .pm-avatar-icon {
+  animation: pm-pulse 1.8s ease-out infinite;
+}
+@keyframes pm-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.55); }
+  70%  { box-shadow: 0 0 0 12px rgba(139, 92, 246, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0); }
+}
+
+/* --- Lenta: yumshoqroq kartochkalar --- */
+.pm-feed-list .chat-card {
+  border-radius: 14px !important;
+  border: 1px solid var(--border-subtle);
+  transition: border-color 0.2s ease;
+}
+.pm-feed-list .chat-card:hover { border-color: rgba(139, 92, 246, 0.3); }
+
+.pm-feed-list .chat-card-pm {
+  background: linear-gradient(180deg, rgba(139, 92, 246, 0.07), transparent 55%), var(--bg-card-elevated);
+}
+
+.empty-feed-placeholder {
+  padding: 34px 22px !important;
+  text-align: center;
+}
+.empty-feed-placeholder h4 {
+  font-size: 14.5px;
+  margin-bottom: 6px;
+}
+.empty-feed-placeholder p {
+  max-width: 420px;
+  margin: 0 auto;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+
+/* --- Footer: shaffof qatlam --- */
+.pm-console-drawer .drawer-footer {
+  border-top: 1px solid var(--border-subtle);
+  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.16));
+  backdrop-filter: blur(8px);
+}
+body.light-theme .pm-console-drawer .drawer-footer {
+  background: linear-gradient(180deg, transparent, rgba(15, 23, 42, 0.04));
+}
+
+/* --- Materiallar paneli --- */
+.pm-attach-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.pm-attach-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  color: var(--text-secondary);
+  background: rgba(148, 163, 184, 0.1);
+  border: 1px solid var(--border-subtle);
+  transition: color 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+}
+.pm-attach-btn svg { width: 13px; height: 13px; }
+.pm-attach-btn:hover {
+  color: var(--text-main);
+  border-color: rgba(139, 92, 246, 0.45);
+  background: rgba(139, 92, 246, 0.12);
+}
+
+.pm-attach-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.pm-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 9px;
+  border-radius: 9px;
+  font-size: 11px;
+  background: rgba(34, 211, 238, 0.1);
+  border: 1px solid rgba(34, 211, 238, 0.32);
+  color: var(--text-secondary);
+}
+.pm-chip-kind {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  color: #22d3ee;
+}
+.pm-chip-name {
+  font-weight: 700;
+  color: var(--text-main);
+  max-width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pm-chip-meta { color: var(--text-muted); }
+.pm-chip-x {
+  padding: 0 2px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+}
+.pm-chip-x:hover { color: #f87171; }
+
+.pm-chip.is-pending { border-color: rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.1); }
+.pm-chip-spinner {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  border: 2px solid rgba(245, 158, 11, 0.35);
+  border-top-color: #f59e0b;
+  animation: kpi-spin 0.8s linear infinite;
+}
+
+/* Papka yo'li qatori */
+.pm-path-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.pm-path-row.hidden { display: none !important; }
+.pm-path-input {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 11px;
+  border-radius: 9px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-main);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  outline: none;
+}
+.pm-path-input:focus { border-color: rgba(139, 92, 246, 0.5); }
+.pm-path-apply {
+  flex-shrink: 0;
+  padding: 7px 13px;
+  border-radius: 9px;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  color: #fff;
+  background: var(--color-purple);
+  border: none;
+}
+
+/* Drag & drop */
+.pm-input-wrapper { position: relative; transition: border-color 0.18s ease; }
+.pm-drop-hint {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #22d3ee;
+  background: rgba(8, 47, 73, 0.88);
+  border: 1.5px dashed rgba(34, 211, 238, 0.65);
+  pointer-events: none;
+}
+.pm-input-wrapper.is-dragover .pm-drop-hint { display: flex; }
+body.light-theme .pm-drop-hint { background: rgba(236, 254, 255, 0.94); }
+
+/* --- Natija yuklab olish kartochkasi --- */
+.pm-result-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 10px 0;
+  padding: 13px 15px;
+  border-radius: 13px;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(16, 185, 129, 0.04));
+  border: 1px solid rgba(16, 185, 129, 0.38);
+}
+.pm-result-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px; height: 36px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.16);
+}
+.pm-result-icon svg { width: 17px; height: 17px; }
+.pm-result-body { flex: 1; min-width: 0; }
+.pm-result-body strong { display: block; font-size: 13px; color: var(--text-main); }
+.pm-result-meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pm-result-btn {
+  flex-shrink: 0;
+  padding: 7px 15px;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  color: #052e1a;
+  background: #10b981;
+  transition: filter 0.16s ease;
+}
+.pm-result-btn:hover { filter: brightness(1.08); }
+
+/* PM yangi mutaxassis yaratganda ko'rsatiladigan kartochka */
+.pm-role-created {
+  margin: 8px 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.12), rgba(139, 92, 246, 0.04));
+  border: 1px solid rgba(139, 92, 246, 0.4);
+}
+.pm-role-created-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: var(--color-purple);
+}
+.pm-role-created-head svg { width: 15px; height: 15px; }
+.pm-role-name {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--text-main);
+}
+.pm-role-created-body p {
+  margin: 3px 0 5px;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.pm-role-created-body small { font-size: 10.5px; color: var(--text-muted); }
+.pm-role-created-body code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(148, 163, 184, 0.16);
+}

@@ -9,7 +9,7 @@ import asyncio
 import subprocess
 from pathlib import Path
 from typing import Dict, Any, List, Optional
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, File, Request, HTTPException, UploadFile
 from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,6 +25,7 @@ from ant_colony.providers import registry as provider_registry
 from ant_colony.providers import secrets as provider_secrets
 from ant_colony.providers import service as provider_service
 from ant_colony.providers import store as provider_store
+from ant_colony.runtime import attachments
 from ant_colony.core.agent_engine import agent_engine
 from ant_colony.core.skill_matrix import skill_matrix
 from ant_colony.llm.prompt_cache import prompt_cache
@@ -478,6 +479,62 @@ class TerminalRequest(BaseModel):
 async def exec_terminal(req: TerminalRequest):
     result = run_shell_command(req.command, req.cwd)
     return result
+
+# ==========================================================
+# Foydalanuvchi materiallari: fayl / ZIP / papka yo'li
+# ==========================================================
+
+_ATTACHMENTS: Dict[str, Any] = {}
+
+
+class AttachmentPathRequest(BaseModel):
+    path: str
+
+
+@app.post("/api/attachments/upload")
+async def attachment_upload(file: UploadFile = File(...)):
+    """
+    Fayl yoki ZIP yuklaydi. ZIP xavfsiz ochiladi (Zip Slip / zip bomb himoyasi).
+    """
+    data = await file.read()
+    try:
+        att = attachments.ingest_upload(file.filename or "upload.bin", data)
+    except attachments.AttachmentError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    _ATTACHMENTS[att.id] = att
+    return {"ok": True, "attachment": att.to_dict()}
+
+
+@app.post("/api/attachments/path")
+async def attachment_from_path(req: AttachmentPathRequest):
+    """Mavjud papka (yoki fayl) yo'lini biriktiradi — nusxa ko'chirmasdan."""
+    try:
+        att = attachments.ingest_path(req.path)
+    except attachments.AttachmentError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    _ATTACHMENTS[att.id] = att
+    return {"ok": True, "attachment": att.to_dict()}
+
+
+@app.get("/api/attachments/{att_id}/download")
+async def attachment_download(att_id: str):
+    """Natijani yuklab olish: ZIP kirgan bo'lsa ZIP, fayl kirgan bo'lsa fayl."""
+    att = _ATTACHMENTS.get(att_id)
+    if not att:
+        raise HTTPException(status_code=404, detail="Материал не найден")
+
+    result = attachments.package_result(att)
+    if not result:
+        raise HTTPException(status_code=404, detail="Нечего выгружать")
+
+    return FileResponse(
+        result["path"],
+        filename=result["name"],
+        media_type="application/zip" if result["kind"] == "zip" else "application/octet-stream",
+    )
+
 
 # --- Desktop Projects Endpoints ---
 
@@ -989,9 +1046,12 @@ async def browse_dir(req: BrowseDirRequest):
 # --- Decoupled Background Orchestrator Engine ---
 
 class OrchestrationJob:
-    def __init__(self, job_id: str, task: str):
+    def __init__(self, job_id: str, task: str, attachment: Any = None):
         self.job_id = job_id
         self.task = task
+        # Biriktirilgan material — agentlar shu papkada ishlaydi va natija
+        # foydalanuvchi bergan formatda (ZIP yoki fayl) qaytariladi.
+        self.attachment = attachment
         self.status = "running"  # "running", "completed", "failed", "cancelled"
         self.events: List[Dict[str, Any]] = []
         self.subscribers: List[asyncio.Queue] = []
@@ -1015,8 +1075,41 @@ class OrchestrationJob:
         set_event_emitter(self.add_event)
         try:
             self.add_event({"type": "user_task", "task": self.task, "timestamp": time.time()})
+
+            # Biriktirilgan material bo'lsa: agentlar aynan shu papkada ishlaydi va
+            # PM topshiriq bilan birga fayl daraxti hamda matn mazmunini ko'radi —
+            # aks holda u nima berilganini bilmay, rejani taxminga qurgan bo'lardi.
+            effective_task = self.task
+            if self.attachment is not None:
+                try:
+                    context = attachments.build_agent_context(self.attachment)
+                    effective_task = (
+                        f"{context}\n\n"
+                        f"ЗАДАЧА ОТ ПОЛЬЗОВАТЕЛЯ:\n{self.task}\n\n"
+                        f"Работай ПРЯМО В ЭТОЙ папке: {self.attachment.work_dir}\n"
+                        f"Не создавай новый проект — читай, анализируй и правь эти файлы."
+                    )
+                    set_active_project_dir(self.attachment.work_dir)
+                    self.add_event({
+                        "type": "attachment_ready",
+                        "attachment": {
+                            "id": self.attachment.id,
+                            "kind": self.attachment.kind,
+                            "name": self.attachment.original_name,
+                            "files": len(self.attachment.files),
+                            "work_dir": self.attachment.work_dir,
+                        },
+                        "timestamp": time.time(),
+                    })
+                except Exception as exc:
+                    self.add_event({
+                        "type": "attachment_error",
+                        "error": f"{type(exc).__name__}: {exc}",
+                        "timestamp": time.time(),
+                    })
+
             async for event in agent_engine.run_orchestrated_task_stream(
-                task_prompt=self.task,
+                task_prompt=effective_task,
                 custom_keys=CUSTOM_KEYS
             ):
                 if self.status == "cancelled":
@@ -1024,11 +1117,27 @@ class OrchestrationJob:
                 self.add_event(event)
                 if event.get("type") == "orchestration_completed":
                     self.status = "completed"
+                    # Material biriktirilgan bo'lsa — natijani o'sha formatda qaytaramiz:
+                    # ZIP kirgan bo'lsa ZIP, bitta fayl kirgan bo'lsa fayl.
+                    if self.attachment is not None:
+                        try:
+                            packaged = attachments.package_result(self.attachment)
+                            if packaged:
+                                event["result_download"] = {
+                                    "kind": packaged["kind"],
+                                    "name": packaged["name"],
+                                    "size": packaged["size"],
+                                    "url": packaged["download_url"],
+                                }
+                        except Exception:
+                            pass
                     self.final_event = event
-                    # PM xotirasiga yozamiz — keyingi sessiyalarda kontekst sifatida
+                    # PM xotirasiga yozamiz — keyingi sessiyalarda kontekst sifatida.
+                    # Oddiy suhbat yozilmaydi: aks holda har bir "salom" ham
+                    # "bajarilgan loyiha, ball 100" bo'lib xotirani ifloslantirardi.
                     try:
                         mem = get_memory()
-                        if mem:
+                        if mem and event.get("task_type") != "conversational":
                             eval_summary = event.get("eval_summary") or {}
                             mem.record_orchestration(
                                 task=self.task,
@@ -1069,6 +1178,8 @@ CURRENT_JOB: Optional[OrchestrationJob] = None
 
 class OrchestratorRequest(BaseModel):
     task: str
+    # Foydalanuvchi biriktirgan material (fayl / ZIP / papka) identifikatori.
+    attachment_id: Optional[str] = None
 
 @app.get("/api/orchestrator/latest")
 async def get_latest_orchestration():
@@ -1103,7 +1214,8 @@ async def dispatch_orchestrator(req: OrchestratorRequest):
     """
     global CURRENT_JOB
     job_id = f"job_{int(time.time()*1000)}"
-    job = OrchestrationJob(job_id=job_id, task=req.task)
+    attachment = _ATTACHMENTS.get(req.attachment_id) if req.attachment_id else None
+    job = OrchestrationJob(job_id=job_id, task=req.task, attachment=attachment)
     ACTIVE_JOBS[job_id] = job
     CURRENT_JOB = job
 

@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Dict, Any, List, AsyncGenerator, Optional, Tuple
 
 from ant_colony.config import (
-    PROVIDERS, MODELS_CATALOG, WORKSPACE_DIR, PROJECTS_BASE_DIR,
+    PROVIDERS, MODELS_CATALOG, WORKSPACE_DIR, PROJECTS_BASE_DIR, ROLES_DIR,
     WORKSTATIONS, AGENT_CONFIG,
 )
 from ant_colony.runtime.tools import (
@@ -199,6 +199,76 @@ def is_code_creation_intent(text: str) -> bool:
         return True
 
     return False
+
+
+def create_dynamic_role(spec: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """
+    PM so'ragan yangi mutaxassis rolini yaratadi.
+
+    Yaratiladi: `roles/<id>.md` yo'riqnomasi + ELO matritsasida yozuv.
+    Shundan keyin rol boshqa oddiy rollar bilan bir xil ishlaydi: unga model
+    tayinlanadi, ishi baholanadi va u qayta ishlatiladi.
+
+    Rol id'si tozalanadi — foydalanuvchi/model bergan matn fayl yo'liga
+    aylanadi, shuning uchun `../` kabi belgilar o'tkazilmaydi.
+    """
+    raw_id = str(spec.get("id") or "").strip().lower()
+    role_id = re.sub(r"[^a-z0-9_]+", "_", raw_id).strip("_")[:48]
+    if not role_id:
+        return None
+
+    name = str(spec.get("name") or role_id.replace("_", " ").title()).strip()[:80]
+    description = str(spec.get("description") or "").strip()[:400]
+    category = str(spec.get("category") or "general").strip()
+    system_prompt = str(spec.get("system_prompt") or "").strip()
+
+    md_file = f"{role_id}.md"
+    md_path = ROLES_DIR / md_file
+    if not _is_within_dir(ROLES_DIR, md_path):
+        return None
+
+    if not md_path.exists():
+        body = system_prompt or (
+            f"Sen — {name}. {description}\n\n"
+            "Vazifani sifatli, to'liq va tekshiriladigan qilib bajar."
+        )
+        content = (
+            f"# {name}\n\n"
+            f"## Описание роли\n{description or name}\n\n"
+            f"## Системная инструкция\n{body}\n\n"
+            f"## Ключевые навыки\n"
+            f"- Профильная экспертиза в своей области\n"
+            f"- Полное и проверяемое выполнение задачи\n"
+        )
+        try:
+            ROLES_DIR.mkdir(parents=True, exist_ok=True)
+            md_path.write_text(content, encoding="utf-8")
+        except OSError:
+            return None
+
+    role_dict = {
+        "id": role_id,
+        "name": name,
+        "description": description,
+        "category": category,
+        "md_file": md_file,
+        "initial_model": skill_matrix.get_best_model_for_role("frontend_architect"),
+        "dynamic": True,
+    }
+    try:
+        skill_matrix.register_custom_role(role_dict)
+    except Exception:
+        return None
+    return role_dict
+
+
+def _is_within_dir(base: Path, target: Path) -> bool:
+    """Yo'l `base` ichidami? Rol id'si orqali papkadan chiqib ketishga qarshi."""
+    try:
+        target.resolve().relative_to(base.resolve())
+        return True
+    except ValueError:
+        return False
 
 
 def is_conversational_query(text: str) -> bool:
@@ -483,6 +553,22 @@ class AgentEngine:
             '  "acceptance_criteria": ["Barcha Python modullari tahlil qilindi", "Konkret audit xulosasi berildi"]\n'
             "}\n"
             "```\n\n"
+            "3b. AGAR yuqoridagi rollar orasida vazifaga MOS mutaxassis bo'lmasa — YANGI rol yarating.\n"
+            "   Faqat haqiqatan kerak bo'lsa qiling: mavjud rol 70% mos kelsa, o'shani ishlating.\n"
+            "   JSON ichida `specialist_role` sifatida yangi rol id'sini bering va `new_role` blokini qo'shing:\n"
+            "```json\n"
+            "{\n"
+            '  "task_type": "code_project",\n'
+            '  "specialist_role": "game_designer",\n'
+            '  "new_role": {\n'
+            '    "id": "game_designer",\n'
+            '    "name": "Game Designer",\n'
+            '    "description": "O\'yin mexanikasi, level dizayni va balans mutaxassisi",\n'
+            '    "category": "frontend_ui",\n'
+            '    "system_prompt": "Rol uchun to\'liq tizim yo\'riqnomasi: mas\'uliyat doirasi, ish uslubi, sifat mezonlari..."\n'
+            "  }\n"
+            "}\n"
+            "```\n\n"
             "4. AGAR foydalanuvchi YANGI dasturiy/muhandislik loyihasi (kod yozish, sayt, bot, script, backend API, frontend, web sahifa) yaratishni so'rayotgan bo'lsa:\n"
             "   Vazifani tahlil qilib, qisqa reja yozing (foydalanuvchi tilida) va oxirida AYNAN quyidagi JSON blokini qaytaring:\n"
             "```json\n"
@@ -556,11 +642,23 @@ class AgentEngine:
             task_type = spec.get("task_type") or "code_project"
         role = spec.get("specialist_role")
         valid_roles = {r["id"] for r in DEFAULT_ROLE_DEFINITIONS}
+
+        # PM mavjud rollar orasidan mosini topmasa, yangi mutaxassis yaratishi mumkin.
+        # Bu real ehtiyoj: platformada 19 ta rol bor, lekin barcha soha qamralmagan.
+        created_role = None
+        if role not in valid_roles and isinstance(spec.get("new_role"), dict):
+            created_role = create_dynamic_role(spec["new_role"])
+            if created_role:
+                role = created_role["id"]
+                valid_roles.add(role)
+
         if role not in valid_roles or role == "pm_orchestrator":
             role = default_role
 
         # JSON blokini odamga ko'rsatiladigan matndan olib tashlaymiz.
         plan_text = _JSON_BLOCK_RE.sub("", text).strip() or text.strip()
+        if created_role:
+            spec["_created_role"] = created_role
 
         return {
             "ok": True, "error": None,
@@ -662,15 +760,33 @@ class AgentEngine:
                 "bottleneck_alert": None, "eta_seconds": 0,
                 "project_dir": str(PROJECTS_BASE_DIR),
             }
+            # MUHIM: oddiy suhbat — bu loyiha EMAS.
+            # Ilgari bu yerda final_score=100 va soxta score_breakdown
+            # (qa/artifacts/execution = 100) yuborilardi. Natijada har bir
+            # "salom" ham "loyiha muvaffaqiyatli yakunlandi, ball 100" bo'lib
+            # ko'rinar va PM xotirasiga bajarilgan loyiha sifatida yozilardi.
             yield {
                 "type": "orchestration_completed",
+                "task_type": "conversational",
                 "duration_seconds": round(time.time() - start_time, 2),
-                "final_score": 100,
-                "score_breakdown": {"qa": 100, "artifacts": 100, "execution": 100},
+                "final_score": None,
+                "score_breakdown": None,
                 "created_files": [],
-                "eval_summary": {"summary": answer, "score": 100},
+                "eval_summary": None,
             }
             return
+
+        # PM yangi mutaxassis yaratgan bo'lsa — buni foydalanuvchi ko'rsin.
+        created_role = spec.get("_created_role")
+        if created_role:
+            yield {
+                "type": "role_created",
+                "station": "pm",
+                "role_id": created_role["id"],
+                "role_name": created_role["name"],
+                "description": created_role.get("description", ""),
+                "message": f"Создан новый специалист: {created_role['name']}",
+            }
 
         coder_role_id = spec["specialist_role"]
 

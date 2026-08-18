@@ -15,8 +15,10 @@ around a 3D office and work at their desks.
 
 | | |
 |---|---|
-| **Multi-agent orchestration** | A PM agent decomposes a task, assigns roles, runs a QA + repair loop, and reports back to you (the "CEO"). |
-| **20+ models, one interface** | Gemini, OpenRouter, Groq, GitHub Models and OpenAI-compatible endpoints behind a single fallback chain with circuit breakers. |
+| **Multi-agent orchestration** | A PM agent decomposes a task, assigns roles, runs a QA + repair loop, and reports back to you (the "CEO"). If no existing role fits, it writes a new one into `roles/` and uses it. |
+| **BYOK — bring your own key** | Connect OpenAI, Anthropic, Gemini, Groq, OpenRouter, Mistral, DeepSeek, xAI, Cerebras, Cohere, Together AI, Ollama, or any OpenAI-compatible endpoint. Keys are encrypted at rest and never returned to the browser. |
+| **Work on your own files** | Drop a file, a ZIP archive, or point at a folder — agents unpack it, read it, edit in place, and hand back the same shape (ZIP in → ZIP out). |
+| **One fallback chain** | All connected providers sit behind a single routing layer with circuit breakers, provider-diverse fallback, and normalized errors. Configuration mistakes never trigger a pointless retry storm. |
 | **Continuous ELO matrix** | Every finished task scores the model that did it. Roles get reassigned to whichever model actually performs best per category. |
 | **Prompt cache** | Repeated prompts are served from disk, with per-model savings reporting. |
 | **Live 3D office** | Three.js scene: workstations, walking agents, meeting room, marketing/BI wing, legal office, and recreation areas. |
@@ -57,6 +59,52 @@ and reloaded on the next start.
 
 ---
 
+## Connecting a provider (BYOK)
+
+Open **Настройки → Мои провайдеры (BYOK)**, pick a provider, paste your key and press
+**Проверить**. On success the platform loads that provider's live model list and saves the
+credential.
+
+What happens to your key:
+
+- it is sent **only** to your own backend, never to a third party;
+- it is stored with **AES-256-GCM** envelope encryption in `data/provider_connections.json` (mode `0600`);
+- the encryption key lives outside that file — `ANT_SECRET_KEY`, `ANT_SECRET_KEY_FILE`,
+  or an auto-generated `~/.ant_colony/secret.key`;
+- it is written to disk **only after** a successful connection test;
+- read endpoints return a masked fingerprint (`sk-...ABCD`) and never the raw value;
+- provider error bodies are never forwarded to the browser.
+
+For a server deployment, generate a key first:
+
+```bash
+python -c "from ant_colony.providers.secrets import generate_master_key; print(generate_master_key())"
+# put the output in ANT_SECRET_KEY
+```
+
+Custom endpoints (vLLM, LM Studio, a gateway) go through the **Custom (OpenAI-compatible)**
+entry. Because you supply the URL there, it is validated against SSRF: only `http(s)`, no
+credentials-in-URL, and private / loopback / link-local / cloud-metadata addresses are
+rejected. Local addresses are allowed only for Ollama, which is explicitly a local provider.
+
+Model IDs are never hardcoded — they are synced from each provider's models endpoint, and a
+model that disappears is marked unavailable rather than deleted, so historical agent runs
+stay readable.
+
+## Working with your own files
+
+The PM console accepts three kinds of input alongside the task text:
+
+| Input | What happens | What you get back |
+|---|---|---|
+| A file | Placed in a scratch workspace | The edited file |
+| A ZIP archive | Unpacked (Zip Slip and zip-bomb guarded) | A new ZIP with the changes |
+| A folder path | Used in place, no copying | Edits applied on disk |
+
+The PM sees the file tree and the contents of the text files before planning, so it works
+from what you actually sent rather than from a guess. Paths are restricted to your projects
+directory and home directory.
+
 ## Configuration
 
 Everything is environment-driven — see [`.env.example`](.env.example) for the full list.
@@ -69,6 +117,8 @@ Everything is environment-driven — see [`.env.example`](.env.example) for the 
 | `PROJECTS_BASE_DIR` | `~/AntColonyProjects` | Where agents create their projects. |
 | `AGENT_MAX_TOOL_STEPS` | `8` | Max sequential tool calls per agent run. |
 | `AGENT_REPAIR_THRESHOLD` | `80` | QA score below which the repair loop triggers. |
+| `ANT_SECRET_KEY` | auto-generated locally | base64 AES-256 key used to encrypt provider credentials. Set this on a server. |
+| `ANT_SECRET_KEY_FILE` | — | Path to a file holding that key instead. |
 | `TELEGRAM_BOT_TOKEN` | — | Enables the Telegram control bot. |
 
 Keys are read **only** from the environment (`.env` or system env). Nothing is hardcoded.

@@ -17,6 +17,10 @@ import asyncio
 import tempfile
 from pathlib import Path
 
+# Skript sifatida ishga tushirilganda ham paket topilsin
+# (`python tests/test_platform.py`). pytest'da bu allaqachon ishlaydi.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from ant_colony.config import MODELS_CATALOG, AGENT_CONFIG
 from ant_colony.runtime.tools import (
     write_file, read_file, edit_file, list_files, list_dir, execute_python,
@@ -333,7 +337,15 @@ def test_monitor_config():
 
 # ---------------------------------------------------------------- ONLINE
 
-async def test_online():
+async def run_online_checks():
+    """
+    Haqiqiy provayder chaqiruvlari bilan tekshiruv.
+
+    Nomi ataylab `test_` bilan boshlanmaydi: pytest uni avtomatik yig'ib olmasin.
+    Ilgari u `test_online` edi va har `pytest` chaqiruvida "async def not natively
+    supported" bilan yiqilardi hamda kvota sarflardi.
+    Ishga tushirish: `python tests/test_platform.py --online`
+    """
     print("\n=== ONLINE: haqiqiy model chaqiruvlari ===")
     from ant_colony.llm.client import llm_client
 
@@ -402,7 +414,7 @@ def main():
     test_monitor_config()
 
     if online:
-        asyncio.run(test_online())
+        asyncio.run(run_online_checks())
     else:
         print("\n(ONLINE testlar o'tkazib yuborildi — ishga tushirish: --online)")
 

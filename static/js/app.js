@@ -917,6 +917,7 @@ class AntColonyApp {
     }
     on('btn-refresh-suggestions', 'click', () => this.loadPMSuggestions(true));
     this.loadPMSuggestions(false);
+    this.setupPMAttachments();
 
     on('pm-task-input', 'keydown', (e) => {
       // isComposing — IME (masalan, kirill/xitoy klaviaturasi) matn kiritayotgan
@@ -1067,6 +1068,165 @@ class AntColonyApp {
       </div>
     `;
     this.toast('История очищена', 'Лента Project Manager пуста', 'ok');
+  }
+
+  // ============================================================
+  // PM konsoli — biriktirilgan materiallar (fayl / ZIP / papka)
+  // ============================================================
+
+  setupPMAttachments() {
+    const fileInput = document.getElementById('pm-file-input');
+    const btnFile = document.getElementById('btn-pm-attach-file');
+    const btnPath = document.getElementById('btn-pm-attach-path');
+    const pathRow = document.getElementById('pm-path-row');
+    const btnPathApply = document.getElementById('btn-pm-path-apply');
+    const wrapper = document.getElementById('pm-input-wrapper');
+
+    if (btnFile && fileInput) {
+      btnFile.addEventListener('click', () => fileInput.click());
+      fileInput.addEventListener('change', () => {
+        const f = fileInput.files && fileInput.files[0];
+        if (f) this.uploadPMAttachment(f);
+        fileInput.value = '';  // bir xil faylni qayta tanlash mumkin bo'lsin
+      });
+    }
+
+    if (btnPath && pathRow) {
+      btnPath.addEventListener('click', () => {
+        pathRow.classList.toggle('hidden');
+        if (!pathRow.classList.contains('hidden')) {
+          document.getElementById('pm-path-input')?.focus();
+        }
+      });
+    }
+
+    if (btnPathApply) {
+      btnPathApply.addEventListener('click', () => this.attachPMPath());
+    }
+    const pathInput = document.getElementById('pm-path-input');
+    if (pathInput) {
+      pathInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); this.attachPMPath(); }
+      });
+    }
+
+    // Drag & drop — butun kiritish maydoni ustiga tashlash mumkin.
+    if (wrapper) {
+      const stop = (e) => { e.preventDefault(); e.stopPropagation(); };
+      ['dragenter', 'dragover'].forEach(ev => wrapper.addEventListener(ev, (e) => {
+        stop(e); wrapper.classList.add('is-dragover');
+      }));
+      ['dragleave', 'drop'].forEach(ev => wrapper.addEventListener(ev, (e) => {
+        stop(e);
+        if (ev === 'dragleave' && wrapper.contains(e.relatedTarget)) return;
+        wrapper.classList.remove('is-dragover');
+      }));
+      wrapper.addEventListener('drop', (e) => {
+        const f = e.dataTransfer?.files?.[0];
+        if (f) this.uploadPMAttachment(f);
+      });
+    }
+  }
+
+  async uploadPMAttachment(file) {
+    const MAX_MB = 200;
+    if (file.size > MAX_MB * 1024 * 1024) {
+      this.toast('Файл слишком большой', `Лимит — ${MAX_MB} МБ. Укажите путь к папке.`, 'error');
+      return;
+    }
+
+    this._renderAttachChips({ pending: file.name });
+    try {
+      const form = new FormData();
+      form.append('file', file, file.name);
+      const res = await fetch('/api/attachments/upload', { method: 'POST', body: form });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+
+      this._pmAttachment = data.attachment;
+      this._renderAttachChips();
+      this.toast('Материал прикреплён',
+        `${data.attachment.original_name}: ${data.attachment.files.length} файлов`, 'ok');
+    } catch (e) {
+      this._pmAttachment = null;
+      this._renderAttachChips();
+      this.toast('Не удалось прикрепить', e.message, 'error');
+    }
+  }
+
+  async attachPMPath() {
+    const input = document.getElementById('pm-path-input');
+    const path = (input?.value || '').trim();
+    if (!path) return;
+
+    this._renderAttachChips({ pending: path });
+    try {
+      const res = await fetch('/api/attachments/path', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+
+      this._pmAttachment = data.attachment;
+      this._renderAttachChips();
+      document.getElementById('pm-path-row')?.classList.add('hidden');
+      this.toast('Папка прикреплена',
+        `${data.attachment.original_name}: ${data.attachment.files.length} файлов`, 'ok');
+    } catch (e) {
+      this._pmAttachment = null;
+      this._renderAttachChips();
+      this.toast('Путь недоступен', e.message, 'error');
+    }
+  }
+
+  _renderAttachChips(state = {}) {
+    const box = document.getElementById('pm-attach-chips');
+    if (!box) return;
+
+    if (state.pending) {
+      box.innerHTML = `<span class="pm-chip is-pending">
+        <span class="pm-chip-spinner"></span>${this.esc(state.pending)}</span>`;
+      return;
+    }
+
+    const att = this._pmAttachment;
+    if (!att) { box.innerHTML = ''; return; }
+
+    const icon = att.kind === 'zip' ? 'ZIP' : (att.kind === 'directory' ? 'DIR' : 'FILE');
+    const sizeKb = Math.max(1, Math.round(att.total_bytes / 1024));
+    box.innerHTML = `
+      <span class="pm-chip is-attached" title="${this.esc(att.work_dir)}">
+        <b class="pm-chip-kind">${icon}</b>
+        <span class="pm-chip-name">${this.esc(att.original_name)}</span>
+        <span class="pm-chip-meta">${att.files.length} файлов · ${sizeKb} КБ</span>
+        <button class="pm-chip-x" title="Открепить">✕</button>
+      </span>`;
+    box.querySelector('.pm-chip-x')?.addEventListener('click', () => {
+      this._pmAttachment = null;
+      this._renderAttachChips();
+    });
+  }
+
+  // Natijani yuklab olish kartochkasi (ZIP kirgan bo'lsa ZIP qaytadi).
+  renderAttachmentResult(event, feed) {
+    const dl = event.result_download;
+    if (!dl || !feed) return;
+    const sizeKb = Math.max(1, Math.round((dl.size || 0) / 1024));
+    const card = document.createElement('div');
+    card.className = 'pm-result-card';
+    card.innerHTML = `
+      <div class="pm-result-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      </div>
+      <div class="pm-result-body">
+        <strong>Результат готов</strong>
+        <div class="pm-result-meta">${this.esc(dl.name)} · ${sizeKb} КБ</div>
+      </div>
+      <a class="pm-result-btn" href="${this.esc(dl.url)}" download>Скачать</a>`;
+    feed.appendChild(card);
+    feed.scrollTop = feed.scrollHeight;
   }
 
   // --- AI takliflari: kontekstga mos topshiriq chiplarini yuklaydi ---
@@ -1577,6 +1737,8 @@ class AntColonyApp {
     }
     if (stopBtn) stopBtn.classList.toggle('hidden', !this.isRunning);
     if (input) input.setAttribute('aria-busy', String(this.isRunning));
+    // PM avatari ish davomida jonli puls beradi — holat bir qarashda ko'rinadi.
+    document.getElementById('pm-console-drawer')?.classList.toggle('is-busy', this.isRunning);
   }
 
   pmFeedError(feed, title, message) {
@@ -1663,7 +1825,10 @@ class AntColonyApp {
       const response = await fetch('/api/orchestrator/dispatch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ task: taskText })
+        body: JSON.stringify({
+          task: taskText,
+          attachment_id: this._pmAttachment ? this._pmAttachment.id : null,
+        })
       });
 
       // Ilgari status tekshirilmasdi: server 500 qaytarsa oqim jimgina bo'sh qolardi.
@@ -1907,13 +2072,13 @@ class AntColonyApp {
 
     const createdFiles = event.created_files || [];
 
-    // Conversational javob (oddiy salomlashish yoki savol) — bu haqiqiy loyiha emas.
-    // Coder umuman ishlamagan va fayl yaratilmagan → "Задача выполнена 100/100" ko'rsatmaymiz.
+    // Conversational javob (oddiy suhbat yoki savol) — bu haqiqiy loyiha emas.
+    // Endi server buni ochiq aytadi (task_type), evristika esa faqat zaxira:
+    // ilgari uzoqroq davom etgan suhbat "loyiha" bo'lib ko'rinardi.
     const isConversational = (
-      createdFiles.length === 0
-      && !event.coder_summary
-      && !event.coder_role
-      && (event.total_duration_sec || 999) < 30
+      event.task_type === 'conversational'
+      || (createdFiles.length === 0 && !event.coder_summary && !event.coder_role
+          && event.final_score == null)
     );
     if (isConversational) {
       // Kompakt "Ответ дан" ko'rinishi — 100/100 va "Созданные файлы (0)" bo'lmaydi.
@@ -2070,7 +2235,10 @@ class AntColonyApp {
       if (!this._isReplay) {
         if (type === 'orchestration_completed') {
           const files = (event.created_files || []).length;
-          const isConversational = files === 0 && (event.duration_seconds || 999) < 30;
+          const isConversational = (
+            event.task_type === 'conversational'
+            || (files === 0 && event.final_score == null)
+          );
           if (!isConversational) {
             const score = event.final_score;
             this.toast(
@@ -2294,11 +2462,30 @@ class AntColonyApp {
       });
     }
 
+    // 5b. PM yangi mutaxassis yaratdi (mavjud rollar orasida mos kelmagani uchun)
+    if (type === 'role_created') {
+      const card = document.createElement('div');
+      card.className = 'pm-feed-item pm-role-created';
+      card.innerHTML = `
+        <div class="pm-role-created-head">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+          <strong>Создан новый специалист</strong>
+        </div>
+        <div class="pm-role-created-body">
+          <span class="pm-role-name">${this.esc(event.role_name || event.role_id)}</span>
+          ${event.description ? `<p>${this.esc(event.description)}</p>` : ''}
+          <small>Роль сохранена в <code>roles/${this.esc(event.role_id)}.md</code> и доступна для будущих задач.</small>
+        </div>`;
+      feed.appendChild(card);
+      feed.scrollTop = feed.scrollHeight;
+    }
+
     // 6. Completion -> Render Executive Summary Card
     if (type === 'orchestration_completed') {
       this.canvas.setActiveStation('pm', 'Задача завершена');
       this.updateLiveHUD('Центральное управление (PM)', 'Все модели активны', 'Проект успешно завершен и сдан', 100);
       this.renderExecutiveSummaryCard(event, feed);
+      this.renderAttachmentResult(event, feed);
       this.fetchRealStats();
       this.saveChatHistory();
     }
