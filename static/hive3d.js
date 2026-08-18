@@ -2226,7 +2226,12 @@ class IsometricHive3D {
 
     slotAssignment.forEach((ag, idx) => {
       const slot = EXCLUSIVE_SLOTS[idx % EXCLUSIVE_SLOTS.length];
-      if (ag.activityState !== slot.state) {
+      // Holat nomi mos bo'lsa ham, maqsad nuqtasi slot koordinatasidan uzoqlashgan
+      // bo'lishi mumkin — masalan localStorage'dan tiklangan ESKI joylashuv.
+      // Ilgari faqat `activityState !== slot.state` tekshirilardi, shuning uchun
+      // kod yangilangach ham agent eski (noto'g'ri) nuqtada qotib qolardi.
+      const drifted = ag.targetPos.distanceTo(slot.pos) > 0.35;
+      if (ag.activityState !== slot.state || drifted) {
         ag.activityState = slot.state;
         ag.activityLabel = slot.label;
         ag.targetPos.copy(slot.pos);

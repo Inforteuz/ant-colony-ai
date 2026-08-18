@@ -1397,22 +1397,53 @@ def _minify_code_stream(content: str, content_type: str = "text/html") -> str:
         return " ".join(lines)
     return content
 
+_ASSET_VERSION_RE = re.compile(r'(/static/([A-Za-z0-9_.\-]+))\?t=\d+')
+
+
+def _bust_asset_cache(html: str) -> str:
+    """
+    `?t=...` versiyasini fayl mtime'iga almashtiradi.
+
+    Ilgari bu qiymat HTML ichida qo'lda yozilgan qattiq raqam edi: JS/CSS
+    yangilangandan keyin ham brauzer eski nusxani keshdan olardi va
+    foydalanuvchi tuzatishlarni ko'rmasdi.
+    """
+    def repl(m: "re.Match") -> str:
+        path = STATIC_DIR / m.group(2)
+        try:
+            version = int(path.stat().st_mtime)
+        except OSError:
+            return m.group(0)
+        return f"{m.group(1)}?v={version}"
+
+    return _ASSET_VERSION_RE.sub(repl, html)
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index_root():
     """Bosh sahifani zichlangan bitta qatorda xavfsiz qaytaradi."""
     html_file = STATIC_DIR / "index.html"
     if html_file.exists():
         raw_html = html_file.read_text(encoding="utf-8")
-        minified_html = _minify_code_stream(raw_html, "text/html")
-        return HTMLResponse(content=minified_html, headers={"Content-Type": "text/html; charset=utf-8", "X-Content-Type-Options": "nosniff"})
+        minified_html = _minify_code_stream(_bust_asset_cache(raw_html), "text/html")
+        return HTMLResponse(
+            content=minified_html,
+            headers={
+                "Content-Type": "text/html; charset=utf-8",
+                "X-Content-Type-Options": "nosniff",
+                # HTML hech qachon keshlanmasin — aks holda yangi asset
+                # versiyalari ham foydalanuvchiga yetib bormaydi.
+                "Cache-Control": "no-store, must-revalidate",
+            },
+        )
     return HTMLResponse("<h1>Ant Colony</h1>")
+
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
-@app.get("/")
-async def serve_index():
-    index_file = STATIC_DIR / "index.html"
-    return FileResponse(str(index_file))
+# Eslatma: ilgari bu yerda ikkinchi `@app.get("/")` (serve_index) bor edi.
+# FastAPI birinchi ro'yxatdan o'tgan marshrutni ishlatadi, shuning uchun u
+# hech qachon chaqirilmasdi — o'lik kod sifatida olib tashlandi.
 
 from pm_proactive import pm_proactive_engine
 
