@@ -2377,7 +2377,7 @@ class AntColonyApp {
         // "Выбрать эту папку" row
         const selectRow = document.createElement('div');
         selectRow.className = 'ws-dir-item ws-dir-select';
-        selectRow.textContent = `✓ Выбрать текущую: ${data.path}`;
+        selectRow.textContent = `Выбрать текущую: ${data.path}`;
         selectRow.addEventListener('click', () => {
           document.getElementById('setup-workspace-path').value = data.path;
           document.getElementById('ws-browser').classList.add('hidden');
@@ -2779,7 +2779,7 @@ async function fetchCustomProviderModels() {
     alert('Ошибка запроса: ' + e.message);
   } finally {
     btn.disabled = false;
-    btn.textContent = '🔍 Загрузить список моделей';
+    btn.textContent = 'Загрузить список моделей';
   }
 }
 

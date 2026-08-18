@@ -754,7 +754,7 @@ class OrchestrationJob:
             err_ev = {
                 "type": "orchestration_failed",
                 "error": f"{type(e).__name__}: {e}",
-                "final_content": f"### ❌ Orkestratsiya xatolik bilan to'xtadi\n\n`{type(e).__name__}: {e}`",
+                "final_content": f"### Ошибка выполнения оркестрации\n\n`{type(e).__name__}: {e}`",
             }
             self.final_event = err_ev
             self.add_event(err_ev)

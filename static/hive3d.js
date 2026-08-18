@@ -1262,7 +1262,7 @@ class IsometricHive3D {
     ctx.font = '600 18px Plus Jakarta Sans, sans-serif';
     if (fb.matchOver) {
       ctx.fillStyle = '#eab308';
-      ctx.fillText(`🏆 ПОБЕДА: ${fb.winner}! Серия завершена (${fb.scoreStriker} - ${fb.scoreKeeper})`, 400, 145);
+      ctx.fillText(`ПОБЕДА: ${fb.winner}! Серия завершена (${fb.scoreStriker} - ${fb.scoreKeeper})`, 400, 145);
     } else {
       ctx.fillStyle = isLight ? '#059669' : '#34d399';
       const statusTxt = fb.lastShotGoal ? 'ГОЛ! Мяч в сетке ворот!' : 'Активная серия пенальти и ударов';
