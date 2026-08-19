@@ -3224,9 +3224,9 @@ body.light-theme .pm-console-drawer {
 }
 
 .quick-chip-btn {
-  background: rgba(139, 92, 246, 0.08);
-  border: 1px solid rgba(139, 92, 246, 0.25);
-  color: var(--text-secondary);
+  background: rgba(139, 92, 246, 0.18);
+  border: 1px solid rgba(139, 92, 246, 0.55);
+  color: var(--text-main);
   padding: 4px 10px;
   border-radius: 14px;
   font-size: 11px;
@@ -3238,7 +3238,7 @@ body.light-theme .pm-console-drawer {
 }
 
 .quick-chip-btn:hover {
-  background: rgba(139, 92, 246, 0.2);
+  background: rgba(139, 92, 246, 0.32);
   border-color: var(--color-purple);
   color: var(--text-main);
   transform: translateY(-1px);
@@ -6522,9 +6522,9 @@ body.light-theme .pm-drop-hint { background: rgba(236, 254, 255, 0.94); }
 }
 
 .pm-console-drawer .quick-chip-btn {
-  background: rgba(139, 92, 246, 0.12);
-  border: 1px solid rgba(139, 92, 246, 0.25);
-  color: #cbd5e1;
+  background: rgba(139, 92, 246, 0.2);
+  border: 1px solid rgba(139, 92, 246, 0.55);
+  color: var(--text-main);
   padding: 5px 12px;
   border-radius: 20px;
   font-size: 11px;
@@ -6533,8 +6533,8 @@ body.light-theme .pm-drop-hint { background: rgba(236, 254, 255, 0.94); }
   transition: all 0.18s;
 }
 .pm-console-drawer .quick-chip-btn:hover {
-  background: rgba(139, 92, 246, 0.25);
-  color: #fff;
+  background: rgba(139, 92, 246, 0.32);
+  color: var(--text-main);
   border-color: rgba(139, 92, 246, 0.5);
   transform: translateY(-1px);
 }
