@@ -4256,40 +4256,59 @@ body.light-theme .code-editor-textarea {
 }
 .hud-kpi-bar {
   flex-shrink: 1 !important;
-  overflow: hidden;
   min-width: 0;
+  /* Oxirgi chora: shu nuqtaga yetguncha quyidagi "zinapoya" allaqachon
+     joy bo'shatgan bo'ladi, shuning uchun pill o'rtasidan kesilish yuz bermaydi. */
+  overflow: hidden;
+  margin-right: 2px;
 }
 
-/* KPI pill'lar hech qachon kengaymasin (max eni cheklangan) */
+/* KPI zonasi bilan tugmalar zonasi bir-biriga yopishib qolmasin:
+   ilgari KPI bar kesilib, oxirgi pill "1.8 GB про" bo'lib "Инструменты"ga
+   tegib turardi va ikki qism bitta bo'lib ko'rinardi. */
+.hud-actions-group {
+  padding-left: 10px !important;
+  border-left: 1px solid rgba(148, 163, 184, 0.22);
+}
 
+body.light-theme .hud-actions-group {
+  border-left-color: rgba(15, 23, 42, 0.10);
+}
 
-/* 1550px'gacha: kichik podpistlarni yashiramiz */
-@media (max-width: 1550px) {
+/* --- Torayish zinapoyasi ---------------------------------------------
+   Qoida: pill hech qachon yarmidan kesilmaydi. Joy kamayganda tartib bilan
+   avval kichik podpist, keyin so'z, eng oxirida butun pill olib tashlanadi.
+   Chegaralar o'lchangan haqiqiy kengliklardan olingan (brand 135 + tugmalar 615). */
+
+/* 1560px'gacha: podpistlar ("5 в сети", "2 вызовов", "0 файлов") olib tashlanadi */
+@media (max-width: 1560px) {
   .hud-kpi-pill .kpi-sub {
-    font-size: 8.5px !important;
-    padding: 1px 4px !important;
-  }
-  .hud-kpi-pill .kpi-label {
-    font-size: 10px !important;
-  }
-}
-
-/* 1500px'gacha: "Задержка" pill'ni yashiramiz — u kengroq raqamlarga ega */
-@media (max-width: 1500px) {
-  .hud-kpi-pill.kpi-yellow {
     display: none !important;
   }
 }
 
-/* 1340px'gacha: "Среда" pill'ni ham yashiramiz */
-@media (max-width: 1340px) {
+/* 1400px'gacha: so'zlar ham olib tashlanadi — piktogramma + raqam qoladi.
+   Ma'nosi yo'qolmaydi: har bir pill'da to'liq tushuntiruvchi tooltip bor. */
+@media (max-width: 1400px) {
+  .hud-kpi-pill .kpi-label {
+    display: none !important;
+  }
+  .hud-kpi-pill {
+    padding: 5px 10px !important;
+    gap: 5px !important;
+  }
+}
+
+/* 1180px'gacha: "проекты" pill'i (eng kam ishlatiladigani) yashiriladi */
+@media (max-width: 1180px) {
   .hud-kpi-pill.kpi-amber {
     display: none !important;
   }
 }
 
-/* 1000px'gacha: brand pastki matnini ("AI SWARM") yashiramiz */
-@media (max-width: 1000px) {
+/* 1060px'gacha: "сэкономлено" ham yashiriladi. "Модели" va "Токены"
+   qoladi — ular eng muhim ikkita ko'rsatkich. */
+@media (max-width: 1060px) {
   .hud-brand-sub, .brand-tagline {
     display: none !important;
   }
