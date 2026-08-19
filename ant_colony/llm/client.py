@@ -20,6 +20,7 @@ from typing import Dict, Any, List, Optional, Tuple
 from ant_colony.config import PROVIDERS, MODELS_CATALOG, AGENT_CONFIG
 from ant_colony.llm.models_hub import models_hub
 from ant_colony.llm.prompt_cache import prompt_cache
+from ant_colony.llm.usage_ledger import usage_ledger
 
 # Zaxira zanjirining maksimal uzunligi — bitta chaqiruvda cheksiz urinmaslik uchun.
 MAX_FALLBACK_MODELS = 4
@@ -309,6 +310,17 @@ class LLMClient:
             if cached:
                 resp = cached["response"]
                 models_hub.telemetry["total_llm_calls"] += 1
+                # Kesh javobi ham chaqiruv — u tokenni SARFLAMAYDI, lekin qancha
+                # token TEJALGANI aynan shu yerda qayd etiladi. Aks holda
+                # "qaysi model qancha tejadi" savoliga javob yo'qoladi.
+                usage_ledger.record(
+                    provider="cache",
+                    model=model_id,
+                    tokens_saved=cached.get("tokens_saved", 0),
+                    duration_ms=1,
+                    cached=True,
+                    success=True,
+                )
                 return {
                     "success": True,
                     "text": resp.get("text", ""),
@@ -371,12 +383,28 @@ class LLMClient:
                 if result["ok"]:
                     parsed = result["parsed"]
                     usage = result["usage"]
+                    # MUHIM: ilgari bu yerda `model_id` uzatilmasdi, shuning uchun
+                    # model kesimidagi token hisoblagichlari abadiy 0 bo'lib qolardi.
                     models_hub.record_usage(
                         usage.get("prompt_tokens", 0),
                         usage.get("completion_tokens", 0),
                         usage.get("reasoning_tokens", 0),
+                        model_id=m_id,
                     )
                     models_hub.note_live_success(m_id, duration_ms)
+                    # Provayder / model / vazifa / agent kesimidagi to'liq hisob.
+                    usage_ledger.record(
+                        provider=provider_id,
+                        model=m_id,
+                        prompt_tokens=usage.get("prompt_tokens", 0),
+                        completion_tokens=usage.get("completion_tokens", 0),
+                        reasoning_tokens=usage.get("reasoning_tokens", 0),
+                        total_tokens=usage.get("total_tokens"),
+                        duration_ms=duration_ms,
+                        cached=False,
+                        success=True,
+                        requested_model=model_id,
+                    )
 
                     out = {
                         "success": True,
@@ -415,6 +443,16 @@ class LLMClient:
                     await asyncio.sleep(backoff)
                     continue
                 break  # 4xx (auth, noto'g'ri model) — qayta urinish befoyda
+
+        # Muvaffaqiyatsiz chaqiruv ham hisobga olinadi: token sarflanmagan bo'lsa ham
+        # "necha chaqiruv barbod bo'ldi" ko'rsatkichi ishonchliligi uchun kerak.
+        usage_ledger.record(
+            provider=_provider_for(model_id),
+            model=model_id,
+            duration_ms=0,
+            cached=False,
+            success=False,
+        )
 
         return {
             "success": False,

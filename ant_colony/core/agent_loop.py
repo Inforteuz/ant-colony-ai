@@ -24,6 +24,7 @@ from ant_colony.runtime.tools import (
     get_active_project_dir,
 )
 from ant_colony.llm.client import llm_client
+from ant_colony.llm.usage_ledger import usage_ledger
 
 # Matndan asbob chaqirig'ini ajratish uchun naqshlar (native calling ishlamaganda).
 _FENCED_TOOL_RE = re.compile(
@@ -238,13 +239,18 @@ async def run_agent(
     for step in range(max_steps):
         result.steps = step + 1
 
-        response = await llm_client.complete(
-            current_model, messages,
-            tools=schemas,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            custom_keys=custom_keys,
-        )
+        # Har bir chaqiruv token daftariga AYNAN shu agent nomi bilan tushadi —
+        # shunda "qaysi agent qancha token yedi" savoliga aniq javob bo'ladi.
+        # Doira faqat `await` atrofida: parallel agentlar bir-birining
+        # kontekstini ustiga yozib yubormasligi uchun.
+        with usage_ledger.agent_scope(agent_name, role=station, phase="execution"):
+            response = await llm_client.complete(
+                current_model, messages,
+                tools=schemas,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                custom_keys=custom_keys,
+            )
 
         if not response["success"]:
             result.error = response.get("error", "LLM chaqiruvi muvaffaqiyatsiz")
@@ -410,10 +416,11 @@ async def run_agent(
             "content": ("Qadam limiti tugadi. Asbob chaqirmasdan, nima qilganingiz, qaysi fayllar "
                         "yaratilgani va nima tugallanmaganini qisqa bayon qiling.")
         })
-        wrap = await llm_client.complete(
-            current_model, messages, tools=None,
-            temperature=0.1, max_tokens=1500, custom_keys=custom_keys
-        )
+        with usage_ledger.agent_scope(agent_name, role=station, phase="wrapup"):
+            wrap = await llm_client.complete(
+                current_model, messages, tools=None,
+                temperature=0.1, max_tokens=1500, custom_keys=custom_keys
+            )
         if wrap["success"]:
             _, clean = split_reasoning(wrap["text"])
             result.final_text = clean
@@ -483,12 +490,13 @@ async def run_agent(
                 fix_max = min(5, AGENT_CONFIG.get("max_tool_steps", 12))
                 for fix_step in range(fix_max):
                     result.steps += 1
-                    fix_resp = await llm_client.complete(
-                        current_model, messages,
-                        tools=schemas,
-                        temperature=0.1, max_tokens=max_tokens,
-                        custom_keys=custom_keys,
-                    )
+                    with usage_ledger.agent_scope(agent_name, role=station, phase="self_repair"):
+                        fix_resp = await llm_client.complete(
+                            current_model, messages,
+                            tools=schemas,
+                            temperature=0.1, max_tokens=max_tokens,
+                            custom_keys=custom_keys,
+                        )
                     if not fix_resp["success"]:
                         break
                     fix_text = fix_resp["text"] or ""

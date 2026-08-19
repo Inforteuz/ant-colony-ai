@@ -13,6 +13,7 @@ Ishga tushirish:
 """
 import sys
 import json
+import shutil
 import asyncio
 import tempfile
 from pathlib import Path
@@ -319,8 +320,111 @@ def test_cache():
     check("kesh o'lchami cheklangan", stats["total_cached_entries"] <= stats["max_entries"])
 
 
+def test_usage_ledger():
+    """
+    Token hisob daftari: provayder / model / vazifa / agent kesimlari.
+
+    Bu testlar tarmoqqa chiqmaydi — `record()` to'g'ridan-to'g'ri chaqiriladi,
+    shuning uchun kvota sarflanmaydi.
+    """
+    print("\n=== 10. Token hisob daftari ===")
+    from ant_colony.llm.usage_ledger import UsageLedger
+
+    # MUHIM: test o'z vaqtinchalik papkasida ishlaydi — foydalanuvchining
+    # haqiqiy token hisoboti (data/usage/) hech qachon o'chirilmaydi.
+    tmp_dir = tempfile.mkdtemp(prefix="ant-usage-test-")
+    ledger = UsageLedger(base_dir=Path(tmp_dir))
+
+    async def scenario():
+        with ledger.task_scope("t1", label="Sayt yasab ber", kind="orchestration"):
+            with ledger.agent_scope("Project Manager", role="pm", phase="planning"):
+                ledger.record(provider="gemini", model="gemini-3.7-flash",
+                              prompt_tokens=1000, completion_tokens=200, duration_ms=800)
+
+            async def worker(name, provider, model, ptok):
+                with ledger.agent_scope(name, role="coder", phase="execution"):
+                    await asyncio.sleep(0)
+                    ledger.record(provider=provider, model=model,
+                                  prompt_tokens=ptok, completion_tokens=100, duration_ms=1000)
+
+            # Parallel agentlar — kontekst aralashib ketmasligi kerak.
+            await asyncio.gather(
+                worker("Senior Engineer", "gemini", "gemini-3.6-flash", 4000),
+                worker("QA Specialist", "17_wtf", "posiden/deepseek-v4-flash", 2000),
+            )
+        ledger.finish_task("t1", status="completed", score=90.0)
+
+        # Vazifadan TASHQARIDA qilingan chaqiruv hech qaysi vazifaga tegishli emas.
+        ledger.record(provider="gemini", model="gemini-3.5-flash-lite",
+                      prompt_tokens=50, completion_tokens=10)
+
+    asyncio.run(scenario())
+
+    summary = ledger.summary()
+    totals = summary["totals"]
+    check("umumiy token yig'indisi to'g'ri",
+          totals["total_tokens"] == 1200 + 4100 + 2100 + 60, str(totals["total_tokens"]))
+    check("chaqiruvlar soni to'g'ri", totals["calls"] == 4, str(totals["calls"]))
+
+    providers = {p["provider"]: p for p in summary["by_provider"]}
+    check("provayder kesimi mavjud", set(providers) == {"gemini", "17_wtf"}, str(set(providers)))
+    check("provayder tokenlari to'g'ri",
+          providers["gemini"]["total_tokens"] == 1200 + 4100 + 60
+          and providers["17_wtf"]["total_tokens"] == 2100,
+          f'gemini={providers["gemini"]["total_tokens"]} wtf={providers["17_wtf"]["total_tokens"]}')
+    check("ulushlar 100% ga yaqin",
+          abs(sum(p["share_pct"] for p in summary["by_provider"]) - 100.0) < 1.0)
+
+    models = {m["model"]: m for m in summary["by_model"]}
+    check("model kesimi provayder bilan birga",
+          models["gemini-3.6-flash"]["provider"] == "gemini"
+          and models["posiden/deepseek-v4-flash"]["provider"] == "17_wtf")
+    check("model tokenlari to'g'ri", models["gemini-3.6-flash"]["total_tokens"] == 4100)
+
+    detail = ledger.task_detail("t1")
+    check("vazifa tokeni faqat o'z chaqiruvlaridan",
+          detail["totals"]["total_tokens"] == 1200 + 4100 + 2100,
+          str(detail["totals"]["total_tokens"]))
+    check("vazifa statusi va bahosi saqlandi",
+          detail["status"] == "completed" and detail["score"] == 90.0)
+
+    agents = {a["agent"]: a for a in detail["by_agent"]}
+    check("parallel agentlar aralashmadi",
+          agents["Senior Engineer"]["total_tokens"] == 4100
+          and agents["QA Specialist"]["total_tokens"] == 2100,
+          str({k: v["total_tokens"] for k, v in agents.items()}))
+    check("PM rejalashtirish tokeni alohida", agents["Project Manager"]["total_tokens"] == 1200)
+    check("agent kesimida narx ko'rsatilmaydi", "cost_usd" not in agents["QA Specialist"])
+
+    rows = ledger.task_list()
+    check("vazifalar ro'yxatida faqat chaqiruvi bor vazifalar",
+          [r["task_id"] for r in rows] == ["t1"], str([r["task_id"] for r in rows]))
+
+    block = ledger.task_usage_block("t1")
+    check("yakuniy hodisa uchun blok tayyor",
+          block["totals"]["total_tokens"] == 7400 and len(block["by_model"]) == 3)
+
+    csv_text = ledger.export_csv("t1")
+    check("CSV eksporti sarlavha + 3 qator", len(csv_text.strip().splitlines()) == 4,
+          str(len(csv_text.strip().splitlines())))
+
+    # Narx: prays-list bo'lmasa raqam o'ylab topilmaydi.
+    free_cost = ledger.estimate_cost("gemini-3.7-flash", "gemini", 1000, 1000)
+    unknown_cost = ledger.estimate_cost("не-существует", "нет-такого", 1000, 1000)
+    check("katalogdagi bepul model 0 deb hisoblanadi", free_cost == 0.0, str(free_cost))
+    check("noma'lum model narxi taxmin qilinmaydi", unknown_cost is None, str(unknown_cost))
+
+    ledger.reset()
+    check("reset statistikani tozalaydi", ledger.summary()["totals"]["calls"] == 0)
+
+    from ant_colony.llm import usage_ledger as ul_module
+    check("test haqiqiy hisobot papkasiga tegmadi",
+          ledger.base_dir != ul_module.USAGE_DIR, str(ledger.base_dir))
+    shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
 def test_monitor_config():
-    print("\n=== 10. Kvota tejash sozlamalari ===")
+    print("\n=== 11. Kvota tejash sozlamalari ===")
     check("fon monitoringi oralig'i uzoq (kvota tejaydi)",
           AGENT_CONFIG["health_monitor_interval_s"] >= 300,
           str(AGENT_CONFIG["health_monitor_interval_s"]))
@@ -411,6 +515,7 @@ def main():
     test_scoring()
     test_orchestration_helpers()
     test_cache()
+    test_usage_ledger()
     test_monitor_config()
 
     if online:

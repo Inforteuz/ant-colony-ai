@@ -31,6 +31,7 @@ from ant_colony.llm.models_hub import models_hub
 from ant_colony.core.skill_matrix import skill_matrix, DEFAULT_ROLE_DEFINITIONS
 from ant_colony.llm.prompt_cache import prompt_cache
 from ant_colony.llm.client import llm_client
+from ant_colony.llm.usage_ledger import usage_ledger
 from ant_colony.core.agent_loop import run_agent, split_reasoning, AgentRunResult
 
 # Loyiha nomini yasashda tashlab yuboriladigan yordamchi so'zlar.
@@ -584,11 +585,12 @@ class AgentEngine:
             "```"
         )
 
-        res = await llm_client.complete(
-            pm_model,
-            [{"role": "system", "content": pm_md}, {"role": "user", "content": prompt}],
-            temperature=0.2, max_tokens=3000, custom_keys=custom_keys
-        )
+        with usage_ledger.agent_scope("Project Manager", role="pm_orchestrator", phase="planning"):
+            res = await llm_client.complete(
+                pm_model,
+                [{"role": "system", "content": pm_md}, {"role": "user", "content": prompt}],
+                temperature=0.2, max_tokens=3000, custom_keys=custom_keys
+            )
 
         is_conv = is_conversational_query(task_prompt)
         lang = detect_query_lang(task_prompt)
@@ -773,6 +775,8 @@ class AgentEngine:
                 "score_breakdown": None,
                 "created_files": [],
                 "eval_summary": None,
+                # Oddiy suhbat ham token sarflaydi — foydalanuvchi buni ko'rsin.
+                "token_usage": usage_ledger.task_usage_block(usage_ledger.current_task_id() or ""),
             }
             return
 
@@ -1165,6 +1169,9 @@ class AgentEngine:
             "repair_notes": repair_notes,
             "agent_metrics": coder_result.as_dict(),
             "total_duration_sec": round(time.time() - start_time, 2),
+            # Shu bitta vazifa bo'yicha to'liq token hisoboti:
+            # provayder / model / agent kesimida.
+            "token_usage": usage_ledger.task_usage_block(usage_ledger.current_task_id() or ""),
         }
 
     async def _stream_reviews(

@@ -20,6 +20,7 @@ around a 3D office and work at their desks.
 | **Work on your own files** | Drop a file, a ZIP archive, or point at a folder — agents unpack it, read it, edit in place, and hand back the same shape (ZIP in → ZIP out). |
 | **One fallback chain** | All connected providers sit behind a single routing layer with circuit breakers, provider-diverse fallback, and normalized errors. Configuration mistakes never trigger a pointless retry storm. |
 | **Continuous ELO matrix** | Every finished task scores the model that did it. Roles get reassigned to whichever model actually performs best per category. |
+| **Token accounting** | Every LLM call is recorded: which provider, which model, which agent, and which task. You can see exactly what one task cost you in tokens — and, if you supply a price list, in money. |
 | **Prompt cache** | Repeated prompts are served from disk, with per-model savings reporting. |
 | **Live 3D office** | Three.js scene: workstations, walking agents, meeting room, marketing/BI wing, legal office, and recreation areas. |
 | **Real tools** | File read/write/edit, directory walking, sandboxed shell execution, Python execution, project scaffolding. |
@@ -105,6 +106,54 @@ The PM sees the file tree and the contents of the text files before planning, so
 from what you actually sent rather than from a guess. Paths are restricted to your projects
 directory and home directory.
 
+## Token accounting
+
+Click the **tokens** pill in the top bar to open the usage report. It answers four questions:
+
+| Tab | Question it answers |
+|---|---|
+| **Providers** | How many tokens went to each provider, and what share of the total that is. |
+| **Models** | Per provider *and* model: input, output, reasoning tokens, calls, average per call. |
+| **Tasks** | What each individual task cost — with a drill-down into its providers, models, agents and a call-by-call timeline. |
+| **Agents** | Which agent (PM, engineer, QA, security auditor) consumed the most. |
+
+Every finished task also prints a compact token card in the PM console, so you see the cost
+of a task right where its result appears. The full journal can be exported as CSV
+(`GET /api/usage/export.csv`, optionally `?task_id=...`).
+
+### Endpoints
+
+```
+GET  /api/usage/summary            # everything at once
+GET  /api/usage/providers          # provider breakdown
+GET  /api/usage/models?provider=   # model breakdown
+GET  /api/usage/tasks?limit=&kind= # one row per task
+GET  /api/usage/tasks/{task_id}    # drill-down for one task
+GET  /api/usage/export.csv         # CSV journal
+POST /api/usage/reset              # start a new accounting period
+```
+
+State lives in `data/usage/` — `totals.json` (lifetime aggregates), `tasks.json`
+(per-task breakdown), `calls.jsonl` (append-only journal, rotated).
+
+### Cost in money (optional)
+
+The platform does **not** guess prices. Costs are shown only for models the catalog marks as
+free (`$0`) or for models you price yourself in `data/model_pricing.json`:
+
+```json
+{
+  "models":    { "gpt-4o": { "input_per_1m": 2.5, "output_per_1m": 10 } },
+  "providers": { "groq":   { "input_per_1m": 0,   "output_per_1m": 0  } }
+}
+```
+
+Prices are applied at read time, so adding or editing this file immediately reprices the
+whole history. Anything unpriced shows `—` rather than a made-up number, and a partially
+priced total is marked with `*`.
+
+---
+
 ## Configuration
 
 Everything is environment-driven — see [`.env.example`](.env.example) for the full list.
@@ -166,6 +215,12 @@ Found a security issue? Please open a private report rather than a public issue.
    fallback,       role→model           per-model          resource limits)
    circuit         assignment)          savings)
    breaker)
+        │
+        ▼
+   usage_ledger
+  (every call →
+   provider / model /
+   task / agent)
 ```
 
 ```
@@ -182,6 +237,7 @@ ant_colony/
 ├── llm/
 │   ├── client.py             # fallback chain, retries, timeouts
 │   ├── models_hub.py         # health, latency, tokens, circuit breakers
+│   ├── usage_ledger.py       # token accounting: provider / model / task / agent
 │   └── prompt_cache.py       # disk cache + savings stats
 ├── providers/                # BYOK: registry, drivers, secrets, SSRF guard
 │   └── drivers/              # one driver per wire protocol
@@ -255,6 +311,12 @@ python run.py          # http://127.0.0.1:8080
 
 Kalitni UI orqali ham kiritish mumkin: **Настройки → Setup Wizard**. Kalitlar `.env` ga
 yoziladi va keyingi ishga tushirishda avtomatik o'qiladi.
+
+**Token hisobi:** yuqoridagi **токенов** tugmasini bosing — qaysi provayderga, qaysi
+modelga va qaysi vazifaga qancha token ketgani ochiladi. Har bir vazifa tugagach PM
+konsolida ham shu vazifaning token narxi ko'rsatiladi. Pul hisobini ko'rish uchun
+`data/model_pricing.json` faylida o'z narxlaringizni yozing — platforma narxni o'zi
+o'ylab topmaydi.
 
 **Xavfsizlik:** platforma shell buyruqlarini bajaradi va fayl yozadi, autentifikatsiya
 yo'q. Shu sababli server standart holatda faqat `127.0.0.1` da tinglaydi. `ANT_HOST=0.0.0.0`

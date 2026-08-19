@@ -5998,3 +5998,226 @@ body.light-theme .pm-drop-hint { background: rgba(236, 254, 255, 0.94); }
   border-radius: 4px;
   background: rgba(148, 163, 184, 0.16);
 }
+
+/* ============================================================
+   TOKEN USAGE REPORT — provayder / model / vazifa kesimidagi sarf
+   ============================================================ */
+
+/* Yangi KPI pill (ko'k) — mavjud pill uslublariga hamohang. */
+.kpi-blue .kpi-icon { color: var(--color-blue); }
+.hud-kpi-pill.kpi-blue { border-color: rgba(59, 130, 246, 0.28); }
+.hud-kpi-pill.kpi-blue .kpi-val { color: #60a5fa; }
+
+.usage-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.btn-usage-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: var(--bg-card-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 9px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.btn-usage-ghost svg { width: 12px; height: 12px; }
+
+.btn-usage-ghost:hover {
+  color: var(--text-main);
+  border-color: rgba(59, 130, 246, 0.45);
+  background: rgba(59, 130, 246, 0.10);
+}
+
+.btn-usage-ghost.danger:hover {
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.45);
+  background: rgba(239, 68, 68, 0.10);
+}
+
+/* Bo'limlar (tab) */
+.usage-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 4px 0 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.usage-tab {
+  padding: 7px 14px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.usage-tab:hover { color: var(--text-main); background: var(--bg-card-elevated); }
+
+.usage-tab.active {
+  color: #60a5fa;
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.35);
+}
+
+/* Jadval */
+.usage-table td { vertical-align: middle; }
+.usage-table code.usage-sub { font-size: 10px; }
+
+.usage-sub {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.usage-muted { color: var(--text-muted); }
+.usage-fail { color: #f87171; font-weight: 700; }
+.usage-row-fail { background: rgba(239, 68, 68, 0.06); }
+
+/* Ulush diagrammasi — raqamni ko'z bilan taqqoslash uchun */
+.usage-share {
+  min-width: 110px;
+  white-space: nowrap;
+}
+
+.usage-share span:last-child {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.usage-bar {
+  display: block;
+  width: 100%;
+  max-width: 90px;
+  height: 5px;
+  border-radius: 4px;
+  background: var(--border-subtle);
+  overflow: hidden;
+  margin-bottom: 3px;
+}
+
+.usage-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #3b82f6, #a855f7);
+}
+
+.usage-chip {
+  display: inline-block;
+  padding: 2px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  background: var(--bg-card-elevated);
+  border: 1px solid var(--border-subtle);
+}
+
+.usage-chip.chip-purple {
+  color: #a78bfa;
+  background: rgba(139, 92, 246, 0.12);
+  border-color: rgba(139, 92, 246, 0.30);
+}
+
+.btn-usage-detail {
+  padding: 5px 10px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #60a5fa;
+  background: rgba(59, 130, 246, 0.10);
+  border: 1px solid rgba(59, 130, 246, 0.30);
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-usage-detail:hover { background: rgba(59, 130, 246, 0.20); color: #93c5fd; }
+
+/* Chat oqimidagi ixcham token kartochkasi */
+.chat-token-card {
+  margin-top: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--bg-card-elevated);
+  border: 1px solid rgba(59, 130, 246, 0.28);
+}
+
+.chat-token-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.chat-token-title {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.chat-token-total {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 800;
+  color: #60a5fa;
+}
+
+.chat-token-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.chat-token-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.chat-token-row code {
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+.chat-token-row b { color: var(--text-main); font-family: var(--font-mono); }
+
+.chat-token-more {
+  margin-top: 8px;
+  padding: 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: #60a5fa;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+@media (max-width: 900px) {
+  .usage-top-actions .btn-usage-ghost span { display: none; }
+  .usage-share { min-width: 70px; }
+}

@@ -52,7 +52,15 @@
           <span class="kpi-label">сэкономлено</span>
         </div>
 
-        <!-- 3. Projects Storage -->
+        <!-- 3. Token Consumption — provayder/model/vazifa kesimidagi sarf -->
+        <div class="hud-kpi-pill kpi-blue" id="pill-tokens-kpi" title="Израсходовано токенов: разбивка по провайдерам, моделям и задачам (нажмите для отчёта)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="kpi-icon"><circle cx="12" cy="12" r="9"/><path d="M12 7v10"/><path d="M9.2 9.4h5.6"/><path d="M9.2 14.6h5.6"/></svg>
+          <span class="kpi-val" id="val-tokens-used">0</span>
+          <span class="kpi-label">токенов</span>
+          <span class="kpi-sub" id="sub-tokens-calls">0 вызовов</span>
+        </div>
+
+        <!-- 4. Projects Storage -->
         <div class="hud-kpi-pill kpi-amber" id="pill-workspace-kpi" title="Папка проектов на Рабочем столе (04_Loyihalar): нажмите для открытия файлов">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="kpi-icon"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
           <span class="kpi-val" id="val-workspace-bytes">0 KB</span>
@@ -493,6 +501,64 @@
           на уже сохранённых записях.
         </p>
       </div>
+    </div>
+  </div>
+
+  <!-- TOKEN USAGE MODAL — qaysi provayder / model / vazifa qancha token yedi -->
+  <div class="modal-backdrop hidden" id="modal-token-usage">
+    <div class="colony-modal-card modal-large">
+      <div class="modal-top">
+        <div>
+          <h3>Расход токенов</h3>
+          <small class="text-secondary-sub">Сколько токенов израсходовано по провайдерам, моделям, задачам и агентам</small>
+        </div>
+        <div class="usage-top-actions">
+          <a class="btn-usage-ghost" id="btn-usage-export" href="/api/usage/export.csv" download title="Выгрузить журнал вызовов в CSV">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>CSV</span>
+          </a>
+          <button class="btn-usage-ghost" id="btn-usage-refresh" title="Обновить данные">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            <span>Обновить</span>
+          </button>
+          <button class="btn-usage-ghost danger" id="btn-usage-reset" title="Начать новый учётный период">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+            <span>Сбросить</span>
+          </button>
+          <button class="btn-modal-x" id="btn-close-usage-modal">✕</button>
+        </div>
+      </div>
+      <div class="modal-scroll-body">
+        <div class="kpi-stat-grid" id="usage-summary-grid"></div>
+
+        <div class="usage-tabs" id="usage-tabs">
+          <button class="usage-tab active" data-usage-tab="providers">Провайдеры</button>
+          <button class="usage-tab" data-usage-tab="models">Модели</button>
+          <button class="usage-tab" data-usage-tab="tasks">Задачи</button>
+          <button class="usage-tab" data-usage-tab="agents">Агенты</button>
+        </div>
+
+        <div class="usage-pane" id="usage-pane-providers"></div>
+        <div class="usage-pane hidden" id="usage-pane-models"></div>
+        <div class="usage-pane hidden" id="usage-pane-tasks"></div>
+        <div class="usage-pane hidden" id="usage-pane-agents"></div>
+
+        <p class="kpi-modal-note" id="usage-pricing-note"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- TASK TOKEN DETAIL MODAL — bitta vazifaning to'liq token tafsiloti -->
+  <div class="modal-backdrop hidden" id="modal-task-usage">
+    <div class="colony-modal-card modal-large">
+      <div class="modal-top">
+        <div>
+          <h3 id="task-usage-title">Расход по задаче</h3>
+          <small class="text-secondary-sub" id="task-usage-sub"></small>
+        </div>
+        <button class="btn-modal-x" id="btn-close-task-usage">✕</button>
+      </div>
+      <div class="modal-scroll-body" id="task-usage-body"></div>
     </div>
   </div>
 

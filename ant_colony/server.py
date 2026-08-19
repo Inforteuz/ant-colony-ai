@@ -21,6 +21,7 @@ from ant_colony.config import (
     WORKSTATIONS, AGENT_CONFIG,
 )
 from ant_colony.llm.models_hub import models_hub
+from ant_colony.llm.usage_ledger import usage_ledger
 from ant_colony.providers import registry as provider_registry
 from ant_colony.providers import secrets as provider_secrets
 from ant_colony.providers import service as provider_service
@@ -294,7 +295,20 @@ async def get_hive_stations():
 
 @app.get("/api/hive/real-stats")
 async def get_real_stats():
-    return models_hub.get_real_hive_stats()
+    stats = models_hub.get_real_hive_stats()
+    # `models_hub.telemetry` faqat JORIY sessiya hisobi — server qayta ishga
+    # tushsa nolga qaytadi. Token daftari esa umr bo'yi yig'iladi, shuning
+    # uchun KPI pill'i va batafsil hisobot bir xil raqamni ko'rsatishi uchun
+    # doimiy jamini shu yerda beramiz.
+    ledger = usage_ledger.summary()["totals"]
+    stats["usage_ledger"] = {
+        "total_tokens": ledger.get("total_tokens", 0),
+        "prompt_tokens": ledger.get("prompt_tokens", 0),
+        "completion_tokens": ledger.get("completion_tokens", 0),
+        "calls": ledger.get("calls", 0),
+        "tokens_saved": ledger.get("tokens_saved", 0),
+    }
+    return stats
 
 # ==========================================================
 # BYOK — Provider Connections API
@@ -441,6 +455,68 @@ async def get_cache_stats():
 async def clear_cache():
     removed = prompt_cache.invalidate_all()
     return {"success": True, "removed_entries": removed}
+
+# --- Token Usage Ledger: provayder / model / vazifa kesimidagi sarf ---
+
+@app.get("/api/usage/summary")
+async def get_usage_summary():
+    """
+    Umumiy token hisoboti: qaysi provayder, qaysi model, qaysi agent qancha
+    token sarfladi va o'rtacha bitta vazifaga qancha ketdi.
+    """
+    return usage_ledger.summary()
+
+
+@app.get("/api/usage/providers")
+async def get_usage_by_provider():
+    data = usage_ledger.summary()
+    return {"providers": data["by_provider"], "totals": data["totals"]}
+
+
+@app.get("/api/usage/models")
+async def get_usage_by_model(provider: Optional[str] = None):
+    data = usage_ledger.summary()
+    rows = data["by_model"]
+    if provider:
+        rows = [r for r in rows if r.get("provider") == provider]
+    return {"models": rows, "totals": data["totals"]}
+
+
+@app.get("/api/usage/tasks")
+async def get_usage_tasks(limit: int = 100, kind: Optional[str] = None):
+    """Vazifalar ro'yxati va har birining token narxi."""
+    rows = usage_ledger.task_list(limit=limit)
+    if kind:
+        rows = [r for r in rows if r.get("kind") == kind]
+    return {"tasks": rows, "count": len(rows)}
+
+
+@app.get("/api/usage/tasks/{task_id}")
+async def get_usage_task_detail(task_id: str):
+    """Bitta vazifa bo'yicha to'liq tafsilot: provayder, model, agent va chaqiruvlar."""
+    detail = usage_ledger.task_detail(task_id)
+    if not detail:
+        raise HTTPException(status_code=404, detail="Vazifa topilmadi")
+    return detail
+
+
+@app.get("/api/usage/export.csv")
+async def export_usage_csv(task_id: Optional[str] = None):
+    """Chaqiruvlar jurnalini CSV sifatida yuklab olish (hisobot uchun)."""
+    csv_text = usage_ledger.export_csv(task_id=task_id)
+    name = f"ant-usage-{task_id}.csv" if task_id else "ant-usage.csv"
+    return StreamingResponse(
+        iter([csv_text]),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{name}"'},
+    )
+
+
+@app.post("/api/usage/reset")
+async def reset_usage_ledger():
+    """Butun token statistikasini tozalaydi (yangi hisob davrini boshlash uchun)."""
+    usage_ledger.reset()
+    return {"success": True, "message": "Статистика токенов очищена."}
 
 # --- Agent Runtime Configuration ---
 
@@ -1059,6 +1135,8 @@ class OrchestrationJob:
         self.created_at = time.time()
         self.finished_at: Optional[float] = None
         self.asyncio_task: Optional[asyncio.Task] = None
+        # Token hisobi doirasi — `run()` da ochiladi, `finally` da yopiladi.
+        self._usage_scope: Any = None
 
     def add_event(self, event: Dict[str, Any]):
         self.events.append(event)
@@ -1073,6 +1151,14 @@ class OrchestrationJob:
         # orqali jonli SSE stream'ga tushadi. Faqat shu orkestratsiya vaqtida
         # faol; tugagach avtomatik o'chiriladi.
         set_event_emitter(self.add_event)
+        # Token hisob daftari: shu blok ichidagi HAR QANDAY LLM chaqirig'i
+        # (PM rejasi, dasturchi, QA, xavfsizlik, baholash) aynan shu vazifaga
+        # yoziladi. Shu sababli "bitta vazifa qancha tokenga tushdi" savoliga
+        # taxminan emas, aniq javob bor.
+        self._usage_scope = usage_ledger.task_scope(
+            self.job_id, label=self.task, kind="orchestration"
+        )
+        self._usage_scope.__enter__()
         try:
             self.add_event({"type": "user_task", "task": self.task, "timestamp": time.time()})
 
@@ -1165,6 +1251,16 @@ class OrchestrationJob:
             self.add_event(err_ev)
         finally:
             set_event_emitter(None)
+            usage_ledger.finish_task(
+                self.job_id,
+                status=self.status,
+                score=(self.final_event or {}).get("final_score"),
+                project_dir=(self.final_event or {}).get("project_dir"),
+            )
+            try:
+                self._usage_scope.__exit__(None, None, None)
+            except Exception:
+                pass
             self.finished_at = time.time()
             # Send completion signal to all queues
             for q in list(self.subscribers):
@@ -1804,13 +1900,17 @@ async def get_pm_suggestions(refresh: bool = False):
             "Верни ТОЛЬКО валидный JSON-массив без пояснений, формат:\n"
             '[{"label": "короткая метка до 26 символов", "task": "полная формулировка задачи одним предложением"}]'
         )
-        res = await llm_client.complete(
-            "gemini-3.5-flash-lite",
-            [{"role": "user", "content": prompt}],
-            temperature=0.75,
-            max_tokens=500,
-            use_cache=False,
-        )
+        # Fon xizmatlari alohida "tizim vazifasi" sifatida hisoblanadi — aks holda
+        # ular foydalanuvchi vazifalarining tokeniga qo'shilib, hisobotni buzardi.
+        with usage_ledger.task_scope("sys_pm_suggestions", label="PM: подсказки задач", kind="system"), \
+             usage_ledger.agent_scope("Project Manager", role="pm_orchestrator", phase="suggestions"):
+            res = await llm_client.complete(
+                "gemini-3.5-flash-lite",
+                [{"role": "user", "content": prompt}],
+                temperature=0.75,
+                max_tokens=500,
+                use_cache=False,
+            )
         parsed = _extract_json_array(res.get("text", ""))
         if parsed:
             cleaned = []
@@ -1915,13 +2015,15 @@ async def get_ceo_insights(refresh: bool = False):
             "Верни ТОЛЬКО валидный JSON-массив, формат:\n"
             '[{"severity": "high|medium|ok", "title": "суть до 50 символов", "detail": "что именно сделать, 1-2 предложения"}]'
         )
-        res = await llm_client.complete(
-            "gemini-3.5-flash-lite",
-            [{"role": "user", "content": prompt}],
-            temperature=0.4,
-            max_tokens=420,
-            use_cache=False,
-        )
+        with usage_ledger.task_scope("sys_ceo_insights", label="CEO Briefing: рекомендации", kind="system"), \
+             usage_ledger.agent_scope("CEO Advisor", role="analyst", phase="insights"):
+            res = await llm_client.complete(
+                "gemini-3.5-flash-lite",
+                [{"role": "user", "content": prompt}],
+                temperature=0.4,
+                max_tokens=420,
+                use_cache=False,
+            )
         parsed = _extract_json_array(res.get("text", ""))
         if parsed:
             cleaned = []
@@ -2010,13 +2112,15 @@ async def _generate_live_ai_joke() -> Optional[Dict[str, Any]]:
             "Шутка должна быть про код, деплой, баги, кэш или архитектуру. "
             "Верни ТОЛЬКО валидный JSON: {\"speaker_a\": \"coder\", \"speaker_b\": \"tester\", \"text_a\": \"...\", \"text_b\": \"...\"}"
         )
-        res = await llm_client.complete(
-            "gemini-3.5-flash-lite",
-            [{"role": "user", "content": prompt}],
-            temperature=0.9,
-            max_tokens=80,
-            use_cache=False,
-        )
+        with usage_ledger.task_scope("sys_hive_dialogue", label="3D-сцена: живые диалоги", kind="system"), \
+             usage_ledger.agent_scope("Hive Scene", role="ambient", phase="dialogue"):
+            res = await llm_client.complete(
+                "gemini-3.5-flash-lite",
+                [{"role": "user", "content": prompt}],
+                temperature=0.9,
+                max_tokens=80,
+                use_cache=False,
+            )
         if res.get("text"):
             text = res["text"].strip()
             # Extract JSON block
@@ -2053,9 +2157,10 @@ async def get_swarm_dialogue():
         # Asynchronously schedule 1 live AI joke generation in background if spare capacity
         asyncio.create_task(_populate_dynamic_jokes_cache())
 
-    # Record lightweight token usage in telemetry (15-30 tokens)
-    tokens_used = diag.get("tokens", 22)
-    models_hub.record_usage(prompt_tokens=tokens_used, completion_tokens=8)
+    # DIQQAT: ilgari bu yerda statik hazil uchun ham "sarflangan token" yozilardi.
+    # Statik ro'yxatdan olingan hazil hech qanday token sarflamaydi — bu raqam
+    # o'ylab topilgan edi va umumiy hisobotni buzardi. Haqiqiy AI hazillari
+    # `_generate_live_ai_joke()` orqali llm_client'da avtomatik hisoblanadi.
     return diag
 
 async def _populate_dynamic_jokes_cache():

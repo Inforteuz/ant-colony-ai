@@ -1540,6 +1540,15 @@ class AntColonyApp {
       }
       setEl('val-workspace-bytes', sizeStr);
       setEl('sub-workspace-files', `${data.workspace_files_count || 0} файлов`);
+
+      // Sarflangan tokenlar pill'i — batafsil hisobot modalga bosilganda ochiladi.
+      // Manba: token daftari (umr bo'yi), aks holda pill va modal turli
+      // raqamlarni ko'rsatardi (telemetriya server restartida nolga qaytadi).
+      const ledger = data.usage_ledger || {};
+      const tokensEl = document.getElementById('val-tokens-used');
+      if (tokensEl) tokensEl.textContent = this._fmtTokens(ledger.total_tokens ?? data.total_tokens_consumed ?? 0);
+      const callsEl = document.getElementById('sub-tokens-calls');
+      if (callsEl) callsEl.textContent = `${ledger.calls ?? data.total_llm_calls ?? 0} вызовов`;
       setEl('val-avg-latency', `${data.avg_latency_ms || 850} ms`);
 
       // Dynamic Health Widget Update
@@ -2485,10 +2494,57 @@ class AntColonyApp {
       this.canvas.setActiveStation('pm', 'Задача завершена');
       this.updateLiveHUD('Центральное управление (PM)', 'Все модели активны', 'Проект успешно завершен и сдан', 100);
       this.renderExecutiveSummaryCard(event, feed);
+      this.renderTokenUsageCard(event, feed);
       this.renderAttachmentResult(event, feed);
       this.fetchRealStats();
       this.saveChatHistory();
     }
+  }
+
+  // Vazifa yakunlangach: shu topshiriq AYNAN qancha tokenga tushgani.
+  // Ilgari faqat umumiy hisoblagich bor edi va bitta topshiriqning narxini
+  // bilishning imkoni yo'q edi.
+  renderTokenUsageCard(event, feed) {
+    const usage = event.token_usage;
+    if (!feed || !usage || !usage.totals) return;
+    const t = usage.totals;
+    if (!t.total_tokens && !t.calls) return;
+
+    const providers = (usage.by_provider || []).slice(0, 4);
+    const models = (usage.by_model || []).slice(0, 4);
+
+    const row = (name, sub, tokens, share) => `
+      <div class="chat-token-row">
+        <span>${this.esc(name)}${sub ? ` <code>${this.esc(sub)}</code>` : ''}</span>
+        <span><b>${this._fmtTokens(tokens)}</b> · ${share}%</span>
+      </div>`;
+
+    const card = document.createElement('div');
+    card.className = 'chat-token-card';
+    card.innerHTML = `
+      <div class="chat-token-head">
+        <span class="chat-token-title">Расход по этой задаче</span>
+        <span class="chat-token-total">${this._fmtTokens(t.total_tokens)} tkn</span>
+      </div>
+      <div class="chat-token-rows">
+        <div class="chat-token-row">
+          <span>Вызовов к моделям</span>
+          <span><b>${t.calls || 0}</b>${t.cached_calls ? ` · из кэша ${t.cached_calls}` : ''}</span>
+        </div>
+        <div class="chat-token-row">
+          <span>Вход / выход</span>
+          <span><b>${this._fmtTokens(t.prompt_tokens)}</b> / <b>${this._fmtTokens(t.completion_tokens)}</b></span>
+        </div>
+        ${providers.map(p => row(p.provider_label, p.provider, p.total_tokens, p.share_pct)).join('')}
+        ${models.map(m => row(m.model_name || m.model, m.model, m.total_tokens, m.share_pct)).join('')}
+      </div>
+      <button class="chat-token-more" type="button">Подробный отчёт по задаче →</button>`;
+
+    const btn = card.querySelector('.chat-token-more');
+    if (btn) btn.addEventListener('click', () => this.openTaskUsage(usage.task_id));
+
+    feed.appendChild(card);
+    feed.scrollTop = feed.scrollHeight;
   }
 
   // --- AI Leaderboard Modal ---
@@ -3354,6 +3410,341 @@ class AntColonyApp {
   closeSavingsModal() {
     const m = document.getElementById('modal-token-savings');
     if (m) m.classList.add('hidden');
+  }
+
+  // --- Token sarfi hisoboti: provayder / model / vazifa / agent kesimi ---
+
+  _fmtCost(row) {
+    // Narx jadvali sozlanmagan bo'lsa RAQAM O'YLAB TOPILMAYDI — "—" ko'rsatiladi.
+    if (!row || !row.cost_known) return '<span class="usage-muted">—</span>';
+    const v = Number(row.cost_usd) || 0;
+    const text = v === 0 ? '<span class="text-emerald">$0</span>'
+                         : `$${v < 0.01 ? v.toFixed(5) : v.toFixed(3)}`;
+    // Ba'zi modellarning narxi noma'lum bo'lsa — buni yashirmaymiz.
+    return row.cost_partial
+      ? `${text}<span class="usage-muted" title="Часть моделей без прайса — сумма неполная">*</span>`
+      : text;
+  }
+
+  _usageBar(pct) {
+    const p = Math.max(0, Math.min(100, Number(pct) || 0));
+    return `<div class="usage-bar"><span style="width:${p}%"></span></div>`;
+  }
+
+  _fmtDate(ts) {
+    if (!ts) return '—';
+    return new Date(ts * 1000).toLocaleString('ru-RU');
+  }
+
+  async openUsageModal() {
+    const modal = document.getElementById('modal-token-usage');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    await this.loadUsageReport();
+  }
+
+  closeUsageModal() {
+    const m = document.getElementById('modal-token-usage');
+    if (m) m.classList.add('hidden');
+  }
+
+  switchUsageTab(name) {
+    ['providers', 'models', 'tasks', 'agents'].forEach(key => {
+      const pane = document.getElementById(`usage-pane-${key}`);
+      if (pane) pane.classList.toggle('hidden', key !== name);
+    });
+    document.querySelectorAll('#usage-tabs .usage-tab').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.usageTab === name);
+    });
+  }
+
+  async loadUsageReport() {
+    const grid = document.getElementById('usage-summary-grid');
+    const provPane = document.getElementById('usage-pane-providers');
+    if (grid) grid.innerHTML = '<div class="kpi-modal-loading">Сбор статистики расхода...</div>';
+    if (provPane) provPane.innerHTML = '';
+
+    try {
+      const res = await fetch('/api/usage/summary');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const d = await res.json();
+      const t = d.totals || {};
+
+      if (grid) {
+        grid.innerHTML = [
+          this._statTile('Всего токенов', this._fmtTokens(t.total_tokens), `вход: ${this._fmtTokens(t.prompt_tokens)} • выход: ${this._fmtTokens(t.completion_tokens)}`, 'blue'),
+          this._statTile('Вызовов к моделям', t.calls || 0, `из кэша: ${t.cached_calls || 0} • сбоев: ${t.failed_calls || 0}`, 'purple'),
+          this._statTile('На одну задачу', this._fmtTokens(t.avg_tokens_per_task), `учтено задач: ${t.tasks_counted || 0}`, 'amber'),
+          this._statTile('В среднем на вызов', this._fmtTokens(t.avg_tokens_per_call), `сэкономлено кэшем: ${this._fmtTokens(t.tokens_saved)}`, 'emerald'),
+        ].join('');
+      }
+
+      this._renderUsageProviders(d.by_provider || []);
+      this._renderUsageModels(d.by_model || []);
+      this._renderUsageAgents(d.by_agent || []);
+      await this._renderUsageTasks();
+
+      const note = document.getElementById('usage-pricing-note');
+      if (note) {
+        note.innerHTML = d.pricing_configured
+          ? `Стоимость считается по вашему прайс-листу: <code>${this._escapeHtml(d.pricing_file)}</code>.`
+          : `Цены не заданы, поэтому стоимость показывается только для моделей, помеченных в каталоге как бесплатные.
+             Чтобы видеть деньги, создайте файл <code>${this._escapeHtml(d.pricing_file)}</code> вида
+             <code>{"models": {"gpt-4o": {"input_per_1m": 2.5, "output_per_1m": 10}}}</code>.`;
+      }
+    } catch (e) {
+      if (grid) grid.innerHTML = `<div class="kpi-modal-loading">Ошибка загрузки: ${this._escapeHtml(e.message)}</div>`;
+    }
+  }
+
+  _usageEmpty(text) {
+    return `<div class="kpi-modal-loading">${text}</div>`;
+  }
+
+  _renderUsageProviders(rows) {
+    const pane = document.getElementById('usage-pane-providers');
+    if (!pane) return;
+    if (!rows.length) {
+      pane.innerHTML = this._usageEmpty('Расхода пока нет — статистика появится после первого запроса к модели.');
+      return;
+    }
+    pane.innerHTML = `
+      <div class="modal-models-table-wrap">
+        <table class="colony-table usage-table">
+          <thead><tr>
+            <th>Провайдер</th><th>Доля</th><th>Вызовов</th>
+            <th>Вход</th><th>Выход</th><th>Всего</th><th>Ср. задержка</th><th>Стоимость</th>
+          </tr></thead>
+          <tbody>
+            ${rows.map(r => `
+              <tr>
+                <td><strong>${this._escapeHtml(r.provider_label)}</strong><br><code class="usage-sub">${this._escapeHtml(r.provider)}</code></td>
+                <td class="usage-share">${this._usageBar(r.share_pct)}<span>${r.share_pct}%</span></td>
+                <td>${r.calls}${r.failed_calls ? ` <span class="usage-fail">(${r.failed_calls} сбоев)</span>` : ''}</td>
+                <td>${this._fmtTokens(r.prompt_tokens)}</td>
+                <td>${this._fmtTokens(r.completion_tokens)}</td>
+                <td class="text-blue"><strong>${this._fmtTokens(r.total_tokens)}</strong></td>
+                <td>${r.avg_latency_ms ? r.avg_latency_ms + ' ms' : '—'}</td>
+                <td>${this._fmtCost(r)}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  }
+
+  _renderUsageModels(rows) {
+    const pane = document.getElementById('usage-pane-models');
+    if (!pane) return;
+    if (!rows.length) {
+      pane.innerHTML = this._usageEmpty('Модели ещё не использовались.');
+      return;
+    }
+    pane.innerHTML = `
+      <div class="modal-models-table-wrap">
+        <table class="colony-table usage-table">
+          <thead><tr>
+            <th>Модель</th><th>Провайдер</th><th>Доля</th><th>Вызовов</th>
+            <th>Вход</th><th>Выход</th><th>Рассуждения</th><th>Всего</th><th>Ср. на вызов</th><th>Стоимость</th>
+          </tr></thead>
+          <tbody>
+            ${rows.map(r => `
+              <tr>
+                <td><strong>${this._escapeHtml(r.model_name)}</strong><br><code class="usage-sub">${this._escapeHtml(r.model)}</code></td>
+                <td>${this._escapeHtml(r.provider_label)}</td>
+                <td class="usage-share">${this._usageBar(r.share_pct)}<span>${r.share_pct}%</span></td>
+                <td>${r.calls}</td>
+                <td>${this._fmtTokens(r.prompt_tokens)}</td>
+                <td>${this._fmtTokens(r.completion_tokens)}</td>
+                <td>${this._fmtTokens(r.reasoning_tokens)}</td>
+                <td class="text-blue"><strong>${this._fmtTokens(r.total_tokens)}</strong></td>
+                <td>${this._fmtTokens(r.avg_tokens_per_call)}</td>
+                <td>${this._fmtCost(r)}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  }
+
+  _renderUsageAgents(rows) {
+    const pane = document.getElementById('usage-pane-agents');
+    if (!pane) return;
+    if (!rows.length) {
+      pane.innerHTML = this._usageEmpty('Агенты ещё не работали.');
+      return;
+    }
+    pane.innerHTML = `
+      <div class="modal-models-table-wrap">
+        <table class="colony-table usage-table">
+          <thead><tr><th>Агент</th><th>Вызовов</th><th>Вход</th><th>Выход</th><th>Всего</th><th>Ср. на вызов</th></tr></thead>
+          <tbody>
+            ${rows.map(r => `
+              <tr>
+                <td><strong>${this._escapeHtml(r.agent)}</strong></td>
+                <td>${r.calls}</td>
+                <td>${this._fmtTokens(r.prompt_tokens)}</td>
+                <td>${this._fmtTokens(r.completion_tokens)}</td>
+                <td class="text-blue"><strong>${this._fmtTokens(r.total_tokens)}</strong></td>
+                <td>${this._fmtTokens(r.avg_tokens_per_call)}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  }
+
+  async _renderUsageTasks() {
+    const pane = document.getElementById('usage-pane-tasks');
+    if (!pane) return;
+    try {
+      const res = await fetch('/api/usage/tasks?limit=100');
+      const d = await res.json();
+      const rows = d.tasks || [];
+      if (!rows.length) {
+        pane.innerHTML = this._usageEmpty('Задач пока нет.');
+        return;
+      }
+      pane.innerHTML = `
+        <div class="modal-models-table-wrap">
+          <table class="colony-table usage-table">
+            <thead><tr>
+              <th>Задача</th><th>Тип</th><th>Статус</th><th>Вызовов</th>
+              <th>Вход</th><th>Выход</th><th>Всего токенов</th><th>Стоимость</th><th></th>
+            </tr></thead>
+            <tbody>
+              ${rows.map(r => `
+                <tr>
+                  <td>
+                    <strong>${this._escapeHtml((r.label || r.task_id).slice(0, 90))}</strong>
+                    <br><span class="usage-sub">${this._fmtDate(r.started_at)}${r.duration_s ? ` • ${r.duration_s}s` : ''}</span>
+                  </td>
+                  <td>${r.kind === 'system' ? '<span class="usage-chip">системная</span>' : '<span class="usage-chip chip-purple">задача</span>'}</td>
+                  <td>${this._usageStatus(r.status)}</td>
+                  <td>${r.calls}</td>
+                  <td>${this._fmtTokens(r.prompt_tokens)}</td>
+                  <td>${this._fmtTokens(r.completion_tokens)}</td>
+                  <td class="text-blue"><strong>${this._fmtTokens(r.total_tokens)}</strong></td>
+                  <td>${this._fmtCost(r)}</td>
+                  <td><button class="btn-usage-detail" data-task-usage="${this._escapeHtml(r.task_id)}">Детали</button></td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`;
+
+      pane.querySelectorAll('[data-task-usage]').forEach(btn => {
+        btn.addEventListener('click', () => this.openTaskUsage(btn.dataset.taskUsage));
+      });
+    } catch (e) {
+      pane.innerHTML = this._usageEmpty(`Ошибка: ${this._escapeHtml(e.message)}`);
+    }
+  }
+
+  _usageStatus(status) {
+    const map = {
+      completed: ['text-emerald', 'завершена'],
+      running: ['text-amber', 'выполняется'],
+      failed: ['usage-fail', 'ошибка'],
+      cancelled: ['usage-muted', 'отменена'],
+    };
+    const [cls, label] = map[status] || ['usage-muted', status || '—'];
+    return `<span class="${cls}">${label}</span>`;
+  }
+
+  async openTaskUsage(taskId) {
+    const modal = document.getElementById('modal-task-usage');
+    const body = document.getElementById('task-usage-body');
+    if (!modal || !body) return;
+    modal.classList.remove('hidden');
+    body.innerHTML = '<div class="kpi-modal-loading">Загрузка деталей...</div>';
+
+    try {
+      const res = await fetch(`/api/usage/tasks/${encodeURIComponent(taskId)}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const d = await res.json();
+      const t = d.totals || {};
+
+      const titleEl = document.getElementById('task-usage-title');
+      const subEl = document.getElementById('task-usage-sub');
+      if (titleEl) titleEl.textContent = (d.label || d.task_id).slice(0, 120);
+      if (subEl) {
+        subEl.innerHTML = `${this._fmtDate(d.started_at)} • ${d.duration_s ? d.duration_s + ' сек' : '—'}
+          ${d.score != null ? ` • оценка ${d.score}/100` : ''} • <code>${this._escapeHtml(d.task_id)}</code>`;
+      }
+
+      const section = (title, rows, nameKey, subKey, withCost = true) => {
+        if (!rows.length) return '';
+        return `
+          <h4 class="kpi-modal-section-title">${title}</h4>
+          <div class="modal-models-table-wrap">
+            <table class="colony-table usage-table">
+              <thead><tr><th>Название</th><th>Доля</th><th>Вызовов</th><th>Вход</th><th>Выход</th><th>Всего</th>${withCost ? '<th>Стоимость</th>' : ''}</tr></thead>
+              <tbody>
+                ${rows.map(r => `
+                  <tr>
+                    <td><strong>${this._escapeHtml(r[nameKey] || r.key)}</strong>${subKey && r[subKey] ? `<br><code class="usage-sub">${this._escapeHtml(r[subKey])}</code>` : ''}</td>
+                    <td class="usage-share">${this._usageBar(r.share_pct)}<span>${r.share_pct}%</span></td>
+                    <td>${r.calls}</td>
+                    <td>${this._fmtTokens(r.prompt_tokens)}</td>
+                    <td>${this._fmtTokens(r.completion_tokens)}</td>
+                    <td class="text-blue"><strong>${this._fmtTokens(r.total_tokens)}</strong></td>
+                    ${withCost ? `<td>${this._fmtCost(r)}</td>` : ''}
+                  </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>`;
+      };
+
+      const calls = (d.calls || []).slice(0, 60);
+      body.innerHTML = `
+        <div class="kpi-stat-grid">
+          ${this._statTile('Токенов на задачу', this._fmtTokens(t.total_tokens), `вход ${this._fmtTokens(t.prompt_tokens)} • выход ${this._fmtTokens(t.completion_tokens)}`, 'blue')}
+          ${this._statTile('Вызовов', t.calls || 0, `из кэша: ${t.cached_calls || 0}`, 'purple')}
+          ${this._statTile('Ср. на вызов', this._fmtTokens(t.avg_tokens_per_call), `рассуждения: ${this._fmtTokens(t.reasoning_tokens)}`, 'amber')}
+          ${this._statTile('Стоимость', this._fmtCost(t), t.cost_known ? (t.cost_partial ? 'часть моделей без прайса' : 'по прайс-листу') : 'прайс-лист не задан', 'emerald')}
+        </div>
+        ${section('По провайдерам', d.by_provider || [], 'provider_label', 'provider')}
+        ${section('По моделям', d.by_model || [], 'model_name', 'model')}
+        ${section('По агентам', d.by_agent || [], 'agent', null, false)}
+        <h4 class="kpi-modal-section-title">Хронология вызовов (последние ${calls.length})</h4>
+        <div class="modal-models-table-wrap">
+          <table class="colony-table usage-table">
+            <thead><tr><th>Время</th><th>Агент</th><th>Этап</th><th>Модель</th><th>Вход</th><th>Выход</th><th>Всего</th><th>мс</th></tr></thead>
+            <tbody>
+              ${calls.length ? '' : '<tr><td colspan="8" class="kpi-modal-loading">Вызовов пока не было.</td></tr>'}
+              ${calls.map(c => `
+                <tr${c.success ? '' : ' class="usage-row-fail"'}>
+                  <td class="usage-sub">${new Date(c.ts * 1000).toLocaleTimeString('ru-RU')}</td>
+                  <td>${this._escapeHtml(c.agent)}</td>
+                  <td><span class="usage-chip">${this._escapeHtml(c.phase || '—')}</span></td>
+                  <td><code class="usage-sub">${this._escapeHtml(c.model)}</code>${c.cached ? ' <span class="text-emerald">кэш</span>' : ''}</td>
+                  <td>${this._fmtTokens(c.prompt_tokens)}</td>
+                  <td>${this._fmtTokens(c.completion_tokens)}</td>
+                  <td><strong>${this._fmtTokens(c.total_tokens)}</strong></td>
+                  <td>${c.duration_ms || 0}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+        <p class="kpi-modal-note">
+          <a class="btn-usage-ghost" href="/api/usage/export.csv?task_id=${encodeURIComponent(d.task_id)}" download>Выгрузить эту задачу в CSV</a>
+        </p>`;
+    } catch (e) {
+      body.innerHTML = `<div class="kpi-modal-loading">Ошибка: ${this._escapeHtml(e.message)}</div>`;
+    }
+  }
+
+  closeTaskUsage() {
+    const m = document.getElementById('modal-task-usage');
+    if (m) m.classList.add('hidden');
+  }
+
+  async resetUsageLedger() {
+    if (!confirm('Сбросить всю статистику расхода токенов и начать новый учётный период?')) return;
+    try {
+      await fetch('/api/usage/reset', { method: 'POST' });
+      await this.loadUsageReport();
+      this.fetchRealStats();
+    } catch (e) {
+      console.warn('usage reset failed', e);
+    }
   }
 
   // 3-pill: loyihalar ro'yxati
@@ -4246,6 +4637,7 @@ window.addEventListener('DOMContentLoaded', () => {
     ['pill-models-kpi', () => window.antApp.openModelsModal()],
     ['pill-cache-kpi', () => window.antApp.openSavingsModal()],
     ['pill-workspace-kpi', () => window.antApp.openProjectsModal()],
+    ['pill-tokens-kpi', () => window.antApp.openUsageModal()],
   ];
   kpiPillWiring.forEach(([id, handler]) => {
     const pill = document.getElementById(id);
@@ -4264,8 +4656,21 @@ window.addEventListener('DOMContentLoaded', () => {
   const btnCloseProjects = document.getElementById('btn-close-projects-modal');
   if (btnCloseProjects) btnCloseProjects.addEventListener('click', () => window.antApp.closeProjectsModal());
 
+  // Token sarfi hisoboti
+  const btnCloseUsage = document.getElementById('btn-close-usage-modal');
+  if (btnCloseUsage) btnCloseUsage.addEventListener('click', () => window.antApp.closeUsageModal());
+  const btnCloseTaskUsage = document.getElementById('btn-close-task-usage');
+  if (btnCloseTaskUsage) btnCloseTaskUsage.addEventListener('click', () => window.antApp.closeTaskUsage());
+  const btnUsageRefresh = document.getElementById('btn-usage-refresh');
+  if (btnUsageRefresh) btnUsageRefresh.addEventListener('click', () => window.antApp.loadUsageReport());
+  const btnUsageReset = document.getElementById('btn-usage-reset');
+  if (btnUsageReset) btnUsageReset.addEventListener('click', () => window.antApp.resetUsageLedger());
+  document.querySelectorAll('#usage-tabs .usage-tab').forEach(btn => {
+    btn.addEventListener('click', () => window.antApp.switchUsageTab(btn.dataset.usageTab));
+  });
+
   // Fon (backdrop) bosilganda yopilsin
-  ['modal-token-savings', 'modal-projects-list'].forEach(mid => {
+  ['modal-token-savings', 'modal-projects-list', 'modal-token-usage', 'modal-task-usage'].forEach(mid => {
     const m = document.getElementById(mid);
     if (m) m.addEventListener('click', (e) => { if (e.target === m) m.classList.add('hidden'); });
   });
