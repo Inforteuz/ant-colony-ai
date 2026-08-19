@@ -2157,6 +2157,16 @@ class AntColonyApp {
         <div class="exec-files-pills">${filesHtml}</div>
       </div>
 
+      ${event.project_dir && createdFiles.length > 0 ? `
+        <div class="exec-launch-row">
+          <button class="btn-exec-launch" onclick="window.antApp.launchProjectLocalhost('${this.esc(event.project_dir)}', this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            <span>Открыть на localhost</span>
+          </button>
+          <span class="exec-launch-status" id="exec-launch-status-${(event.project_dir || '').replace(/[^a-z0-9]/gi,'-')}"></span>
+        </div>
+      ` : ''}
+
       ${scorecardHtml}
 
       ${event.coder_summary ? `
@@ -2182,6 +2192,40 @@ class AntColonyApp {
 
     feed.appendChild(card);
     feed.scrollTop = feed.scrollHeight;
+  }
+
+  async launchProjectLocalhost(projectDir, btn) {
+    const status = btn.parentElement.querySelector('.exec-launch-status');
+    const setStatus = (t, cls) => {
+      if (status) { status.textContent = t; status.className = 'exec-launch-status ' + (cls || ''); }
+    };
+    setStatus('запуск…', 'launching');
+    btn.disabled = true;
+    try {
+      const res = await fetch('/api/project/launch', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({project_dir: projectDir}),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setStatus('', 'ok');
+        // Tugmani linkka aylantiramiz
+        btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg><span>${this.esc(data.url)}</span>`;
+        btn.onclick = () => window.open(data.url, '_blank');
+        btn.disabled = false;
+        btn.classList.add('launched');
+        this.toast('Loyiha localhostda ochildi', `${data.url} (${data.kind})`, 'ok', 6000);
+        // Yangi tabda darhol ochamiz
+        window.open(data.url, '_blank');
+      } else {
+        setStatus('xato: ' + (data.error || data.detail || '?'), 'err');
+        btn.disabled = false;
+        this.toast('Ishga tushmadi', data.error || data.detail || '', 'error', 7000);
+      }
+    } catch (e) {
+      setStatus('tarmoq: ' + e.message, 'err');
+      btn.disabled = false;
+    }
   }
 
   async openFileInWorkspace(filename) {

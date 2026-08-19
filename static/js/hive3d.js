@@ -1952,22 +1952,38 @@ class IsometricHive3D {
     this.meetingUntil = performance.now() + durationSec * 1000;
     this.meetingTopic = topic;
 
-    const seats = this._conferenceSeats();
-    // PM har doim yig'ilishni boshqaradi — u birinchi o'rinda.
-    const ordered = Object.values(this.agents).sort((a, b) => (a.id === 'pm' ? -1 : b.id === 'pm' ? 1 : 0));
+    // PM prezenter pozitsiyasi — ekran oldida, jamoaga yuzlangan
+    // (Conference room center: (-22, 0, 16), screen at z=-5.6 → world z=10.4)
+    const presenterPos = new THREE.Vector3(-22.0, 0, 11.5);
 
+    const seats = this._conferenceSeats();
     let seatIdx = 0;
-    ordered.forEach(ag => {
-      // Topshiriq ustida ishlayotgan agentni ish joyidan uzmaymiz.
-      if (ag.state === 'WORKING' || ag.state === 'WALK_TO_DESK') return;
-      const seat = seats[seatIdx % seats.length];
-      seatIdx += 1;
+
+    Object.values(this.agents).forEach(ag => {
+      // Topshiriq ustida ishlayotgan MUTAXASSISNI ish joyidan uzmaymiz —
+      // LEKIN PM ni ushlanmaydi: u meeting'ni boshqaradi, doim keladi.
+      if (ag.id !== 'pm' && (ag.state === 'WORKING' || ag.state === 'WALK_TO_DESK')) return;
+
       ag.state = 'IDLE_ACTIVITY';
-      ag.activityState = 'MEETING';
-      ag.activityLabel = 'Планёрка в переговорной';
-      ag.meetingFacing = seat.facing;
-      ag.targetPos.copy(seat.pos);
       ag.animTime = Math.random() * 2;
+
+      if (ag.id === 'pm') {
+        // PM — prezenter (ekran oldida turadi, jamoaga qaraydi, gaplashadi)
+        ag.activityState = 'MEETING_PRESENTER';
+        ag.activityLabel = 'Ведёт планёрку у экрана';
+        ag.targetPos.copy(presenterPos);
+        // PM jamoaga (janubga = z+) yuzlanadi
+        ag.presenterFacing = 0;  // Math.atan2(0, 1) = 0 (janubga)
+      } else {
+        // Boshqa agentlar — stulda o'tirib PM ga qaraydilar
+        const seat = seats[seatIdx % seats.length];
+        seatIdx += 1;
+        ag.activityState = 'MEETING';
+        ag.activityLabel = 'Слушает планёрку';
+        ag.meetingFacing = seat.facing;
+        ag.meetingLookAtPresenter = true;  // boshi PM ga qaraydi
+        ag.targetPos.copy(seat.pos);
+      }
     });
 
     this.updateConferenceScreen(topic);
@@ -2215,7 +2231,10 @@ class IsometricHive3D {
     if (this.meetingUntil && !this._meetingActive()) {
       this.meetingUntil = 0;
       Object.values(this.agents).forEach(ag => {
-        if (ag.activityState === 'MEETING') ag.activityState = null;
+        if (ag.activityState === 'MEETING' || ag.activityState === 'MEETING_PRESENTER') {
+          ag.activityState = null;
+          ag.meetingLookAtPresenter = false;
+        }
       });
     }
 
@@ -2568,6 +2587,157 @@ class IsometricHive3D {
             mesh.rightArmGroup.rotation.x = jabR;
             mesh.leftLegGroup.rotation.x = -0.15;
             mesh.rightLegGroup.rotation.x = 0.15;
+          }
+
+          // MEETING_PRESENTER — PM ekran/doska oldida turadi, gaplashadi, qo'l harakati
+          else if (slot === 'MEETING_PRESENTER') {
+            if (dist > 0.35) {
+              // Ekran oldi pozitsiyasiga borish (yurish tsikli bilan)
+              const dir = new THREE.Vector3().subVectors(ag.targetPos, mesh.position).normalize();
+              const tgtA = Math.atan2(dir.x, dir.z);
+              mesh.rotation.y = THREE.MathUtils.lerp(mesh.rotation.y, tgtA, 0.14);
+              mesh.position.addScaledVector(dir, ag.walkSpeed * 1.25 * delta);
+              const t = ag.animTime * 9.0;
+              const s = Math.sin(t);
+              mesh.leftLegGroup.rotation.x  =  s * 0.5;
+              mesh.rightLegGroup.rotation.x = -s * 0.5;
+              const leftLift  = Math.max(0,  s);
+              const rightLift = Math.max(0, -s);
+              if (mesh.leftLegGroup.kneeGroup)  mesh.leftLegGroup.kneeGroup.rotation.x  = -leftLift  * 0.8;
+              if (mesh.rightLegGroup.kneeGroup) mesh.rightLegGroup.kneeGroup.rotation.x = -rightLift * 0.8;
+              mesh.leftArmGroup.rotation.x  = -s * 0.4;
+              mesh.rightArmGroup.rotation.x =  s * 0.4;
+              mesh.bodyGroup.position.y = 0.95 - Math.abs(Math.sin(t * 2)) * 0.03;
+            } else {
+              // Prezenter pozasi — turgan holda, jamoaga qaraydi
+              mesh.position.x = ag.targetPos.x;
+              mesh.position.z = ag.targetPos.z;
+              mesh.position.y = 0;
+              const face = (typeof ag.presenterFacing === 'number') ? ag.presenterFacing : 0;
+              mesh.rotation.y = THREE.MathUtils.lerp(mesh.rotation.y, face, 0.15);
+
+              // Tik turadi, oyoq to'g'ri
+              mesh.bodyGroup.position.y = THREE.MathUtils.lerp(mesh.bodyGroup.position.y, 0.95, 0.15);
+              mesh.leftLegGroup.rotation.x  = THREE.MathUtils.lerp(mesh.leftLegGroup.rotation.x, 0, 0.2);
+              mesh.rightLegGroup.rotation.x = THREE.MathUtils.lerp(mesh.rightLegGroup.rotation.x, 0, 0.2);
+              if (mesh.leftLegGroup.kneeGroup)  mesh.leftLegGroup.kneeGroup.rotation.x  = THREE.MathUtils.lerp(mesh.leftLegGroup.kneeGroup.rotation.x, 0, 0.2);
+              if (mesh.rightLegGroup.kneeGroup) mesh.rightLegGroup.kneeGroup.rotation.x = THREE.MathUtils.lerp(mesh.rightLegGroup.kneeGroup.rotation.x, 0, 0.2);
+
+              // Prezenter qo'l harakati — o'ng qo'l ekranga ishora qiladi (davriy)
+              // Nutq fazasi (2.4s davr): ko'targan → tushirgan → boshqa poza
+              const cyc = (ag.animTime % 4.8);
+              if (cyc < 2.4) {
+                // O'ng qo'lni ko'targan holda ekranga ishora qilyapti (behind: -Z ekran tomon)
+                const rArm = -1.25 + Math.sin(cyc * 3) * 0.12;   // taxminan 90° ko'tarilgan
+                mesh.rightArmGroup.rotation.x = THREE.MathUtils.lerp(mesh.rightArmGroup.rotation.x, rArm, 0.2);
+                mesh.rightArmGroup.rotation.z = THREE.MathUtils.lerp(mesh.rightArmGroup.rotation.z, -0.4, 0.2);
+                if (mesh.rightArmGroup.elbowGroup)
+                  mesh.rightArmGroup.elbowGroup.rotation.x = THREE.MathUtils.lerp(mesh.rightArmGroup.elbowGroup.rotation.x, 0.15, 0.2);
+                // Chap qo'l tanaga tegishli, ozgina harakat
+                mesh.leftArmGroup.rotation.x = THREE.MathUtils.lerp(mesh.leftArmGroup.rotation.x, -0.1, 0.2);
+                if (mesh.leftArmGroup.elbowGroup)
+                  mesh.leftArmGroup.elbowGroup.rotation.x = THREE.MathUtils.lerp(mesh.leftArmGroup.elbowGroup.rotation.x, 0.6, 0.2);
+              } else {
+                // Ikkala qo'l tushirilgan, so'ngra chap qo'l ko'tariladi
+                const lArm = -0.7 + Math.sin((cyc - 2.4) * 4) * 0.25;
+                mesh.leftArmGroup.rotation.x = THREE.MathUtils.lerp(mesh.leftArmGroup.rotation.x, lArm, 0.2);
+                mesh.leftArmGroup.rotation.z = THREE.MathUtils.lerp(mesh.leftArmGroup.rotation.z, 0.35, 0.2);
+                if (mesh.leftArmGroup.elbowGroup)
+                  mesh.leftArmGroup.elbowGroup.rotation.x = THREE.MathUtils.lerp(mesh.leftArmGroup.elbowGroup.rotation.x, 0.5, 0.2);
+                mesh.rightArmGroup.rotation.x = THREE.MathUtils.lerp(mesh.rightArmGroup.rotation.x, -0.15, 0.2);
+                mesh.rightArmGroup.rotation.z = THREE.MathUtils.lerp(mesh.rightArmGroup.rotation.z, -0.22, 0.2);
+                if (mesh.rightArmGroup.elbowGroup)
+                  mesh.rightArmGroup.elbowGroup.rotation.x = THREE.MathUtils.lerp(mesh.rightArmGroup.elbowGroup.rotation.x, 0.4, 0.2);
+              }
+
+              // Bosh harakat — nutq ritmida bir oz aylantiradi (yon)
+              mesh.headGroup.rotation.y = Math.sin(ag.animTime * 2.4) * 0.3;
+              mesh.headGroup.rotation.x = Math.sin(ag.animTime * 3.6) * 0.06;
+
+              // Nafas olish + "gapirish" chastotasi (chest scale)
+              const talk = 1 + Math.sin(ag.animTime * 5.5) * 0.02 + Math.sin(ag.animTime * 1.3) * 0.015;
+              mesh.bodyGroup.scale.set(talk, talk, talk);
+            }
+          }
+
+          // MEETING (Планёрка) — konferens-zalda stulda o'tirish
+          else if (slot === 'MEETING') {
+            // Agar hali seat'ga yetib bormagan bo'lsa, xuddi WALK_TO_DESK kabi yuring
+            if (dist > 0.35) {
+              const dir = new THREE.Vector3().subVectors(ag.targetPos, mesh.position).normalize();
+              const targetAngle = Math.atan2(dir.x, dir.z);
+              mesh.rotation.y = THREE.MathUtils.lerp(mesh.rotation.y, targetAngle, 0.14);
+              mesh.position.addScaledVector(dir, ag.walkSpeed * 1.25 * delta);
+              const t = ag.animTime * 9.0;
+              const s = Math.sin(t);
+              mesh.leftLegGroup.rotation.x  =  s * 0.5;
+              mesh.rightLegGroup.rotation.x = -s * 0.5;
+              const leftLift  = Math.max(0,  s);
+              const rightLift = Math.max(0, -s);
+              if (mesh.leftLegGroup.kneeGroup)  mesh.leftLegGroup.kneeGroup.rotation.x  = -leftLift  * 0.85;
+              if (mesh.rightLegGroup.kneeGroup) mesh.rightLegGroup.kneeGroup.rotation.x = -rightLift * 0.85;
+              mesh.leftArmGroup.rotation.x  = -s * 0.45;
+              mesh.rightArmGroup.rotation.x =  s * 0.45;
+              mesh.bodyGroup.position.y = 0.95 - Math.abs(Math.sin(t * 2)) * 0.03;
+            } else {
+              // Seatga yetib keldi — sitting pose
+              mesh.position.x = ag.targetPos.x;
+              mesh.position.z = ag.targetPos.z;
+              mesh.position.y = 0;
+              // Stulga yuzlanadi
+              if (typeof ag.meetingFacing === 'number') {
+                mesh.rotation.y = THREE.MathUtils.lerp(mesh.rotation.y, ag.meetingFacing, 0.12);
+              }
+              // Tanani seat balandligiga tushiramiz (chair seat y ~0.55, robot pelvis ~0.65)
+              mesh.bodyGroup.position.y = THREE.MathUtils.lerp(mesh.bodyGroup.position.y, 0.60, 0.15);
+
+              // Son oldga, tizza pastga (o'tirish pozitsiyasi)
+              mesh.leftLegGroup.rotation.x  = THREE.MathUtils.lerp(mesh.leftLegGroup.rotation.x,  -Math.PI / 2.1, 0.15);
+              mesh.rightLegGroup.rotation.x = THREE.MathUtils.lerp(mesh.rightLegGroup.rotation.x, -Math.PI / 2.1, 0.15);
+              if (mesh.leftLegGroup.kneeGroup)
+                mesh.leftLegGroup.kneeGroup.rotation.x  = THREE.MathUtils.lerp(mesh.leftLegGroup.kneeGroup.rotation.x,  Math.PI / 2.05, 0.15);
+              if (mesh.rightLegGroup.kneeGroup)
+                mesh.rightLegGroup.kneeGroup.rotation.x = THREE.MathUtils.lerp(mesh.rightLegGroup.kneeGroup.rotation.x, Math.PI / 2.05, 0.15);
+
+              // Qo'llar — stol/laptop ustida, tirsak bukilgan
+              const typeSpeed = 14;
+              const typeL = Math.sin(ag.animTime * typeSpeed) * 0.10 - 0.7;
+              const typeR = Math.cos(ag.animTime * typeSpeed) * 0.10 - 0.7;
+              mesh.leftArmGroup.rotation.x  = THREE.MathUtils.lerp(mesh.leftArmGroup.rotation.x, typeL, 0.15);
+              mesh.rightArmGroup.rotation.x = THREE.MathUtils.lerp(mesh.rightArmGroup.rotation.x, typeR, 0.15);
+              mesh.leftArmGroup.rotation.z  = 0.20;
+              mesh.rightArmGroup.rotation.z = -0.20;
+              if (mesh.leftArmGroup.elbowGroup)
+                mesh.leftArmGroup.elbowGroup.rotation.x  = THREE.MathUtils.lerp(mesh.leftArmGroup.elbowGroup.rotation.x,  Math.PI / 2.6, 0.15);
+              if (mesh.rightArmGroup.elbowGroup)
+                mesh.rightArmGroup.elbowGroup.rotation.x = THREE.MathUtils.lerp(mesh.rightArmGroup.elbowGroup.rotation.x, Math.PI / 2.6, 0.15);
+
+              // Bosh — spikerga (PM) qaraydi + engil "listening" nuts
+              if (ag.meetingLookAtPresenter) {
+                // Prezenter world pozitsiyasi (-22, ~1.5, 11.5)
+                const presenterWorld = new THREE.Vector3(-22, 1.5, 11.5);
+                const meshWorld = new THREE.Vector3();
+                mesh.getWorldPosition(meshWorld);
+                // Robot rotation.y ni hisobga olib, bosh yaw'ini hisoblaymiz
+                const dx = presenterWorld.x - meshWorld.x;
+                const dz = presenterWorld.z - meshWorld.z;
+                const worldYaw = Math.atan2(dx, dz);
+                let relYaw = worldYaw - mesh.rotation.y;
+                // Angle'ni [-π..π] oralig'ida saqlaymiz
+                while (relYaw >  Math.PI) relYaw -= Math.PI * 2;
+                while (relYaw < -Math.PI) relYaw += Math.PI * 2;
+                // Boshning burilish chegarasi ±120° — undan tashqarida stulni burish kerak
+                relYaw = Math.max(-2.1, Math.min(2.1, relYaw));
+                mesh.headGroup.rotation.y = THREE.MathUtils.lerp(mesh.headGroup.rotation.y, relYaw, 0.08);
+                // Bosh biroz ko'tarilgan (ekrahn/PM tomonga qaray)
+                mesh.headGroup.rotation.x = THREE.MathUtils.lerp(mesh.headGroup.rotation.x, -0.05, 0.08);
+                // Nutqni tinglash — vaqti-vaqti bilan sekin bosh silkitish
+                mesh.headGroup.rotation.z = Math.sin(ag.animTime * 0.7) * 0.03;
+              } else {
+                mesh.headGroup.rotation.y = Math.sin(ag.animTime * 1.2) * 0.25;
+                mesh.headGroup.rotation.x = -0.1 + Math.cos(ag.animTime * 0.9) * 0.04;
+              }
+            }
           }
         }
       }

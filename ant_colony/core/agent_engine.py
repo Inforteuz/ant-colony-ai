@@ -512,6 +512,7 @@ class AgentEngine:
 
         # PM uzoq muddatli xotira konteksti — oldingi loyihalar, kelajakdagi rejalar
         pm_mem_context = ""
+        last_project_note = ""
         try:
             from ant_colony.core.pm_memory import get_memory
             mem = get_memory()
@@ -519,6 +520,24 @@ class AgentEngine:
                 snippet = mem.as_context_snippet(max_projects=5)
                 if snippet:
                     pm_mem_context = f"\n## MENIN UZOQ MUDDATLI XOTIRAM (avvalgi sessiyalardan):\n{snippet}\n\n"
+                # Eng so'nggi loyiha — alohida ta'kidlangan blok, xatosiz javob berish uchun
+                snap = mem.snapshot()
+                completed = snap.get("completed_projects", [])
+                if completed:
+                    last = completed[0]
+                    files_list = ", ".join(last.get("files", [])[:8]) or "fayllar yozilmagan"
+                    last_project_note = (
+                        "\n## ⚡ ENG SO'NGGI LOYIHA (aynan shu — hallutsinatsiya qilmang!):\n"
+                        f"- **Topshiriq:** {last.get('task', '?')}\n"
+                        f"- **Papka:** `{last.get('project_dir', '?')}`\n"
+                        f"- **Yaratilgan fayllar ({last.get('files_count', 0)}):** {files_list}\n"
+                        f"- **Ball:** {last.get('score', '—')}/100 · **Vaqt:** {last.get('duration_s', 0)}s\n"
+                        f"- **Tugagan:** {last.get('iso', '?')}\n"
+                        f"- **Xulosa:** {last.get('summary', '—')}\n\n"
+                        "AGAR foydalanuvchi so'nggi/hozirgi loyiha haqida so'rasa (masalan: "
+                        "'loyiha tugadimi', 'qayerda', 'link ber', 'localhost'), "
+                        "AYNAN yuqoridagi ma'lumotdan foydalaning. Boshqa papkalar ro'yxatini yozmang!\n\n"
+                    )
         except Exception:
             pass
 
@@ -526,6 +545,7 @@ class AgentEngine:
             f"Foydalanuvchi topshirig'i / Запрос пользователя: \"{task_prompt}\"\n\n"
             "Siz Ant Colony AI universal agentlar platformasining Bosh Project Managerisiz.\n"
             f"## ISHCHI MUHIT VA MAVJUD LOYIHALAR TARIXI (FAQAT HAQIQIY FAKTLAR):\n{ws_summary}\n\n"
+            + last_project_note
             + pm_mem_context +
             "Mavjud mutaxassis rollar:\n"
             f"{role_menu}\n\n"
@@ -534,6 +554,12 @@ class AgentEngine:
             "   Foydalanuvchi xabarida qaysi tildan foydalangan bo'lsa (ruscha, o'zbekcha, inglizcha va h.k.), "
             "rejangizni, tahlilingizni va javobingizni AYNAN O'SHA TILDA yozing. "
             "Если пользователь написал по-русски — отвечайте по-русски. Agar o'zbekcha yozgan bo'lsa — o'zbek tilida javob bering. If English — reply in English.\n\n"
+            "   MUROJAAT QOIDASI / ОБРАЩЕНИЕ (MAJBURIY):\n"
+            "   * Foydalanuvchini HECH QACHON `ustoz`, `xo'jayin`, `ustad`, `хозяин`, `господин`, `master`, `sir`, `sensei` "
+            "     yoki shunga o'xshash iyerarxik/qullik so'zlari bilan chaqirmang.\n"
+            "   * Neytral va professional muloyimlik ishlating: o'zbekcha `Assalomu alaykum`, `sizga`, `sizning topshirig'ingiz`; "
+            "     ruscha `Здравствуйте`, `ваш запрос`, `вы`; inglizcha `Hello`, `your request`, `you`.\n"
+            "   * Kerak bo'lganda foydalanuvchini `CEO` (mos kontekstda) yoki oddiy `siz/вы/you` deb ataysiz — boshqasi yo'q.\n\n"
             "2. AGAR foydalanuvchi umumiy savol so'rayotgan, salomlashayotgan, imkoniyatlaringizni/qobiliyatlaringizni "
             "(masalan: 'qo'lingdan nima keladi', 'что ты умеешь', 'привет', 'salom', 'qaysi tillarni bilasan', 'какие языки поддерживаешь', 'status nima') so'rayotgan bo'lsa:\n"
             "   Unga to'liq, aqlli, samimiy va chiroyli javob yozing (foydalanuvchi tilida) va javobingiz oxirida AYNAN quyidagi JSON blokini qaytaring:\n"

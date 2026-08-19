@@ -1477,6 +1477,60 @@ async def janitor_toggle(req: JanitorToggleRequest):
     return {"enabled": _JANITOR.ENABLED}
 
 
+# --- Project Launcher Endpoints (localhost'da avtomatik ishga tushirish) ---
+
+from ant_colony.runtime.project_launcher import (
+    launch_project as _launch_project,
+    stop_project as _stop_project,
+    list_running as _list_running,
+    stop_all as _stop_all_projects,
+)
+
+
+class ProjectLaunchRequest(BaseModel):
+    project_dir: str    # to'liq yoki nisbiy yo'l (04_Loyihalar ichidagi papka nomi ham qabul qilinadi)
+
+
+def _resolve_project_dir(raw: str) -> Path:
+    """
+    Foydalanuvchi projec_dir'ni to'liq yo'l yoki qisqa nom (masalan `neon_clock_timer`)
+    sifatida yuborishi mumkin — ikkalasini ham qo'llab-quvvatlaymiz.
+    """
+    p = Path(os.path.expanduser(raw or "")).expanduser()
+    if p.is_absolute() and p.exists():
+        return p.resolve()
+    # 04_Loyihalar (yoki almashtirilgan katalog) ichidan izlaymiz
+    base = Path(_config_module.PROJECTS_BASE_DIR)
+    cand = base / raw
+    if cand.exists():
+        return cand.resolve()
+    raise HTTPException(status_code=404, detail=f"Loyiha topilmadi: {raw}")
+
+
+@app.post("/api/project/launch")
+async def launch_project_ep(req: ProjectLaunchRequest):
+    """Loyihani localhost'da ishga tushiradi va URL qaytaradi."""
+    p = _resolve_project_dir(req.project_dir)
+    return _launch_project(p)
+
+
+@app.post("/api/project/stop")
+async def stop_project_ep(req: ProjectLaunchRequest):
+    """Ishlab turgan loyiha jarayonini to'xtatadi."""
+    p = _resolve_project_dir(req.project_dir)
+    return _stop_project(p)
+
+
+@app.get("/api/project/running")
+async def list_running_projects():
+    return _list_running()
+
+
+@app.on_event("shutdown")
+async def _shutdown_launcher():
+    _stop_all_projects()
+
+
 # --- Deploy Endpoints (GitHub & Netlify) ---
 
 class GitHubDeployRequest(BaseModel):
