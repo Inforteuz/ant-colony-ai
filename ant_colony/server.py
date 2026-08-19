@@ -1240,6 +1240,17 @@ class OrchestrationJob:
                 self.status = "completed"
         except asyncio.CancelledError:
             self.status = "cancelled"
+            # SSE generator'ya final cancelled event'ni yetkazamiz — agar cancel
+            # endpointi o'z vaqtida event qo'ymagan bo'lsa yoki generator timeout
+            # paytida bo'lsa ham frontend to'g'ri holatga o'tadi.
+            try:
+                self.add_event({
+                    "type": "orchestration_cancelled",
+                    "job_id": self.job_id,
+                    "timestamp": time.time(),
+                })
+            except Exception:
+                pass
         except Exception as e:
             self.status = "failed"
             err_ev = {
@@ -1295,11 +1306,41 @@ async def get_latest_orchestration():
 @app.post("/api/orchestrator/cancel")
 async def cancel_active_orchestration():
     global CURRENT_JOB
+    # CURRENT_JOB global o'zgaruvchasi — lekin reload/reconnect/dispatch
+    # almashinuvi natijasida u eskirgan yoki None bo'lib qolishi mumkin.
+    # ACTIVE_JOBS ichidan eng so'nggi "running" vazifani izlab, aniq topamiz.
+    target = None
     if CURRENT_JOB and CURRENT_JOB.status == "running":
-        CURRENT_JOB.status = "cancelled"
-        if CURRENT_JOB.asyncio_task and not CURRENT_JOB.asyncio_task.done():
-            CURRENT_JOB.asyncio_task.cancel()
-        return {"success": True, "message": "Vazifa bekor qilindi."}
+        target = CURRENT_JOB
+    else:
+        for j in ACTIVE_JOBS.values():
+            if j.status == "running":
+                target = j
+                break
+        if target:
+            CURRENT_JOB = target  # global'ni ham sinxronlaymiz.
+
+    if target:
+        # Final "cancelled" event'ni cancel endpointidan o'zimiz chiqaramiz — bu
+        # SSE generator'ya vaqtincha bloklanib turganda ham yetkaziladi (status
+        # check'dan oldin queue'ga tushadi). Frontend "Остановлено" holatiga
+        # tezda o'tadi.
+        try:
+            target.add_event({
+                "type": "orchestration_cancelled",
+                "job_id": target.job_id,
+                "timestamp": time.time(),
+            })
+        except Exception:
+            pass
+        target.status = "cancelled"
+        if target.asyncio_task and not target.asyncio_task.done():
+            target.asyncio_task.cancel()
+        return {
+            "success": True,
+            "message": "Vazifa bekor qilindi.",
+            "job_id": target.job_id,
+        }
     return {"success": False, "message": "Faol vazifa topilmadi."}
 
 @app.post("/api/orchestrator/dispatch")
@@ -1352,6 +1393,17 @@ async def stream_job_events(job: OrchestrationJob):
                     # Keep-alive heartbeat comment
                     yield ": ping\n\n"
                     if job.status in ("completed", "failed", "cancelled"):
+                        # Yakuniy event'ni (masalan, orchestration_cancelled)
+                        # 200ms ichida olishga urinib ko'ramiz — cancel endpointi
+                        # final event'ni queue'ga tashlab qo'yadi. Agar queue bo'sh
+                        # bo'lsa yoki event yo'q bo'lsa, shunchaki uzilamiz.
+                        try:
+                            final_ev = await asyncio.wait_for(q.get(), timeout=0.2)
+                            if final_ev.get("type") != "_stream_end":
+                                payload = json.dumps(final_ev, ensure_ascii=False, default=str)
+                                yield f"data: {payload}\n\n"
+                        except asyncio.TimeoutError:
+                            pass
                         break
                     continue
 

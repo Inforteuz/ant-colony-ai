@@ -1056,6 +1056,44 @@ class AntColonyApp {
 
     try { localStorage.removeItem('ant_chat_history'); } catch (e) {}
 
+    // Serverda ishlayotgan vazifa bo'lsa — uni ham bekor qilamiz. Aks
+    // holda server ishlashda davom etadi va sahifa reload bo'lganda
+    // checkAndReconnectActiveJob tarixni qayta chizadi (eski kontent
+    // qaytib keladi — "Очистить" ning asosiy sababi).
+    if (this.isRunning) {
+      try { fetch('/api/orchestrator/cancel', { method: 'POST' }).catch(() => {}); } catch (e) {}
+    }
+
+    // UI ni "bo'sh / idle" holatiga qaytaramiz (CEO paneli, timeline,
+    // thinking card, live workspace). orchestration_cancelled handleri
+    // SSE orqali kelgan event uchun xuddi shuni qiladi — lekin bu yerda
+    // event kelmaydi (biz to'g'ridan-to'g'ri cancel qildik), shuning uchun
+    // qo'lda tozalaymiz.
+    this.setPMRunning(false);
+    this.activeThinkingCard = null;
+    if (this.liveWorkspace) this.liveWorkspace.setLive(false, 'Готов к задаче');
+    var _ceoFill = document.getElementById('ceo-meter-fill');
+    if (_ceoFill) { _ceoFill.classList.remove('is-stopped'); _ceoFill.style.width = '0%'; }
+    var _ceoTitle = document.getElementById('ceo-phase-title');
+    if (_ceoTitle) _ceoTitle.textContent = 'Готов к новой задаче';
+    var _ceoStatus = document.getElementById('ceo-status-msg');
+    if (_ceoStatus) _ceoStatus.textContent = 'Ожидаем постановку задачи';
+    var _ceoEta = document.getElementById('ceo-eta-badge');
+    if (_ceoEta) _ceoEta.textContent = 'ETA: —';
+    var _ceoAgent = document.getElementById('ceo-kpi-agent');
+    if (_ceoAgent) _ceoAgent.textContent = '—';
+    var _ceoBN = document.getElementById('ceo-kpi-bottleneck');
+    if (_ceoBN) {
+      _ceoBN.textContent = 'Узких мест нет (Оптимально)';
+      _ceoBN.className = 'ceo-kpi-val text-emerald';
+    }
+    document.querySelectorAll('.wf-step.active, .wf-step.stopped, .wf-step.completed').forEach(function(s) {
+      s.classList.remove('active', 'stopped', 'completed');
+    });
+    if (this.canvas && typeof this.canvas.setActiveStation === 'function') {
+      this.canvas.setActiveStation('pm', 'Ожидаем задачу', '');
+    }
+
     // Placeholder markup index.html dagi bilan bir xil bo'lishi kerak —
     // ilgari boshqa klass ishlatilgani uchun tozalashdan keyin ko'rinish buzilardi.
     feed.innerHTML = `
@@ -1647,6 +1685,27 @@ class AntColonyApp {
       feed.innerHTML = ''; // Clear placeholder
       this.activeThinkingCard = null;
 
+      // Foydalanuvchi "Очистить" bosgan yoki Stop tugmasi orqali bekor
+      // qilgan vazifani qayta chizib qo'ymaslik kerak — serverdan kelgan
+      // cancelled holatda eventlarni replay qilmaymiz, shunday qilib reload
+      // dan keyin feed bo'sh qoladi. (completed/failed holatlarda tarix
+      // ko'rinishi saqlanadi.)
+      if (data.status === 'cancelled') {
+        this.setPMRunning(false);
+        if (this.liveWorkspace) this.liveWorkspace.setLive(false, 'Остановлено');
+        // Feed ni to'g'ri holatga qaytaramiz — placeholder qaytadi.
+        feed.innerHTML = `
+      <div class="empty-feed-placeholder" id="pm-empty-placeholder">
+        <div class="placeholder-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y1="21"/><line x1="12" y1="17" x2="12" y1="21"/></svg>
+        </div>
+        <h4>Project Manager в режиме ожидания</h4>
+        <p>Поставьте задачу. PM составит архитектурный план, распределит подзадачи между AI агентами (Разработчик, Дизайнер, QA, DevOps) и полностью создаст готовый проект в рабочей среде.</p>
+      </div>
+    `;
+        return;
+      }
+
       // Replay all events from server — replay paytida toast'lar CHIQMAYDI,
       // aks holda har reload'da eski "Задача выполнена" toast qayta chiqadi
       this._isReplay = true;
@@ -1661,10 +1720,20 @@ class AntColonyApp {
       // If still running on server, reconnect live stream — endi toast'lar
       // faqat yangi (live) event'lar uchun ishlaydi
       if (data.status === 'running') {
+        // Muhim: serverda vazifa running bo'lsa, frontend holatini ham running
+        // qilamiz — aks holda "Стоп" tugmasi yashirin qoladi va foydalanuvchi
+        // to'xtata olmaydi.
+        this.setPMRunning(true);
+        if (this.liveWorkspace) this.liveWorkspace.setLive(true, 'В эфире');
         const response = await fetch(`/api/orchestrator/stream/${data.job_id}`);
         if (response.ok) {
           await this.readSSEStream(response, feed);
         }
+      } else if (data.status === 'cancelled') {
+        // Reload paytida vazifa allaqachon bekor qilingan bo'lsa — UI to'g'ri
+        // holatga o'tkazamiz, "В эфире" yozuvi qolmasin.
+        this.setPMRunning(false);
+        if (this.liveWorkspace) this.liveWorkspace.setLive(false, 'Остановлено');
       }
     } catch (e) {
       console.warn('Reconnect error:', e);
@@ -1761,9 +1830,35 @@ class AntColonyApp {
   }
 
   async stopPMTask() {
+    // Zudlik bilan UI ni yangilaymiz — serverdan javob kelishini kutmasdan
+    // foydalanuvchiga ko'rinadigan natija ko'rsatamiz, shunda "ishlashda
+    // davom etayapti" degan taassurot bo'lmaydi.
+    const feed = document.getElementById('pm-feed-list');
     try {
-      await fetch('/api/orchestrator/cancel', { method: 'POST' });
-      this.toast('Остановка', 'Запрос на отмену отправлен оркестратору', 'warn');
+      this.finalizeThinkingCards(feed);
+      // Agar card hanuz "is-thinking" klassida bo'lsa yoki umuman topilmasa,
+      // ham finalizatsiya qilamiz — bu holda activeThinkingCard'ga qo'lda
+      // "Остановлено" yozib qo'yamiz.
+      if (this.activeThinkingCard && feed && feed.contains(this.activeThinkingCard)) {
+        const lbl = this.activeThinkingCard.querySelector('.thinking-label');
+        if (lbl) lbl.textContent = 'Остановлено пользователем';
+        const dots = this.activeThinkingCard.querySelector('.chat-typing-indicator');
+        if (dots) dots.remove();
+      }
+      if (this.liveWorkspace) this.liveWorkspace.setLive(false, 'Остановлено');
+    } catch (e) {
+      console.warn('Stop UI update error:', e);
+    }
+
+    try {
+      const res = await fetch('/api/orchestrator/cancel', { method: 'POST' });
+      let body = null;
+      try { body = await res.json(); } catch (e) {}
+      if (body && body.success) {
+        this.toast('Остановка', 'Задача отменена', 'warn');
+      } else {
+        this.toast('Остановка', 'Нет активной задачи для отмены', 'warn');
+      }
     } catch (e) {
       this.toast('Не удалось остановить', e.message, 'error');
     } finally {
@@ -1785,6 +1880,20 @@ class AntColonyApp {
 
     const taskText = input.value.trim();
     if (!taskText) return;
+
+    // --- Stop-buyruq interceptor'i ---
+    // Foydalanuvchi "стоп", "stop", "to'xtat", "toxta", "cancel", "прекрати"
+    // deb yozib yuborsa va ayni paytda vazifa running bo'lsa — yangi orkestratsiya
+    // boshlash o'rniga mavjud vazifani bekor qilamiz. Bu juda muhim: avval bu
+    // yo'q edi va foydalanuvchi "stop" deb yozsa, PM yangi vazifa sifatida
+    // "stop" ni tushunib, eski vazifa ishlashda davom etardi.
+    const STOP_RX = /^(?:\/?(?:стоп|stop|стоп\s*!|to'?xtat(?:ish)?|toxta|cancel|прекрати(?:ть)?|отмени(?:ть)?|прерв(и|ите)|qayt(?:a|ar|arish)?|to'?хта|ишни\s+to'?xtat))\b[\s\.,!]*$/i;
+    if (STOP_RX.test(taskText) && this.isRunning) {
+      input.value = '';
+      this.autoGrowPMInput();
+      await this.stopPMTask();
+      return;
+    }
 
     input.value = '';
     this.autoGrowPMInput();
@@ -1829,6 +1938,11 @@ class AntColonyApp {
       const el = document.getElementById(`wf-step-${id}`);
       if (el) el.className = 'wf-step';
     });
+
+    // Avvalgi cancel'dan qolgan "to'xtagan" rangini tozalaymiz — yangi vazifa
+    // boshlanganda CEO progress paneli yana yashil (ishlayapti) holatga qaytadi.
+    const ceoFillReset = document.getElementById('ceo-meter-fill');
+    if (ceoFillReset) ceoFillReset.classList.remove('is-stopped');
 
     try {
       const response = await fetch('/api/orchestrator/dispatch', {
@@ -2303,6 +2417,64 @@ class AntColonyApp {
         } else {
           this.toast('Оркестрация остановлена', event.error || '', 'error', 6000);
         }
+      }
+    }
+    // Stop tugmasi yoki /stop buyrug'i orqali bekor qilingan orkestratsiya —
+    // "В эфире" yozuvi va spinner abadiy qolmasin.
+    if (type === 'orchestration_cancelled') {
+      if (!this._isReplay) this.setPMRunning(false);
+      if (this.liveWorkspace) {
+        this.liveWorkspace.setLive(false, 'Остановлено');
+        this.liveWorkspace.refreshTree();
+      }
+      // "Ойlaп turgan" kartochkasini ham finalizatsiya qilamiz.
+      try {
+        const feed = document.getElementById('pm-feed-list');
+        if (feed && this.activeThinkingCard && feed.contains(this.activeThinkingCard)) {
+          const lbl = this.activeThinkingCard.querySelector('.thinking-label');
+          if (lbl) lbl.textContent = 'Остановлено пользователем';
+          const dots = this.activeThinkingCard.querySelector('.chat-typing-indicator');
+          if (dots) dots.remove();
+          this.activeThinkingCard.classList.remove('is-thinking');
+          this.activeThinkingCard.classList.add('collapsed');
+        }
+        this.finalizeThinkingCards(feed);
+
+        // --- CEO Executive Briefing qismi ham to'xtagan holatga o'tishi kerak ---
+        // aks holda progress paneli va KPI'lar eski "ishlayapman" holatida qoladi.
+        const ceoFill = document.getElementById('ceo-meter-fill');
+        if (ceoFill) {
+          ceoFill.classList.add('is-stopped');
+          // Progress bar qaerda to'xtaganini ko'rsatish uchun eni saqlanadi,
+          // lekin rang endi amber-qizil (yuqoridagi .is-stopped klassi).
+        }
+        const ceoTitle = document.getElementById('ceo-phase-title');
+        if (ceoTitle) ceoTitle.textContent = 'Остановлено пользователем';
+        const ceoStatus = document.getElementById('ceo-status-msg');
+        if (ceoStatus) ceoStatus.textContent = 'Задача отменена по запросу пользователя';
+        const ceoEta = document.getElementById('ceo-eta-badge');
+        if (ceoEta) ceoEta.textContent = 'ETA: —';
+        const ceoAgent = document.getElementById('ceo-kpi-agent');
+        if (ceoAgent) ceoAgent.textContent = '—';
+        const ceoBottleneck = document.getElementById('ceo-kpi-bottleneck');
+        if (ceoBottleneck) {
+          ceoBottleneck.textContent = 'Остановлено пользователем';
+          ceoBottleneck.className = 'ceo-kpi-val text-amber';
+        }
+        // Live HUD (kanvas ustidagi HUD) ham "stopped" holatiga o'tadi.
+        this.updateLiveHUD(
+          'Центральное управление (PM)', '—', 'Задача остановлена пользователем',
+          ceoFill ? parseInt(ceoFill.style.width, 10) || 0 : 0
+        );
+        // Aktiv workflow bosqichini "stopped" holatiga o'tkazamiz (timeline
+        // ham qayerda to'xtaganini ko'rsatadi).
+        document.querySelectorAll('.wf-step.active').forEach(step => {
+          step.classList.remove('active');
+          step.classList.add('stopped');
+        });
+      } catch (e) {}
+      if (!this._isReplay) {
+        this.toast('Оркестрация отменена', 'Задача остановлена по запросу пользователя', 'warn', 4000);
       }
     }
     if (type === 'fs_change' && event.op === 'write' && !this._isReplay) {

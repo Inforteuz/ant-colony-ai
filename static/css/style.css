@@ -1362,6 +1362,19 @@ body.light-theme .btn-cam-view:hover {
   background-color: var(--color-emerald);
 }
 
+/* Foydalanuvchi to'xtatganida aktiv bosqich "stopped" holatiga o'tadi —
+   sariq rangda, shunday qilib timeline ham to'xtagan nuqtani ko'rsatadi. */
+.wf-step.stopped {
+  background-color: rgba(245, 158, 11, 0.14);
+  border-color: rgba(245, 158, 11, 0.55);
+  color: var(--text-main);
+}
+
+.wf-step.stopped .wf-dot {
+  background-color: #f59e0b;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.7);
+}
+
 .wf-arrow {
   color: var(--text-muted);
   font-size: 12px;
@@ -1967,6 +1980,13 @@ body.light-theme .thinking-content {
   height: 100%;
   background: linear-gradient(90deg, #10b981, #06b6d4);
   transition: width 0.3s ease;
+}
+
+/* Vazifa foydalanuvchi tomonidan bekor qilinganda progress paneli —
+   yashil/cyan o'rniga aniq amber-qizil holatga o'tadi, shunda CEO qismi
+   ham "ishlayapti" emas, "to'xtatildi" holatida ekanligi ko'rinadi. */
+.ceo-meter-fill.is-stopped {
+  background: linear-gradient(90deg, #f59e0b, #ef4444);
 }
 
 .ceo-banner-sub {
