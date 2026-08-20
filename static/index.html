@@ -236,28 +236,28 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
         </div>
         <div>
-          <div class="pm-main-title">Project Manager — Оркестратор</div>
-          <div class="pm-sub-title">Рабочая среда • Кэш промптов • Автономный пайплайн</div>
+          <div class="pm-main-title" data-i18n="pm_title">Project Manager — Оркестратор</div>
+          <div class="pm-sub-title" data-i18n="pm_subtitle">Рабочая среда • Кэш промптов • Автономный пайплайн</div>
         </div>
       </div>
       <div class="drawer-header-actions">
-        <button class="btn-drawer-action" id="btn-clear-pm-feed" title="Очистить историю">
+        <button class="btn-drawer-action" id="btn-clear-pm-feed" data-i18n-title="pm_clear_tooltip" title="Очистить историю">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px; height:13px;"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-          <span>Очистить</span>
+          <span data-i18n="pm_clear_label">Очистить</span>
         </button>
-        <button class="btn-drawer-close" id="btn-close-pm-drawer" title="Закрыть">✕</button>
+        <button class="btn-drawer-close" id="btn-close-pm-drawer" data-i18n-title="pm_close_title" title="Закрыть">✕</button>
       </div>
     </div>
 
     <!-- Feed List Area -->
     <div class="drawer-body">
-      <div class="pm-feed-list" id="pm-feed-list" data-i18n-skip>
+      <div class="pm-feed-list" id="pm-feed-list">
         <div class="empty-feed-placeholder" id="pm-empty-placeholder">
           <div class="placeholder-icon-wrap">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
           </div>
-          <h4>Project Manager в режиме ожидания</h4>
-          <p>Поставьте задачу. PM составит архитектурный план, распределит подзадачи между AI агентами (Разработчик, Дизайнер, QA, DevOps) и полностью создаст готовый проект в рабочей среде.</p>
+          <h4 data-i18n="pm_idle_title">Project Manager в режиме ожидания</h4>
+          <p data-i18n="pm_idle_body">Поставьте задачу. PM составит архитектурный план, распределит подзадачи между AI агентами (Разработчик, Дизайнер, QA, DevOps) и полностью создаст готовый проект в рабочей среде.</p>
         </div>
       </div>
     </div>
@@ -265,29 +265,29 @@
     <!-- Footer Input Area with Quick Suggestion Chips -->
     <div class="drawer-footer">
       <div class="suggestions-head">
-        <span class="suggestions-title">Предложения задач</span>
-        <span class="suggestions-badge is-static" id="suggestions-source-badge" title="Источник предложений">база</span>
-        <button class="btn-refresh-suggestions" id="btn-refresh-suggestions" title="Обновить предложения (AI подберёт новые под ваш контекст)">
+        <span class="suggestions-title" data-i18n="suggest_title">Предложения задач</span>
+        <span class="suggestions-badge is-static" id="suggestions-source-badge" data-i18n="suggest_source_base" data-i18n-title="suggest_source_tooltip" title="Источник предложений">база</span>
+        <button class="btn-refresh-suggestions" id="btn-refresh-suggestions" data-i18n-title="suggest_refresh_tooltip" title="Обновить предложения (AI подберёт новые под ваш контекст)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
         </button>
       </div>
       <div class="quick-chips-row" id="pm-quick-chips">
-        <button class="quick-chip-btn" data-task="Создать 3D интерактивную страницу на Three.js с анимацией и частицами">3D Сайт на Three.js</button>
-        <button class="quick-chip-btn" data-task="Написать REST API сервер на FastAPI с Pydantic моделями и SQLite базой данных">FastAPI REST API</button>
-        <button class="quick-chip-btn" data-task="Провести глубокий анализ рынка и конкурентов для AI SaaS продукта с SWOT матрицей">Анализ рынка (SWOT)</button>
-        <button class="quick-chip-btn" data-task="Составить 30-дневный SMM контент-план и 5 продающих постов для Telegram и Instagram">30-дневный SMM план</button>
-        <button class="quick-chip-btn" data-task="Провести аудит договора оказания услуг и составить перечень рисков и PRD">Аудит договора (PRD)</button>
-        <button class="quick-chip-btn" data-task="Написать скрипты продаж и отработку 10 главных возражений клиентов">Скрипты продаж и FAQ</button>
+        <button class="quick-chip-btn" data-i18n-task="chip_3d_task" data-i18n="chip_3d_threejs">3D Сайт на Three.js</button>
+        <button class="quick-chip-btn" data-i18n-task="chip_fastapi_task" data-i18n="chip_fastapi">FastAPI REST API</button>
+        <button class="quick-chip-btn" data-i18n-task="chip_market_task" data-i18n="chip_market">Анализ рынка (SWOT)</button>
+        <button class="quick-chip-btn" data-i18n-task="chip_smm_task" data-i18n="chip_smm">30-дневный SMM план</button>
+        <button class="quick-chip-btn" data-i18n-task="chip_contract_task" data-i18n="chip_contract">Аудит договора (PRD)</button>
+        <button class="quick-chip-btn" data-i18n-task="chip_sales_task" data-i18n="chip_sales">Скрипты продаж и FAQ</button>
       </div>
       <!-- Biriktirilgan material: fayl / ZIP / papka yo'li -->
       <div class="pm-attach-bar">
-        <button class="pm-attach-btn" id="btn-pm-attach-file" title="Прикрепить файл или ZIP-архив">
+        <button class="pm-attach-btn" id="btn-pm-attach-file" data-i18n-title="pm_attach_file_tooltip" title="Прикрепить файл или ZIP-архив">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-          <span>Файл / ZIP</span>
+          <span data-i18n="pm_attach_file_label">Файл / ZIP</span>
         </button>
-        <button class="pm-attach-btn" id="btn-pm-attach-path" title="Указать путь к папке на диске">
+        <button class="pm-attach-btn" id="btn-pm-attach-path" data-i18n-title="pm_attach_path_tooltip" title="Указать путь к папке на диске">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-          <span>Папка</span>
+          <span data-i18n="pm_attach_path_label">Папка</span>
         </button>
         <input type="file" id="pm-file-input" accept=".zip,image/*,text/*,.md,.json,.csv,.py,.js,.ts,.html,.css,.pdf" hidden>
         <div class="pm-attach-chips" id="pm-attach-chips"></div>
@@ -295,19 +295,19 @@
 
       <div class="pm-path-row hidden" id="pm-path-row">
         <input type="text" id="pm-path-input" class="pm-path-input" autocomplete="off" spellcheck="false"
-               placeholder="/Users/.../my-project — агенты будут работать прямо в этой папке">
-        <button class="pm-path-apply" id="btn-pm-path-apply">Прикрепить</button>
+               data-i18n-placeholder="pm_path_placeholder" placeholder="/Users/.../my-project — агенты будут работать прямо в этой папке">
+        <button class="pm-path-apply" id="btn-pm-path-apply" data-i18n="pm_path_apply">Прикрепить</button>
       </div>
 
       <div class="pm-input-wrapper" id="pm-input-wrapper">
-        <div class="pm-drop-hint" id="pm-drop-hint">Отпустите файл — он будет прикреплён к задаче</div>
+        <div class="pm-drop-hint" id="pm-drop-hint" data-i18n="pm_drop_hint">Отпустите файл — он будет прикреплён к задаче</div>
         <textarea id="pm-task-input" class="pm-textarea" data-i18n-placeholder="chat_placeholder" placeholder="Поставьте задачу для Project Manager (например: 'Создать интерактивную страницу на HTML + CSS + JS')..." rows="2"></textarea>
         <div class="pm-input-bottom-bar">
-          <span class="pm-input-hint">Нажмите <strong>Enter</strong> для отправки, <strong>Shift+Enter</strong> для новой строки</span>
+          <span class="pm-input-hint" data-i18n="pm_input_hint">Нажмите Enter для отправки, Shift+Enter для новой строки</span>
           <div class="pm-send-group">
-            <button class="btn-pm-stop hidden" id="btn-pm-stop-task" title="Остановить текущую оркестрацию">
+            <button class="btn-pm-stop hidden" id="btn-pm-stop-task" data-i18n-title="pm_stop_tooltip" title="Остановить текущую оркестрацию">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
-              <span>Стоп</span>
+              <span data-i18n="pm_stop_label">Стоп</span>
             </button>
             <button class="btn-pm-send" id="btn-pm-send-task">
               <span data-i18n="send">Отправить</span>
@@ -326,21 +326,21 @@
         <div class="pm-avatar-icon" style="background: linear-gradient(135deg, #22d3ee, #0ea5e9);">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
         </div>
-        <div>
-          <div class="pm-main-title">Live Workspace</div>
-          <div class="pm-sub-title">Файлы и терминал в реальном времени <span class="lw-live-dot" id="lw-live-dot"></span> <span id="lw-live-label">Ожидание</span></div>
+          <div>
+            <div class="pm-main-title">Live Workspace</div>
+            <div class="pm-sub-title" data-i18n="lw_header">Файлы и терминал в реальном времени <span class="lw-live-dot" id="lw-live-dot"></span> <span id="lw-live-label" data-i18n="lw_live_label">Ожидание</span></div>
+          </div>
         </div>
-      </div>
-      <div class="drawer-header-actions">
-        <button class="btn-drawer-action" id="btn-lw-refresh" title="Обновить дерево файлов">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px; height:13px;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-          <span>Обновить</span>
-        </button>
-        <button class="btn-drawer-action" id="btn-lw-clear-term" title="Очистить терминал">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px; height:13px;"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
-          <span>Терминал</span>
-        </button>
-        <button class="btn-drawer-close" id="btn-close-lw-drawer" title="Закрыть">✕</button>
+        <div class="drawer-header-actions">
+          <button class="btn-drawer-action" id="btn-lw-refresh" data-i18n-title="lw_refresh_tooltip" title="Обновить дерево файлов">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px; height:13px;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            <span data-i18n="lw_refresh_label">Обновить</span>
+          </button>
+          <button class="btn-drawer-action" id="btn-lw-clear-term" data-i18n-title="lw_term_clear_tooltip" title="Очистить терминал">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px; height:13px;"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+            <span data-i18n="lw_term_clear_label">Терминал</span>
+          </button>
+          <button class="btn-drawer-close" id="btn-close-lw-drawer" data-i18n-title="lw_close_tooltip" title="Закрыть">✕</button>
       </div>
     </div>
 

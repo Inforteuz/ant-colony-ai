@@ -1129,8 +1129,8 @@ class AntColonyApp {
         <div class="placeholder-icon-wrap">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
         </div>
-        <h4>Project Manager в режиме ожидания</h4>
-        <p>Поставьте задачу. PM составит архитектурный план, распределит подзадачи между AI агентами (Разработчик, Дизайнер, QA, DevOps) и полностью создаст готовый проект в рабочей среде.</p>
+        <h4 data-i18n="pm_idle_title">Project Manager в режиме ожидания</h4>
+        <p data-i18n="pm_idle_body">Поставьте задачу. PM составит архитектурный план, распределит подзадачи между AI агентами (Разработчик, Дизайнер, QA, DevOps) и полностью создаст готовый проект в рабочей среде.</p>
       </div>
     `;
     this.toast('История очищена', 'Лента Project Manager пуста', 'ok');
@@ -1394,38 +1394,30 @@ class AntColonyApp {
     } catch (e) {}
 
     let bodyHtml;
+    // PM kutish xabari UI tilida bo'lishi shart — hardcoded rus matn emas, I18N.t() orqali.
+    const pmGreetingT = (k, p) => (window.I18N && typeof I18N.t === 'function') ? I18N.t(k, p) : k;
     if (greeting && greeting.total_orchestrations > 0) {
       const lp = greeting.last_project;
       const plans = greeting.pending_plans || [];
-      // Butun interfeys rus tilida — PM xabarlari ham bir tilda bo'lishi kerak.
-      // Ilgari bu blok o'zbekcha ("loyiha", "So'nggi loyiha", "Kelajakdagi rejalar")
-      // va ruscha matnni aralashtirib yuborardi.
-      const plural = (n, one, few, many) => {
-        const a = Math.abs(n) % 100, b = a % 10;
-        if (a > 10 && a < 20) return many;
-        if (b > 1 && b < 5) return few;
-        if (b === 1) return one;
-        return many;
-      };
       const n = greeting.total_orchestrations;
-      const stats = `${n} ${plural(n, 'задачу', 'задачи', 'задач')} (средний балл ${greeting.avg_score || '—'})`;
+      const stats = pmGreetingT('ceo_greeting_stats', { n: n, score: greeting.avg_score || '—' });
       const lpBlock = lp
-        ? `<p><strong>Последний проект:</strong> «${this.esc((lp.task || '').slice(0, 120))}» — ${lp.files_count || 0} ${plural(lp.files_count || 0, 'файл', 'файла', 'файлов')}, ${lp.score !== null ? `балл ${lp.score}` : 'без оценки'} <span style="opacity:0.7">(${this.esc(lp.iso || '')})</span></p>`
+        ? `<p><strong>${pmGreetingT('ceo_greeting_last', { name: this.esc((lp.task || '').slice(0, 120)), files: lp.files_count || 0, score: (lp.score !== null ? lp.score : '—') })}</strong> <span style="opacity:0.7">(${this.esc(lp.iso || '')})</span></p>`
         : '';
       const plansBlock = plans.length
-        ? `<p><strong>Отложенные планы (${greeting.pending_plans_total}):</strong></p><ul style="margin:4px 0 8px 20px;">${plans.map(p => `<li>${this.esc(p.text)}</li>`).join('')}</ul>`
+        ? `<p><strong>${pmGreetingT('ceo_greeting_pending', { n: greeting.pending_plans_total })}</strong></p><ul style="margin:4px 0 8px 20px;">${plans.map(p => `<li>${this.esc(p.text)}</li>`).join('')}</ul>`
         : '';
       bodyHtml = `
-        <p><strong>Уважаемый CEO,</strong> команда закончила текущие задачи. За всё время я обработал ${this.esc(stats)}.</p>
+        <p>${pmGreetingT('ceo_greeting_done', { stats: this.esc(stats) })}</p>
         ${lpBlock}
         ${plansBlock}
-        <p>Продолжим один из отложенных планов, или у вас новая идея? Скажите слово — начнём.</p>
+        <p>${pmGreetingT('ceo_greeting_cta')}</p>
       `;
     } else {
       bodyHtml = `
-        <p><strong>Уважаемый CEO!</strong> Команда разработчиков (7 AI специалистов) готова к работе.</p>
-        <p>Дайте первую задачу — я разложу её на этапы, назначу лучшую модель на каждую роль и организую полный цикл: разработка → тесты → безопасность → деплой.</p>
-        <p style="opacity:0.75;font-size:11.5px;">💡 Совет: скажите «запомни, что…» — и я буду держать это в долговременной памяти между сессиями.</p>
+        <p><strong>${pmGreetingT('ceo_greeting_ready')}</strong></p>
+        <p>${pmGreetingT('ceo_greeting_intro')}</p>
+        <p style="opacity:0.75;font-size:11.5px;">💡 ${pmGreetingT('ceo_greeting_tip')}</p>
       `;
     }
 
@@ -1441,12 +1433,15 @@ class AntColonyApp {
 
     const pmMsg = document.createElement('div');
     pmMsg.className = 'chat-card chat-card-pm';
+    // Agent javobi kabi — sweeper tarjima qilmaydi (I18N.t orqali o'zi to'g'ri tilda quriladi)
+    pmMsg.setAttribute('data-i18n-skip', '');
+    const pmGreetingT2 = (k) => (window.I18N && typeof I18N.t === 'function') ? I18N.t(k) : k;
     pmMsg.innerHTML = `
       <div class="chat-header">
         <div class="chat-sender">
           <span class="sender-avatar avatar-pm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></span>
           <strong>Project Manager & Master Orchestrator</strong>
-          <span class="role-badge badge-pm">Проактивный запрос к CEO</span>
+          <span class="role-badge badge-pm">${pmGreetingT2('ceo_proactive_badge')}</span>
         </div>
         <span class="chat-time">${new Date().toLocaleTimeString()}</span>
       </div>
@@ -1727,8 +1722,8 @@ class AntColonyApp {
         <div class="placeholder-icon-wrap">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y1="21"/><line x1="12" y1="17" x2="12" y1="21"/></svg>
         </div>
-        <h4>Project Manager в режиме ожидания</h4>
-        <p>Поставьте задачу. PM составит архитектурный план, распределит подзадачи между AI агентами (Разработчик, Дизайнер, QA, DevOps) и полностью создаст готовый проект в рабочей среде.</p>
+        <h4 data-i18n="pm_idle_title">Project Manager в режиме ожидания</h4>
+        <p data-i18n="pm_idle_body">Поставьте задачу. PM составит архитектурный план, распределит подзадачи между AI агентами (Разработчик, Дизайнер, QA, DevOps) и полностью создаст готовый проект в рабочей среде.</p>
       </div>
     `;
         return;

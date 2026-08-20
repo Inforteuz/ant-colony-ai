@@ -151,6 +151,13 @@
       pm_attach_file_label: "File / ZIP",
       pm_attach_path_tooltip: "Specify a path to a folder on disk",
       pm_attach_path_label: "Folder",
+        pm_close_title: "Close",
+        chip_3d_task: "Create a 3D interactive page on Three.js with animation and particles",
+        chip_fastapi_task: "Write a REST API server on FastAPI with Pydantic models and SQLite database",
+        chip_market_task: "Conduct deep market and competitor analysis for an AI SaaS product with SWOT matrix",
+        chip_smm_task: "Compose a 30-day SMM content plan and 5 selling posts for Telegram and Instagram",
+        chip_contract_task: "Audit a service contract and compose a list of risks and a PRD",
+        chip_sales_task: "Write sales scripts and handling of the 10 main client objections",
       pm_path_placeholder: "/Users/.../my-project — agents will work directly in this folder",
       pm_path_apply: "Attach",
       pm_drop_hint: "Drop a file — it will be attached to the task",
@@ -936,6 +943,13 @@
       pm_attach_file_label: "Fayl / ZIP",
       pm_attach_path_tooltip: "Diskdagi papka yo'lini ko'rsatish",
       pm_attach_path_label: "Papka",
+        pm_close_title: "Yopish",
+        chip_3d_task: "Three.js da animatsiya va zarrachalar bilan 3D interaktiv sahifa yarating",
+        chip_fastapi_task: "FastAPI da Pydantic modellari va SQLite ma'lumotlar bazasi bilan REST API server yozing",
+        chip_market_task: "AI SaaS mahsuloti uchun SWOT matritsasi bilan chuqur bozor va raqobatchilar tahlilini o'tkazing",
+        chip_smm_task: "30 kunlik SMM kontent rejasi va Telegram hamda Instagram uchun 5 ta sotuvchi post yarating",
+        chip_contract_task: "Xizmat ko'rsatish shartnomasini audit qiling va xavflar ro'yxati hamda PRD tuzing",
+        chip_sales_task: "Savdo skriptlarini yozing va mijozlarning 10 ta asosiy e'tiroziga javob bering",
       pm_path_placeholder: "/Users/.../my-project — agentlar aynan shu papkada ishlaydi",
       pm_path_apply: "Biriktirish",
       pm_drop_hint: "Faylni tashlang — u vazifaga biriktiriladi",
@@ -1700,6 +1714,13 @@
     pm_attach_file_label: "Файл / ZIP",
     pm_attach_path_tooltip: "Указать путь к папке на диске",
     pm_attach_path_label: "Папка",
+        pm_close_title: "Закрыть",
+        chip_3d_task: "Создать 3D интерактивную страницу на Three.js с анимацией и частицами",
+        chip_fastapi_task: "Написать REST API сервер на FastAPI с Pydantic моделями и SQLite базой данных",
+        chip_market_task: "Провести глубокий анализ рынка и конкурентов для AI SaaS продукта с SWOT матрицей",
+        chip_smm_task: "Составить 30-дневный SMM контент-план и 5 продающих постов для Telegram и Instagram",
+        chip_contract_task: "Провести аудит договора оказания услуг и составить перечень рисков и PRD",
+        chip_sales_task: "Написать скрипты продаж и отработку 10 главных возражений клиентов",
     pm_path_placeholder: "/Users/.../my-project — агенты будут работать прямо в этой папке",
     pm_path_apply: "Прикрепить",
     pm_drop_hint: "Отпустите файл — он будет прикреплён к задаче",
@@ -2476,6 +2497,11 @@
         err_file_create: "Error creating file: ",
         err_request: "Request error: ",
         chip_3d_threejs: "3D Site on Three.js",
+        chip_fastapi: "FastAPI REST API",
+        chip_market: "Market analysis (SWOT)",
+        chip_smm: "30-day SMM plan",
+        chip_contract: "Contract audit (PRD)",
+        chip_sales: "Sales scripts & FAQ",
         deploy_project: "Deploy project",
         zoom_drag_rotate: "Drag to rotate",
         waiting_state: "Waiting",
@@ -2649,6 +2675,11 @@
         err_file_create: "Fayl yaratishda xato: ",
         err_request: "So'rov xatosi: ",
         chip_3d_threejs: "Three.js da 3D sayt",
+        chip_fastapi: "FastAPI REST API",
+        chip_market: "Bozor tahlili (SWOT)",
+        chip_smm: "30 kunlik SMM reja",
+        chip_contract: "Shartnoma auditi (PRD)",
+        chip_sales: "Savdo skriptlari va FAQ",
         deploy_project: "Loyihani joylash",
         zoom_drag_rotate: "Aylantirish uchun sudrab kelting",
         waiting_state: "Kutilmoqda",
@@ -2820,6 +2851,11 @@
         err_file_create: "Ошибка создания файла: ",
         err_request: "Ошибка запроса: ",
         chip_3d_threejs: "3D Сайт на Three.js",
+        chip_fastapi: "FastAPI REST API",
+        chip_market: "Анализ рынка (SWOT)",
+        chip_smm: "30-дневный SMM план",
+        chip_contract: "Аудит договора (PRD)",
+        chip_sales: "Скрипты продаж и FAQ",
         deploy_project: "Deploy проекта",
         zoom_drag_rotate: "Drag вращение",
         waiting_state: "В ожидании",
@@ -3074,6 +3110,9 @@
     if (el.hasAttribute("data-i18n-title")) {
       el.setAttribute("title", t(el.getAttribute("data-i18n-title"), lang));
     }
+    if (el.hasAttribute("data-i18n-task")) {
+      el.setAttribute("data-task", t(el.getAttribute("data-i18n-task"), lang));
+    }
   }
 
   // DOM supurishda chetlashtiriladigan elementlar (tarjima qilinmaydi)
@@ -3086,6 +3125,11 @@
     if (SKIP_TAGS[el.tagName]) return true;
     if (el.hasAttribute && el.getAttribute("data-i18n-skip") !== null) return true;
     if (el.closest && el.closest("[data-i18n-skip]")) return true;
+    // PM agent suhbati (LLM javoblari) — tarjima qilinmaydi, faqat statik UI chrome tarjima bo'ladi.
+    // Konteynerdagi data-i18n-skip olib tashlanganligi uchun, faqat dinamik suhbat elementlarini
+    // klass bo'yicha chetlashtiramiz, bo'sh-holat (empty state) placeholder esa tarjima qilinadi.
+    if (el.classList && (el.classList.contains("pm-feed-item") || el.classList.contains("chat-thinking-card") || el.classList.contains("exec-summary-card"))) return true;
+    if (el.closest && el.closest(".pm-feed-item, .chat-thinking-card, .exec-summary-card")) return true;
     return false;
   }
 
@@ -3180,7 +3224,7 @@
   function applyLanguage(lang) {
     lang = displayLang(lang);
     // 1) data-i18n bilan belgilangan elementlar (asosiy kalitlar)
-    var nodes = document.querySelectorAll("[data-i18n],[data-i18n-placeholder],[data-i18n-title]");
+    var nodes = document.querySelectorAll("[data-i18n],[data-i18n-placeholder],[data-i18n-title],[data-i18n-task]");
     for (var i = 0; i < nodes.length; i++) {
       applyToElement(nodes[i], lang);
     }
