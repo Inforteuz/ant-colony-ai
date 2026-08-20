@@ -2,7 +2,9 @@
 Configuration and model definitions for Ant Colony AI Platform.
 """
 import os
+import json
 from pathlib import Path
+from typing import Dict, Any
 
 # Paket `ant_colony/` ichida joylashgan, shuning uchun repo ildizi — ikki daraja tepada.
 # Barcha yo'l konstantalari shu yerdan hosil bo'ladi.
@@ -20,6 +22,53 @@ DATA_DIR.mkdir(exist_ok=True)
 # Rol yo'riqnomalari (Markdown) va veb-interfeys.
 ROLES_DIR = BASE_DIR / "roles"
 STATIC_DIR = BASE_DIR / "static"
+
+# --- Til (language) sozlamalari ---
+# Plateforma qo'llab-quvvatlaydigan tillar. Kodlar: en / uz (Lotin) /
+# uz_cyr (Kirill) / ru / auto. `auto` — foydalanuvchi kirish tilini aniqlaydi.
+SUPPORTED_LANGUAGES = {
+    "en": "English",
+    "uz": "O'zbek (Lotin)",
+    "uz_cyr": "O'zbek (Kirill)",
+    "ru": "Русский",
+    "auto": "Auto (kirish tilidan)",
+}
+# Standart til: `APP_LANGUAGE` env orqali o'zgartiriladi (.env da).
+DEFAULT_LANGUAGE = os.getenv("APP_LANGUAGE", "auto")
+
+# Ilova darajasidagi sozlamalar (tanlangan til va h.k.) — runtime'da saqlanadi.
+APP_SETTINGS_PATH = DATA_DIR / "app_settings.json"
+
+
+def load_app_settings() -> Dict[str, Any]:
+    """Ilova sozlamalarini o'qiydi (mavjud bo'lsa)."""
+    defaults: Dict[str, Any] = {"language": DEFAULT_LANGUAGE}
+    try:
+        if APP_SETTINGS_PATH.exists():
+            data = json.loads(APP_SETTINGS_PATH.read_text(encoding="utf-8"))
+            if isinstance(data, dict):
+                defaults.update(data)
+    except Exception:
+        pass
+    # Tanlangan til SUPPORTED_LANGUAGES ichida bo'lishi shart.
+    if defaults.get("language") not in SUPPORTED_LANGUAGES:
+        defaults["language"] = DEFAULT_LANGUAGE
+    return defaults
+
+
+def save_app_settings(data: Dict[str, Any]) -> None:
+    """Ilova sozlamalarini yozadi (masalan, tanlangan til)."""
+    try:
+        APP_SETTINGS_PATH.write_text(
+            json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+    except Exception:
+        pass
+
+
+def get_language_preference() -> str:
+    """Joriy til afzalligi (UI/agent uchun)."""
+    return load_app_settings().get("language", DEFAULT_LANGUAGE)
 
 
 def _load_dotenv(path: Path) -> None:

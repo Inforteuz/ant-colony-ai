@@ -3088,6 +3088,52 @@ body.light-theme .hud-kpi-pill {
   flex-shrink: 0 !important;
 }
 
+/* Language switcher — custom dropdown (nav-button style, mirrors Tools ▾) */
+.lang-dropdown-wrap {
+  position: relative !important;
+}
+.lang-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  cursor: pointer !important;
+}
+.lang-globe {
+  width: 13px !important;
+  height: 13px !important;
+  flex-shrink: 0 !important;
+  opacity: 0.92;
+}
+.lang-btn #lang-current-label {
+  line-height: 1 !important;
+}
+.lang-caret {
+  width: 10px !important;
+  height: 10px !important;
+  flex-shrink: 0 !important;
+  opacity: 0.75;
+  transition: transform 0.18s ease !important;
+}
+.lang-btn[aria-expanded="true"] .lang-caret {
+  transform: rotate(180deg);
+}
+/* Dropdown menyu .tools-dropdown-menu uslubini meros oladi; faqat active/check holati */
+.lang-option {
+  justify-content: flex-start !important;
+}
+.lang-option.active {
+  background: rgba(168, 85, 247, 0.16) !important;
+  color: var(--color-purple, #a855f7) !important;
+}
+.lang-option.active::after {
+  content: "\2713" !important; /* ✓ */
+  margin-left: auto !important;
+  font-weight: 700 !important;
+}
+.lang-option:hover {
+  background: rgba(168, 85, 247, 0.12) !important;
+}
+
 .btn-glow-purple {
   background: linear-gradient(135deg, #7c3aed, #4f46e5) !important;
   color: #ffffff !important;

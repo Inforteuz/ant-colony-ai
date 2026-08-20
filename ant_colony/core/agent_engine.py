@@ -22,7 +22,7 @@ from typing import Dict, Any, List, AsyncGenerator, Optional, Tuple
 
 from ant_colony.config import (
     PROVIDERS, MODELS_CATALOG, WORKSPACE_DIR, PROJECTS_BASE_DIR, ROLES_DIR,
-    WORKSTATIONS, AGENT_CONFIG,
+    WORKSTATIONS, AGENT_CONFIG, SUPPORTED_LANGUAGES, get_language_preference,
 )
 from ant_colony.runtime.tools import (
     AVAILABLE_TOOLS, set_active_project_dir, get_active_project_dir, list_dir,
@@ -278,15 +278,97 @@ def is_conversational_query(text: str) -> bool:
 
 
 def detect_query_lang(text: str) -> str:
-    """Foydalanuvchi topshirig'i ruscha, o'zbekcha yoki inglizchami?"""
+    """Foydalanuvchi topshirig'i qaysi tilda: en / uz (Lotin) / uz_cyr (Kirill) / ru?
+
+    MUHIM: har qanday kirill matni `ru` deb belgilab bo'lmaydi — o'zbek kirill
+    alifbosida faqat o'zbek tiliga xos belgilar (ў, қ, ғ, ҳ) va so'zlar bor.
+    Shuning uchun avval o'zbek-kirill aniqlanadi, keyin ruscha.
+    """
     t = (text or "").lower()
     cyrillic_chars = sum(1 for c in t if '\u0400' <= c <= '\u04FF')
-    if cyrillic_chars >= 3:
-        return "ru"
-    uz_words = ["qanday", "nima", "qiling", "yarat", "kerak", "uchun", "bilan", "qo'lingdan", "salom", "loyiha"]
-    if any(w in t for w in uz_words):
+    if cyrillic_chars == 0:
+        # Kirill umuman yo'q — lotin asosli tillar
+        en_words = ["how", "what", "create", "make", "build", "hello", "can", "you", "please",
+                    "python", "react", "api", "write", "generate", "explain", "status", "help"]
+        uz_lat_words = ["qanday", "nima", "qiling", "yarat", "kerak", "uchun", "bilan",
+                        "qo'lingdan", "salom", "loyiha", "men", "va", "ham", "yoz", "ber"]
+        if any(w in t for w in uz_lat_words):
+            return "uz"
+        if any(w in t for w in en_words):
+            return "en"
+        # Lotin matn, lekin aniq emas — odatiy holda o'zbek (Lotin) deb olaylik.
         return "uz"
-    return "ru" if cyrillic_chars > 0 else "uz"
+
+    # Kirill matni mavjud — o'zbek-kirill yoki rusni farqlaymiz.
+    uz_cyr_unique = set("ўқғҳ")  # o'zbek kirilliga xos belgilar
+    if any(ch in uz_cyr_unique for ch in t):
+        return "uz_cyr"
+    # Qisqa so'zlar (masalan "ва") ruscha so'zlar ichida tasodifiy uchib qolishi
+    # mumkin ("поддерживаешь" ichida "ва"). Shuning uchun so'z chegarasi bilan
+    # tekshiramiz — aks holda noto'g'ri uz_cyr deb belgilanadi.
+    uz_cyr_words = ["ўзбек", "куни", "ва", "билан", "учун", "керак", "сиз", "мен",
+                    "лоиха", "тил", "қандай", "қилинг", "ярат", "салом", "ҳам",
+                    "менга", "сенга", "биз", "улар", "илтимос", "яхши"]
+    _cyr_word_re = re.compile(r"(?<![\wЀ-ӿ])(?:%s)(?![\wЀ-ӿ])" % "|".join(map(re.escape, uz_cyr_words)))
+    if _cyr_word_re.search(t):
+        return "uz_cyr"
+    # Qolgan kirill — ruscha
+    return "ru"
+
+
+def resolve_response_language(preferred: str, detected: str) -> str:
+    """Agent qaysi tilda javob berishini aniqlaydi.
+
+    `preferred` — foydalanuvchi tanlagan UI tili (`auto` bo'lishi mumkin).
+    `auto` bo'lsa aniqlangan (`detected`) til ishlatiladi.
+    """
+    preferred = (preferred or "auto").lower()
+    if preferred in SUPPORTED_LANGUAGES and preferred != "auto":
+        return preferred
+    if detected in ("en", "uz", "uz_cyr", "ru"):
+        return detected
+    return "uz"
+
+
+# LLM javob bera olmaganda ishlatiladigan fallback javoblar (til bo'yicha).
+FALLBACK_ANSWERS: Dict[str, str] = {
+    "ru": (
+        "Я — **Project Manager** и центральный оркестратор платформы **Ant Colony AI**.\n\n"
+        "### Мои основные возможности:\n"
+        "1. **Универсальная разработка:** Python (FastAPI, Django), Node.js (React, Vue, Express), Go, PHP (Laravel), Rust, HTML5/CSS3/JS анимации.\n"
+        "2. **12 специализированных ролей ИИ:** Архитектор, Frontend, Backend, UI/UX дизайнер, QA инженер тестирования, Аудитор безопасности, DevOps инженер, Аналитик данных.\n"
+        "3. **Автоматический контроль качества (QA и Безопасность):** Проверка синтаксиса, анализ структуры DOM и выявление уязвимостей с автоматическим исправлением ошибок.\n"
+        "4. **Автономное рабочее окружение:** Создание готовых проектов в папке `04_Loyihalar` на рабочем столе и запуск через встроенный терминал.\n\n"
+        "Поставьте любую задачу (например: *'Создать REST API авторизации на FastAPI'* или *'Интерактивный неоновый таймер на HTML/CSS/JS'*), и я организую команду ИИ-агентов для ее выполнения!"
+    ),
+    "uz": (
+        "Men **Ant Colony AI** universal agentlar platformasining Markaziy Project Manageriman.\n\n"
+        "### Asosiy imkoniyatlarim:\n"
+        "1. **Universal dasturlash:** Python (FastAPI/Django), Node.js (React/Vue/Express), Go, PHP (Laravel), Rust, HTML/CSS/JS animatsiyalar.\n"
+        "2. **12 ta ixtisoslashgan rol:** Arxitektor, Frontend, Backend, UI/UX, QA Test, Xavfsizlik auditi, DevOps, Ma'lumotlar tahlili.\n"
+        "3. **Avtomatik sifat tekshiruvi (QA & Security):** Kod sintaksisi, DOM bog'liqliklari va zaifliklarni deterministik tekshirish va xatolarni avtomatik tuzatish.\n"
+        "4. **Haqiqiy ishchi muhit:** Desktop `04_Loyihalar` katalogida mustaqil loyihalar yaratish va terminal asboblari orqali ishga tushirish.\n\n"
+        "Menga aniq topshiriq bering (masalan: *\"FastAPI da foydalanuvchilar ro'yxati API sini yoz\"* yoki *\"Neon kalkulyator veb ilovasi\"*), men mutaxassislarni ishga solib, to'liq tayyorlab beraman!"
+    ),
+    "uz_cyr": (
+        "Мен **Ant Colony AI** универсал агентлар платформасининг Марказий Project Managerиман.\n\n"
+        "### Асосий имкониятларим:\n"
+        "1. **Универсал дастурлаш:** Python (FastAPI/Django), Node.js (React/Vue/Express), Go, PHP (Laravel), Rust, HTML/CSS/JS анимациялар.\n"
+        "2. **12 та ихтисослашган рол:** Архитектор, Frontend, Backend, UI/UX, QA Test, Хавфсизлик аудити, DevOps, Маълумотлар тахлили.\n"
+        "3. **Автоматик сифат текшируви (QA & Security):** Код синтаксиси, DOM боғлиқликлари ва заифликларни детерминистик текшириш ва хатоларни автоматик тузатиш.\n"
+        "4. **Ҳақиқий ишчи муҳит:** Desktop `04_Loyihalar` каталогида мустақил лойиҳалар яратиш ва терминал асбоблари орқали ишга тушириш.\n\n"
+        "Менга аниқ топшириқ берг (масалан: *\"FastAPI да фойдаланувчилар рўйхати API сини ёз\"* ёки *\"Неон калкулятор веб иловаси\"*), мен мутахассисларни ишга солиб, тўлиқ тайёрлаб бераман!"
+    ),
+    "en": (
+        "I am the **Project Manager** and central orchestrator of the **Ant Colony AI** platform.\n\n"
+        "### My core capabilities:\n"
+        "1. **Universal development:** Python (FastAPI, Django), Node.js (React, Vue, Express), Go, PHP (Laravel), Rust, HTML5/CSS3/JS animations.\n"
+        "2. **12 specialized AI roles:** Architect, Frontend, Backend, UI/UX designer, QA test engineer, Security auditor, DevOps engineer, Data analyst.\n"
+        "3. **Automatic quality control (QA & Security):** Deterministic checks of code syntax, DOM structure and vulnerability detection with automatic error fixing.\n"
+        "4. **Real autonomous workspace:** Creating finished projects in the `04_Loyihalar` folder on the desktop and running them via built-in terminal tools.\n\n"
+        "Give me a concrete task (e.g. *'Build a FastAPI auth REST API'* or *'Neon calculator web app'*) and I will spin up the specialist agents to deliver it complete!"
+    ),
+}
 
 
 def _keyword_matches(kw: str, text: str) -> bool:
@@ -501,7 +583,8 @@ class AgentEngine:
     # --- PM: tuzilmali reja ---
     async def _plan_with_pm(
         self, task_prompt: str, pm_model: str, pm_md: str,
-        default_role: str, custom_keys: Optional[Dict[str, str]]
+        default_role: str, custom_keys: Optional[Dict[str, str]],
+        language: str = "auto",
     ) -> Dict[str, Any]:
         role_menu = "\n".join(
             f"- `{r['id']}` — {r['description']}" for r in DEFAULT_ROLE_DEFINITIONS
@@ -541,6 +624,11 @@ class AgentEngine:
         except Exception:
             pass
 
+        # --- Til hal qilish (response language resolution) ---
+        detected_lang = detect_query_lang(task_prompt)
+        resp_lang = resolve_response_language(language, detected_lang)
+        lang_name = SUPPORTED_LANGUAGES.get(resp_lang, SUPPORTED_LANGUAGES["uz"])
+
         prompt = (
             f"Foydalanuvchi topshirig'i / Запрос пользователя: \"{task_prompt}\"\n\n"
             "Siz Ant Colony AI universal agentlar platformasining Bosh Project Managerisiz.\n"
@@ -553,7 +641,9 @@ class AgentEngine:
             "1. MUHIM TIL QOIDASI / ЯЗЫКОВОЕ ПРАВИЛО (CRITICAL):\n"
             "   Foydalanuvchi xabarida qaysi tildan foydalangan bo'lsa (ruscha, o'zbekcha, inglizcha va h.k.), "
             "rejangizni, tahlilingizni va javobingizni AYNAN O'SHA TILDA yozing. "
-            "Если пользователь написал по-русски — отвечайте по-русски. Agar o'zbekcha yozgan bo'lsa — o'zbek tilida javob bering. If English — reply in English.\n\n"
+            "Если пользователь написал по-русски — отвечайте по-русски. Agar o'zbekcha yozgan bo'lsa — o'zbek tilida javob bering. If English — reply in English.\n"
+            f"   HALQIQI JAVOB TILI / ОБЯЗАТЕЛЬНЫЙ ЯЗЫК ОТВЕТА: **{lang_name}**. "
+            "Barcha rejalar, tahlillar va foydalanuvchiga qaratilgan matnlar AYNAN shu tilda bo'lishi shart.\n\n"
             "   MUROJAAT QOIDASI / ОБРАЩЕНИЕ (MAJBURIY):\n"
             "   * Foydalanuvchini HECH QACHON `ustoz`, `xo'jayin`, `ustad`, `хозяин`, `господин`, `master`, `sir`, `sensei` "
             "     yoki shunga o'xshash iyerarxik/qullik so'zlari bilan chaqirmang.\n"
@@ -619,33 +709,17 @@ class AgentEngine:
             )
 
         is_conv = is_conversational_query(task_prompt)
-        lang = detect_query_lang(task_prompt)
 
         if not res["success"]:
             if is_conv:
-                if lang == "ru":
-                    default_answer = (
-                        "Я — **Project Manager** и центральный оркестратор платформы **Ant Colony AI**.\n\n"
-                        "### Мои основные возможности:\n"
-                        "1. **Универсальная разработка:** Python (FastAPI, Django), Node.js (React, Vue, Express), Go, PHP (Laravel), Rust, HTML5/CSS3/JS анимации.\n"
-                        "2. **12 специализированных ролей ИИ:** Архитектор, Frontend, Backend, UI/UX дизайнер, QA инженер тестирования, Аудитор безопасности, DevOps инженер, Аналитик данных.\n"
-                        "3. **Автоматический контроль качества (QA и Безопасность):** Проверка синтаксиса, анализ структуры DOM и выявление уязвимостей с автоматическим исправлением ошибок.\n"
-                        "4. **Автономное рабочее окружение:** Создание готовых проектов в папке `04_Loyihalar` на рабочем столе и запуск через встроенный терминал.\n\n"
-                        "Поставьте любую задачу (например: *'Создать REST API авторизации на FastAPI'* или *'Интерактивный неоновый таймер на HTML/CSS/JS'*), и я организую команду ИИ-агентов для ее выполнения!"
-                    )
-                else:
-                    default_answer = (
-                        "Men **Ant Colony AI** universal agentlar platformasining Markaziy Project Manageriman.\n\n"
-                        "### Asosiy imkoniyatlarim:\n"
-                        "1. **Universal dasturlash:** Python (FastAPI/Django), Node.js (React/Vue/Express), Go, PHP (Laravel), Rust, HTML/CSS/JS animatsiyalar.\n"
-                        "2. **12 ta ixtisoslashgan rol:** Arxitektor, Frontend, Backend, UI/UX, QA Test, Xavfsizlik auditi, DevOps, Ma'lumotlar tahlili.\n"
-                        "3. **Avtomatik sifat tekshiruvi (QA & Security):** Kod sintaksisi, DOM bog'liqliklari va zaifliklarni deterministik tekshirish va xatolarni avtomatik tuzatish.\n"
-                        "4. **Haqiqiy ishchi muhit:** Desktop `04_Loyihalar` katalogida mustaqil loyihalar yaratish va terminal asboblari orqali ishga tushirish.\n\n"
-                        "Menga aniq topshiriq bering (masalan: *\"FastAPI da foydalanuvchilar ro'yxati API sini yoz\"* yoki *\"Neon kalkulyator veb ilovasi\"*), men mutaxassislarni ishga solib, to'liq tayyorlab beraman!"
-                    )
+                default_answer = FALLBACK_ANSWERS.get(resp_lang, FALLBACK_ANSWERS["uz"])
+                fallback_reasoning = (
+                    f"Foydalanuvchi {lang_name} tilida imkoniyatlarni so'radi — "
+                    "to'liq fallback javob berildi."
+                )
                 return {
                     "ok": True, "error": None,
-                    "plan_text": default_answer, "reasoning": "Пользователь запросил возможности системы — предоставлен полный ответ.",
+                    "plan_text": default_answer, "reasoning": fallback_reasoning,
                     "model_used": pm_model,
                     "spec": {"task_type": "conversational", "direct_answer": default_answer, "specialist_role": default_role, "files": [], "steps": [], "acceptance_criteria": [], "verification_command": "", "project_name": None},
                     "usage": {},
@@ -709,14 +783,15 @@ class AgentEngine:
     async def run_orchestrated_task_stream(
         self,
         task_prompt: str,
-        custom_keys: Optional[Dict[str, str]] = None
+        custom_keys: Optional[Dict[str, str]] = None,
+        language: str = "auto",
     ) -> AsyncGenerator[Dict[str, Any], None]:
         start_time = time.time()
         # Orkestratsiya davomida fon pinglari to'xtaydi — bepul kvota agentlarga kerak.
         models_hub.mark_busy(600)
 
         try:
-            async for event in self._orchestrate(task_prompt, custom_keys, start_time):
+            async for event in self._orchestrate(task_prompt, custom_keys, start_time, language):
                 yield sanitize_event(event)
         finally:
             models_hub.clear_busy()
@@ -725,6 +800,7 @@ class AgentEngine:
         self, task_prompt: str,
         custom_keys: Optional[Dict[str, str]],
         start_time: float,
+        language: str = "auto",
     ) -> AsyncGenerator[Dict[str, Any], None]:
 
         heuristic_role = select_specialist_role(task_prompt)
@@ -746,7 +822,7 @@ class AgentEngine:
         }
 
         # --- Phase 1: PM tuzilmali reja tuzadi (rolni ham o'zi tanlaydi) ---
-        plan = await self._plan_with_pm(task_prompt, pm_model, pm_md, heuristic_role, custom_keys)
+        plan = await self._plan_with_pm(task_prompt, pm_model, pm_md, heuristic_role, custom_keys, language)
         spec = plan["spec"]
 
         # Agar foydalanuvchi umumiy savol so'ragan yoki suhbatlashayotgan bo'lsa:

@@ -66,6 +66,29 @@ function cleanModelLabel(name) {
   return str;
 }
 
+// 3D sahnadagi dinamik "action" yorliqlari (setActiveStation/updateStationModel
+// orqali o'tadigan ruscha holat satrlari) joriy tilga tarjima qilinadi.
+// Faqat ma'lum (UI-chrome) holatlar kalitlanadi; dinamik kontent
+// (event.title / event.tool) o'zgartirilmay qoldiriladi.
+const CANVAS_ACTION_MAP = {
+  'Ожидаем задачу': 'canvas_await_task',
+  'Ожидаем задачи от CEO': 'canvas_await_ceo',
+  'Составление плана...': 'canvas_planning',
+  'План составлен': 'canvas_plan_done',
+  'Подготовка': 'canvas_preparing',
+  'Аудит завершен': 'canvas_audit_done',
+  'Решение сдано': 'canvas_delivered',
+  'Задача завершена': 'canvas_task_done'
+};
+function localizeCanvasAction(raw, rl) {
+  if (!raw) return raw;
+  let m;
+  if ((m = /^QA:\s*(\d+)\/100$/.exec(raw))) return rl('canvas_qa').replace(/\{n\}/g, m[1]);
+  if ((m = /^Исправление #(\d+)$/.exec(raw))) return rl('canvas_fix_round').replace(/\{n\}/g, m[1]);
+  if (Object.prototype.hasOwnProperty.call(CANVAS_ACTION_MAP, raw)) return rl(CANVAS_ACTION_MAP[raw]);
+  return raw; // dinamik kontent (event.title / event.tool) – o'zgartirmaymiz
+}
+
 // --- 1. Isometric Canvas Engine ---
 
 class IsometricHiveCanvas {
@@ -78,14 +101,16 @@ class IsometricHiveCanvas {
     this.activeStation = 'pm';
 
     // Professional Russian Role Titles
+    // Eslatma: `name` hozirgi aktiv tilga qarab tarjima qilinadi (drawStation ichida
+    // I18N.t(station.roleKey, ...) orqali). `roleKey` STRINGS dagi role_* kalitlariga mos keladi.
     this.stations = [
-      { id: 'pm', name: 'Центральное управление (PM)', sub: 'DeepSeek V4 Flash', roleId: 'pm_orchestrator', x: 0, y: 0, color: '#8b5cf6', active: true, action: '' },
-      { id: 'coder', name: 'Инженер-разработчик', sub: 'DeepSeek V4 Flash', roleId: 'frontend_architect', x: -230, y: -80, color: '#6366f1', active: false, action: '' },
-      { id: 'tester', name: 'Инженер тестирования (QA)', sub: 'Nemotron 3.5', roleId: 'qa_test_automation', x: -130, y: 110, color: '#06b6d4', active: false, action: '' },
-      { id: 'researcher', name: 'Аналитик данных', sub: 'Gemini 2.5 Flash', roleId: 'data_engineer', x: 230, y: -80, color: '#10b981', active: false, action: '' },
-      { id: 'designer', name: 'Дизайнер UI/UX', sub: 'DeepSeek V4 Flash', roleId: 'ui_ux_designer', x: -250, y: 35, color: '#ec4899', active: false, action: '' },
-      { id: 'deployer', name: 'Инженер DevOps', sub: 'Hy3 Faster', roleId: 'devops_deployer', x: 130, y: 110, color: '#f97316', active: false, action: '' },
-      { id: 'monitor', name: 'Аудит безопасности', sub: 'Nemotron 3.5', roleId: 'security_auditor', x: 250, y: 35, color: '#f59e0b', active: false, action: '' }
+      { id: 'pm', name: 'Центральное управление (PM)', roleKey: 'role_pm', sub: 'DeepSeek V4 Flash', roleId: 'pm_orchestrator', x: 0, y: 0, color: '#8b5cf6', active: true, action: '' },
+      { id: 'coder', name: 'Инженер-разработчик', roleKey: 'role_coder', sub: 'DeepSeek V4 Flash', roleId: 'frontend_architect', x: -230, y: -80, color: '#6366f1', active: false, action: '' },
+      { id: 'tester', name: 'Инженер тестирования (QA)', roleKey: 'role_tester', sub: 'Nemotron 3.5', roleId: 'qa_test_automation', x: -130, y: 110, color: '#06b6d4', active: false, action: '' },
+      { id: 'researcher', name: 'Аналитик данных', roleKey: 'role_researcher', sub: 'Gemini 2.5 Flash', roleId: 'data_engineer', x: 230, y: -80, color: '#10b981', active: false, action: '' },
+      { id: 'designer', name: 'Дизайнер UI/UX', roleKey: 'role_designer', sub: 'DeepSeek V4 Flash', roleId: 'ui_ux_designer', x: -250, y: 35, color: '#ec4899', active: false, action: '' },
+      { id: 'deployer', name: 'Инженер DevOps', roleKey: 'role_devops', sub: 'Hy3 Faster', roleId: 'devops_deployer', x: 130, y: 110, color: '#f97316', active: false, action: '' },
+      { id: 'monitor', name: 'Аудит безопасности', roleKey: 'role_security', sub: 'Nemotron 3.5', roleId: 'security_auditor', x: 250, y: 35, color: '#f59e0b', active: false, action: '' }
     ];
 
     this.drones = [];
@@ -244,6 +269,9 @@ class IsometricHiveCanvas {
 
   drawStation(station, cx, cy) {
     const ctx = this.ctx;
+    // Joriy tilga qarab tarjima qiluvchi xavfsiz yordamchi (I18N yuklanmagan bo'lsa 'ru' fallback)
+    const _lang = (window.I18N && I18N.getCurrentLang) ? I18N.getCurrentLang() : 'ru';
+    const _rl = (k) => (window.I18N && typeof I18N.t === 'function') ? I18N.t(k, _lang) : k;
     const sx = cx + station.x;
     const sy = cy + station.y;
     const isPM = station.id === 'pm';
@@ -273,31 +301,32 @@ class IsometricHiveCanvas {
     ctx.fill();
     ctx.shadowBlur = 0;
 
-    // Station Name (Noun role title)
+    // Station Name (Noun role title) — joriy tilga tarjima qilinadi
     ctx.font = isPM ? '700 12px "Plus Jakarta Sans"' : '600 10.5px "Plus Jakarta Sans"';
     ctx.fillStyle = isLight ? '#0f172a' : '#ffffff';
     ctx.textAlign = 'center';
-    ctx.fillText(station.name, sx, sy + height + 16);
+    ctx.fillText(_rl(station.roleKey), sx, sy + height + 16);
 
-    // Stansiya tavsifi: Model nomi va haqiqiy holati (Faol yoki Kutish rejimida)
+    // Stansiya tavsifi: Model nomi va haqiqiy holati (Faol yoki Kutish rejimida) — tarjima qilinadi
     const cleanModel = cleanModelLabel(station.sub);
     ctx.font = '500 9.5px "JetBrains Mono"';
     if (station.active && !isPM) {
       ctx.fillStyle = station.color;
-      ctx.fillText(`Faol • ${cleanModel}`, sx, sy + height + 28);
+      ctx.fillText(`${_rl('canvas_active')} • ${cleanModel}`, sx, sy + height + 28);
     } else if (isPM) {
       ctx.fillStyle = station.color;
       ctx.fillText(cleanModel, sx, sy + height + 28);
     } else {
       ctx.fillStyle = isLight ? '#94a3b8' : '#64748b';
-      ctx.fillText(`${cleanModel} • В режиме ожидания`, sx, sy + height + 28);
+      ctx.fillText(`${cleanModel} • ${_rl('canvas_waiting')}`, sx, sy + height + 28);
     }
 
     // Live Floating Action HUD Badge (Only when active)
     if (station.active && station.action) {
       const pillY = sy - radius - 16;
       ctx.font = '600 10px "Plus Jakarta Sans"';
-      const labelText = station.action.length > 24 ? station.action.slice(0, 22) + '..' : station.action;
+      const resolvedAction = localizeCanvasAction(station.action, _rl);
+      const labelText = resolvedAction.length > 24 ? resolvedAction.slice(0, 22) + '..' : resolvedAction;
       const textWidth = ctx.measureText(labelText).width;
       const pillW = textWidth + 18;
       const pillH = 20;
@@ -516,7 +545,7 @@ class LiveWorkspaceController {
       totalFiles += this.countFiles(t.children || []);
     }
     this.treeRoot.innerHTML = parts.join('') || '<div class="lw-placeholder">Пустой проект</div>';
-    if (this.metaTree) this.metaTree.textContent = `${totalFiles} файлов`;
+    if (this.metaTree) { var _tn = document.getElementById('lw-tree-meta-n'); if (_tn) _tn.textContent = totalFiles; }
     // DOM tugunlarni indekslash — jonli update uchun.
     this.treeRoot.querySelectorAll('[data-fpath]').forEach(el => {
       this.fileNodes.set(el.getAttribute('data-fpath'), el);
@@ -591,8 +620,7 @@ class LiveWorkspaceController {
       };
       this.termBlocks.set(eid, entry);
       this.termCount++;
-      if (this.metaTree) this.metaTree.textContent = this.metaTree.textContent; // keep
-      if (this.metaTerm) this.metaTerm.textContent = `${this.termCount} команд`;
+      if (this.metaTerm) { var _tn = document.getElementById('lw-term-meta-n'); if (_tn) _tn.textContent = this.termCount; }
       if (this.autoScrollTerm) this.termRoot.scrollTop = this.termRoot.scrollHeight;
       if (ev.phase === 'start') return;
     }
@@ -625,7 +653,7 @@ class LiveWorkspaceController {
     this.termRoot.innerHTML = '<div class="lw-placeholder">Терминал очищен. Ожидание новых команд…</div>';
     this.termBlocks.clear();
     this.termCount = 0;
-    if (this.metaTerm) this.metaTerm.textContent = '0 команд';
+    if (this.metaTerm) { var _tn = document.getElementById('lw-term-meta-n'); if (_tn) _tn.textContent = 0; }
   }
 }
 
@@ -1561,7 +1589,7 @@ class AntColonyApp {
       };
 
       setEl('val-total-models', data.total_models || '21');
-      setEl('sub-online-models', `${data.online_models || 11} в сети`);
+      setEl('sub-online-n', data.online_models || 11);
       setEl('val-tasks-run', data.total_tasks_run || '0');
       
       const totalK = ((data.total_tokens_consumed || 0) / 1000).toFixed(1);
@@ -1577,7 +1605,7 @@ class AntColonyApp {
         sizeStr = `${(bytes / 1024).toFixed(0)} KB`;
       }
       setEl('val-workspace-bytes', sizeStr);
-      setEl('sub-workspace-files', `${data.workspace_files_count || 0} файлов`);
+      setEl('sub-files-n', data.workspace_files_count || 0);
 
       // Sarflangan tokenlar pill'i — batafsil hisobot modalga bosilganda ochiladi.
       // Manba: token daftari (umr bo'yi), aks holda pill va modal turli
@@ -1585,8 +1613,8 @@ class AntColonyApp {
       const ledger = data.usage_ledger || {};
       const tokensEl = document.getElementById('val-tokens-used');
       if (tokensEl) tokensEl.textContent = this._fmtTokens(ledger.total_tokens ?? data.total_tokens_consumed ?? 0);
-      const callsEl = document.getElementById('sub-tokens-calls');
-      if (callsEl) callsEl.textContent = `${ledger.calls ?? data.total_llm_calls ?? 0} вызовов`;
+      const callsEl = document.getElementById('sub-tokens-n');
+      if (callsEl) callsEl.textContent = ledger.calls ?? data.total_llm_calls ?? 0;
       setEl('val-avg-latency', `${data.avg_latency_ms || 850} ms`);
 
       // Dynamic Health Widget Update

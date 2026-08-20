@@ -19,6 +19,8 @@ from ant_colony.config import (
     BASE_DIR, DATA_DIR, STATIC_DIR, ROLES_DIR,
     WORKSPACE_DIR, PROJECTS_BASE_DIR, PROVIDERS, MODELS_CATALOG,
     WORKSTATIONS, AGENT_CONFIG,
+    SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE, get_language_preference,
+    load_app_settings, save_app_settings,
 )
 from ant_colony.llm.models_hub import models_hub
 from ant_colony.llm.usage_ledger import usage_ledger
@@ -1138,10 +1140,44 @@ async def browse_dir(req: BrowseDirRequest):
 
 # --- Decoupled Background Orchestrator Engine ---
 
+class LanguageSettingRequest(BaseModel):
+    # "en" / "uz" / "uz_cyr" / "ru" / "auto"
+    language: str
+
+
+@app.get("/api/settings/language")
+async def get_language_setting():
+    """Foydalanuvchi tanlagan UI/agent javob tilini va qo'llab-quvvatlanadigan tillarni qaytaradi."""
+    settings = load_app_settings()
+    return {
+        "language": settings.get("language", DEFAULT_LANGUAGE),
+        "supported": SUPPORTED_LANGUAGES,
+        "default": DEFAULT_LANGUAGE,
+    }
+
+
+@app.post("/api/settings/language")
+async def set_language_setting(req: LanguageSettingRequest):
+    """UI/agent javob tilini saqlaydi (data/app_settings.json)."""
+    if req.language not in SUPPORTED_LANGUAGES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Noto'g'ri til kodi: {req.language}. "
+                   f"Ruxsat etilgan: {list(SUPPORTED_LANGUAGES.keys())}",
+        )
+    settings = load_app_settings()
+    settings["language"] = req.language
+    save_app_settings(settings)
+    return {"ok": True, "language": req.language}
+
+
 class OrchestrationJob:
-    def __init__(self, job_id: str, task: str, attachment: Any = None):
+    def __init__(self, job_id: str, task: str, attachment: Any = None, language: str = "auto"):
         self.job_id = job_id
         self.task = task
+        # Agent javob tili ("en"/"uz"/"uz_cyr"/"ru"/"auto"). "auto" bo'lsa
+        # agent_engine detect_query_lang orqali kirish tilini aniqlaydi.
+        self.language = language
         # Biriktirilgan material — agentlar shu papkada ishlaydi va natija
         # foydalanuvchi bergan formatda (ZIP yoki fayl) qaytariladi.
         self.attachment = attachment
@@ -1213,7 +1249,8 @@ class OrchestrationJob:
 
             async for event in agent_engine.run_orchestrated_task_stream(
                 task_prompt=effective_task,
-                custom_keys=CUSTOM_KEYS
+                custom_keys=CUSTOM_KEYS,
+                language=self.language,
             ):
                 if self.status == "cancelled":
                     break
@@ -1304,6 +1341,9 @@ class OrchestratorRequest(BaseModel):
     task: str
     # Foydalanuvchi biriktirgan material (fayl / ZIP / papka) identifikatori.
     attachment_id: Optional[str] = None
+    # Javob tili: "en" / "uz" / "uz_cyr" / "ru" / "auto". Bo'sh bo'lsa
+    # saqlangan preferensiya (DEFAULT_LANGUAGE) ishlatiladi.
+    language: Optional[str] = None
 
 @app.get("/api/orchestrator/latest")
 async def get_latest_orchestration():
@@ -1369,7 +1409,12 @@ async def dispatch_orchestrator(req: OrchestratorRequest):
     global CURRENT_JOB
     job_id = f"job_{int(time.time()*1000)}"
     attachment = _ATTACHMENTS.get(req.attachment_id) if req.attachment_id else None
-    job = OrchestrationJob(job_id=job_id, task=req.task, attachment=attachment)
+    # Til: so'rovdagi qiymat ustun, aks holda saqlangan preferensiya
+    # ("auto" bo'lsa agent kirish tilini o'zi aniqlaydi).
+    preferred_language = req.language or get_language_preference()
+    job = OrchestrationJob(
+        job_id=job_id, task=req.task, attachment=attachment, language=preferred_language
+    )
     ACTIVE_JOBS[job_id] = job
     CURRENT_JOB = job
 
@@ -1964,16 +2009,112 @@ def _extract_json_array(text: str) -> Optional[list]:
         return None
 
 
-def _pm_fallback_suggestions() -> list:
-    """LLM mavjud bo'lmaganda ishlatiladigan statik zaxira (UI hech qachon bo'sh qolmaydi)."""
-    return [
-        {"label": "3D сайт на Three.js", "task": "Создать 3D интерактивную страницу на Three.js с анимацией и частицами"},
-        {"label": "FastAPI REST API", "task": "Написать REST API сервер на FastAPI с Pydantic моделями и SQLite базой данных"},
-        {"label": "Анализ рынка (SWOT)", "task": "Провести глубокий анализ рынка и конкурентов для AI SaaS продукта с SWOT матрицей"},
-        {"label": "30-дневный SMM план", "task": "Составить 30-дневный SMM контент-план и 5 продающих постов для Telegram и Instagram"},
-        {"label": "Аудит договора (PRD)", "task": "Провести аудит договора оказания услуг и составить перечень рисков и PRD"},
-        {"label": "Скрипты продаж", "task": "Написать скрипты продаж и отработку 10 главных возражений клиентов"},
-    ]
+def _pm_fallback_suggestions(lang: str = None) -> list:
+    """LLM mavjud bo'lmaganda ishlatiladigan statik zaxira (UI hech qachon bo'sh qolmaydi).
+
+    Tilga qarab (lang) sarlavha va vazifa matni tarjima qilinadi — shuning uchun
+    taklif chiplari foydalanuvchi tanlagan UI tilida chiqadi.
+    """
+    base = {
+        "ru": [
+            {"label": "3D сайт на Three.js", "task": "Создать 3D интерактивную страницу на Three.js с анимацией и частицами"},
+            {"label": "FastAPI REST API", "task": "Написать REST API сервер на FastAPI с Pydantic моделями и SQLite базой данных"},
+            {"label": "Анализ рынка (SWOT)", "task": "Провести глубокий анализ рынка и конкурентов для AI SaaS продукта с SWOT матрицей"},
+            {"label": "30-дневный SMM план", "task": "Составить 30-дневный SMM контент-план и 5 продающих постов для Telegram и Instagram"},
+            {"label": "Аудит договора (PRD)", "task": "Провести аудит договора оказания услуг и составить перечень рисков и PRD"},
+            {"label": "Скрипты продаж", "task": "Написать скрипты продаж и отработку 10 главных возражений клиентов"},
+        ],
+        "uz": [
+            {"label": "Three.js da 3D sayt", "task": "Three.js yordamida animatsiya va zarralar bilan 3D interaktiv sahifa yarating"},
+            {"label": "FastAPI REST API", "task": "FastAPI asosida Pydantic modellari va SQLite ma'lumotlar bazasi bilan REST API server yozing"},
+            {"label": "Bozor tahlili (SWOT)", "task": "AI SaaS mahsuloti uchun raqobatchilar va bozorning chuqur tahlilini SWOT matritsasi bilan o'tkazing"},
+            {"label": "30 kunlik SMM reja", "task": "Telegram va Instagram uchun 30 kunlik SMM kontent-rejasini va 5 ta sotuv postini tuzing"},
+            {"label": "Shartnoma auditi (PRD)", "task": "Xizmat ko'rsatish shartnomasini auditingdan o'tkazing va xavflar hamda PRD ro'yxatini tuzing"},
+            {"label": "Sotuv skriptlari", "task": "Sotuv skriptlarini yozing va mijozlarning 10 ta asosiy e'tiroziga javob tayyorlang"},
+        ],
+        "en": [
+            {"label": "3D Site on Three.js", "task": "Create an interactive 3D page on Three.js with animation and particles"},
+            {"label": "FastAPI REST API", "task": "Write a REST API server on FastAPI with Pydantic models and a SQLite database"},
+            {"label": "Market analysis (SWOT)", "task": "Conduct a deep market and competitor analysis for an AI SaaS product with a SWOT matrix"},
+            {"label": "30-day SMM plan", "task": "Compose a 30-day SMM content plan and 5 sales posts for Telegram and Instagram"},
+            {"label": "Contract audit (PRD)", "task": "Audit a service contract and compile a risk list and PRD"},
+            {"label": "Sales scripts", "task": "Write sales scripts and handle the 10 main customer objections"},
+        ],
+    }
+    key = lang if lang in base else "ru"
+    return [dict(x) for x in base[key]]
+
+
+def _ui_lang(lang: str = None) -> str:
+    """Backend matn shablonlarini tanlash uchun: faqat ru/uz/en.
+
+    'uz_cyr' (Kirill) ham Lotin O'zbek shabloniga o'tadi — backend Lotin qaytaradi,
+    frontend esa kerak bo'lsa konvert qiladi; asosiy maqsad — rus tilini chiqarmaslik.
+    """
+    if lang in ("uz", "uz_cyr"):
+        return "uz"
+    if lang == "en":
+        return "en"
+    return "ru"
+
+
+def _ui_lang_name(lang: str = None) -> str:
+    """LLM ga chiqish tilini aytish uchun insoniy nom (prompt ichida ishlatiladi)."""
+    return {"uz": "o'zbek tili (Lotin alifbosi)", "en": "English"}.get(_ui_lang(lang), "русский язык")
+
+
+# CEO evristik tahlil sarlavhalari/tafsilotlari — tilga qarab tanlanadi.
+_CEO_HEURISTIC_TEMPLATES = {
+    "models_offline": {
+        "ru": ("Онлайн только {online} из {total} моделей",
+               "Половина провайдеров недоступна или в лимите. Проверьте API-ключи в Настройках "
+               "и запустите ping всех моделей — иначе задачи будут падать на фолбэках."),
+        "uz": ("Faqat {online} ta model {total} tadan onlayn",
+               "Provayderlarning yarmi ishlamayapti yoki limitda. Sozlamalardan API-kalitlarni "
+               "tekshiring va barcha modellarni ping qiling — aks holda vazifalar zaxira rejimda qulaydi."),
+        "en": ("Only {online} of {total} models online",
+               "Half the providers are down or rate-limited. Check the API keys in Settings and run a "
+               "ping on all models, or tasks will fail over to fragile fallbacks."),
+    },
+    "cache_low": {
+        "ru": ("Низкий хит-рейт кэша ({hit_rate}%)",
+               "Большая часть запросов уникальна. Переиспользуйте формулировки системных "
+               "промптов и шаблоны задач — это напрямую снижает расход токенов."),
+        "uz": ("Kesh xit-stavkasi past ({hit_rate}%)",
+               "So'rovlarning katta qismi noyob. Tizimli promtlar va vazifa shablonlarini "
+               "qayta ishlating — bu to'g'ridan-to'g'ri token xarajatini kamaytiradi."),
+        "en": ("Low cache hit-rate ({hit_rate}%)",
+               "Most requests are unique. Reuse system-prompt formulations and task templates — "
+               "this directly cuts token spend."),
+    },
+    "cache_ok": {
+        "ru": ("Кэш работает эффективно ({hit_rate}%)",
+               "Уже сэкономлено {saved} токенов. Продолжайте использовать типовые формулировки задач."),
+        "uz": ("Kesh samarali ishlamoqda ({hit_rate}%)",
+               "Allaqachon {saved} token tejagan. Vazifalarning standart shakllarini ishlatishda davom eting."),
+        "en": ("Cache is effective ({hit_rate}%)",
+               "Already saved {saved} tokens. Keep using the standard task formulations."),
+    },
+    "workspace_big": {
+        "ru": ("Рабочая папка выросла больше 2 GB",
+               "{files} файлов на диске. Запустите Janitor или заархивируйте завершённые проекты, "
+               "чтобы индексация и сканирование не замедляли пайплайн."),
+        "uz": ("Ishchi papka 2 GB dan oshdi",
+               "Diskda {files} ta fayl. Indekslash va skanerlash poyezdani sekinlatmasligi uchun "
+               "Janitor'ni ishga tushiring yoki tugallangan loyihalarni arxivlang."),
+        "en": ("Workspace grew past 2 GB",
+               "{files} files on disk. Run Janitor or archive finished projects so indexing and "
+               "scanning don't slow the pipeline."),
+    },
+    "all_ok": {
+        "ru": ("Критичных узких мест нет",
+               "Система в норме. Можно ставить новую задачу Project Manager."),
+        "uz": ("Jiddiy tor joylar yo'q",
+               "Tizim me'yorida. Yangi Project Manager vazifasini qo'yishingiz mumkin."),
+        "en": ("No critical bottlenecks",
+               "System is healthy. You can queue a new Project Manager task."),
+    },
+}
 
 
 @app.get("/api/pm/suggestions")
@@ -1984,6 +2125,7 @@ async def get_pm_suggestions(refresh: bool = False):
     LLM ishlamasa — statik zaxira qaytadi, UI hech qachon bo'sh qolmaydi.
     """
     now = time.time()
+    lang = get_language_preference()
     cached = _SUGGESTION_CACHE.get("pm")
     if cached and not refresh and (now - cached["ts"]) < _SUGGESTION_TTL_S:
         return {**cached["data"], "cached": True}
@@ -2020,6 +2162,7 @@ async def get_pm_suggestions(refresh: bool = False):
             f"КОНТЕКСТ:\n{context}\n\n"
             "Предложи РОВНО 6 конкретных следующих задач для CEO: логичное продолжение начатого, "
             "плюс 2 новые полезные идеи. Каждая задача — самостоятельная и выполнимая.\n"
+            f"ВАЖНО: поля 'label' va 'task' foydalanuvchi TILIDA yozing — {_ui_lang_name(lang)}.\n"
             "Верни ТОЛЬКО валидный JSON-массив без пояснений, формат:\n"
             '[{"label": "короткая метка до 26 символов", "task": "полная формулировка задачи одним предложением"}]'
         )
@@ -2051,15 +2194,17 @@ async def get_pm_suggestions(refresh: bool = False):
         suggestions = None
 
     if not suggestions:
-        suggestions = _pm_fallback_suggestions()
+        suggestions = _pm_fallback_suggestions(lang)
 
     data = {"suggestions": suggestions, "source": source, "generated_at": now}
     _SUGGESTION_CACHE["pm"] = {"ts": now, "data": data}
     return {**data, "cached": False}
 
 
-def _ceo_heuristic_insights(stats: Dict[str, Any]) -> list:
-    """Real ko'rsatkichlardan deterministik tavsiyalar — LLM'siz ham foydali javob."""
+def _ceo_heuristic_insights(stats: Dict[str, Any], lang: str = None) -> list:
+    """Real ko'rsatkichlardan deterministik tavsiyalar — LLM'siz ham foydali javob.
+    Tanlangan tilga qarab (lang) sarlavha va tafsilotlar tarjima qilinadi.
+    """
     out = []
     total = stats.get("total_models", 0) or 0
     online = stats.get("online_models", 0) or 0
@@ -2068,39 +2213,42 @@ def _ceo_heuristic_insights(stats: Dict[str, Any]) -> list:
     saved = cache.get("tokens_saved", 0) or 0
     ws_bytes = stats.get("workspace_bytes", 0) or 0
     files = stats.get("workspace_files_count", 0) or 0
+    L = _ui_lang(lang)
 
     if total and online / max(total, 1) < 0.5:
+        title, detail = _CEO_HEURISTIC_TEMPLATES["models_offline"][L]
         out.append({
             "severity": "high",
-            "title": f"Онлайн только {online} из {total} моделей",
-            "detail": "Половина провайдеров недоступна или в лимите. Проверьте API-ключи в Настройках "
-                      "и запустите ping всех моделей — иначе задачи будут падать на фолбэках.",
+            "title": title.format(online=online, total=total),
+            "detail": detail,
         })
     if hit_rate < 25:
+        title, detail = _CEO_HEURISTIC_TEMPLATES["cache_low"][L]
         out.append({
             "severity": "medium",
-            "title": f"Низкий хит-рейт кэша ({hit_rate}%)",
-            "detail": "Большая часть запросов уникальна. Переиспользуйте формулировки системных "
-                      "промптов и шаблоны задач — это напрямую снижает расход токенов.",
+            "title": title.format(hit_rate=hit_rate),
+            "detail": detail,
         })
     else:
+        title, detail = _CEO_HEURISTIC_TEMPLATES["cache_ok"][L]
         out.append({
             "severity": "ok",
-            "title": f"Кэш работает эффективно ({hit_rate}%)",
-            "detail": f"Уже сэкономлено {saved} токенов. Продолжайте использовать типовые формулировки задач.",
+            "title": title.format(hit_rate=hit_rate, saved=saved),
+            "detail": detail,
         })
     if ws_bytes > 2 * 1024 ** 3:
+        title, detail = _CEO_HEURISTIC_TEMPLATES["workspace_big"][L]
         out.append({
             "severity": "medium",
-            "title": "Рабочая папка выросла больше 2 GB",
-            "detail": f"{files} файлов на диске. Запустите Janitor или заархивируйте завершённые проекты, "
-                      "чтобы индексация и сканирование не замедляли пайплайн.",
+            "title": title,
+            "detail": detail.format(files=files),
         })
     if not out:
+        title, detail = _CEO_HEURISTIC_TEMPLATES["all_ok"][L]
         out.append({
             "severity": "ok",
-            "title": "Критичных узких мест нет",
-            "detail": "Система в норме. Можно ставить новую задачу Project Manager.",
+            "title": title,
+            "detail": detail,
         })
     return out
 
@@ -2112,12 +2260,13 @@ async def get_ceo_insights(refresh: bool = False):
     LLM javob bermasa — deterministik evristik tahlil qaytadi.
     """
     now = time.time()
+    lang = get_language_preference()
     cached = _SUGGESTION_CACHE.get("ceo")
     if cached and not refresh and (now - cached["ts"]) < _SUGGESTION_TTL_S:
         return {**cached["data"], "cached": True}
 
     stats = models_hub.get_real_hive_stats()
-    heuristics = _ceo_heuristic_insights(stats)
+    heuristics = _ceo_heuristic_insights(stats, lang)
 
     insights = heuristics
     source = "heuristic"
@@ -2135,6 +2284,7 @@ async def get_ceo_insights(refresh: bool = False):
             "Ты — технический директор AI-платформы. По метрикам ниже дай РОВНО 3 коротких, "
             "конкретных и практичных рекомендации для CEO. Без воды и общих фраз.\n\n"
             f"МЕТРИКИ:\n{summary}\n\n"
+            f"ВАЖНО: поля 'title' va 'detail' foydalanuvchi TILIDA yozing — {_ui_lang_name(lang)}.\n"
             "Верни ТОЛЬКО валидный JSON-массив, формат:\n"
             '[{"severity": "high|medium|ok", "title": "суть до 50 символов", "detail": "что именно сделать, 1-2 предложения"}]'
         )

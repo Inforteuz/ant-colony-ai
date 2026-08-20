@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
-  <link rel="stylesheet" href="/static/css/style.css?t=1787134705">
+  <link rel="stylesheet" href="/static/css/style.css?t=1787134706">
 </head>
 <body class="dark-theme full-3d-body">
 
@@ -41,65 +41,75 @@
         <div class="hud-kpi-pill kpi-purple" id="pill-models-kpi" title="AI Модели: 21 нейросеть подключена (нажмите для открытия рейтинга ELO)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="kpi-icon"><path d="M12 2a8 8 0 0 0-8 8c0 3.36 2.07 6.24 5 7.42V20a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-2.58c2.93-1.18 5-4.06 5-7.42a8 8 0 0 0-8-8z"/><path d="M9 10h.01"/><path d="M15 10h.01"/><path d="M9.5 15a3.5 3.5 0 0 0 5 0"/></svg>
           <span class="kpi-val" id="val-total-models">21</span>
-          <span class="kpi-label">моделей</span>
-          <span class="kpi-sub" id="sub-online-models">11 в сети</span>
+          <span class="kpi-label" data-i18n="kpi_models">моделей</span>
+          <span class="kpi-sub" id="sub-online-models"><span id="sub-online-n">11</span> <span data-i18n="kpi_online">в сети</span></span>
         </div>
 
         <!-- 2. Token Savings (Prompt Cache) -->
         <div class="hud-kpi-pill kpi-emerald" id="pill-cache-kpi" title="Экономия токенов: умный кэш сэкономил токены и ускорил генерацию (нажмите для аналитики)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="kpi-icon"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
           <span class="kpi-val" id="val-cache-tokens">0</span>
-          <span class="kpi-label">сэкономлено</span>
+          <span class="kpi-label" data-i18n="kpi_cache">сэкономлено</span>
         </div>
 
         <!-- 3. Token Consumption — provayder/model/vazifa kesimidagi sarf -->
         <div class="hud-kpi-pill kpi-blue" id="pill-tokens-kpi" title="Израсходовано токенов: разбивка по провайдерам, моделям и задачам (нажмите для отчёта)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="kpi-icon"><circle cx="12" cy="12" r="9"/><path d="M12 7v10"/><path d="M9.2 9.4h5.6"/><path d="M9.2 14.6h5.6"/></svg>
           <span class="kpi-val" id="val-tokens-used">0</span>
-          <span class="kpi-label">токенов</span>
-          <span class="kpi-sub" id="sub-tokens-calls">0 вызовов</span>
+          <span class="kpi-label" data-i18n="kpi_tokens">токенов</span>
+          <span class="kpi-sub" id="sub-tokens-calls"><span id="sub-tokens-n">0</span> <span data-i18n="kpi_calls">вызовов</span></span>
         </div>
 
         <!-- 4. Projects Storage -->
         <div class="hud-kpi-pill kpi-amber" id="pill-workspace-kpi" title="Папка проектов на Рабочем столе (04_Loyihalar): нажмите для открытия файлов">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="kpi-icon"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
           <span class="kpi-val" id="val-workspace-bytes">0 KB</span>
-          <span class="kpi-label">проекты</span>
-          <span class="kpi-sub" id="sub-workspace-files">0 файлов</span>
+          <span class="kpi-label" data-i18n="kpi_projects">проекты</span>
+          <span class="kpi-sub" id="sub-workspace-files"><span id="sub-files-n">0</span> <span data-i18n="kpi_files">файлов</span></span>
         </div>
       </div>
 
       <!-- Action Buttons -->
       <div class="hud-actions-group">
+        <!-- Language switcher (custom dropdown, nav-button style) -->
+        <div class="lang-dropdown-wrap" style="position: relative;">
+          <button class="topbar-btn-pill lang-btn" id="lang-btn" type="button" aria-haspopup="true" aria-expanded="false" data-i18n-title="lang_label" title="Язык">
+            <svg class="lang-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a15 15 0 0 1 0 18 15 15 0 0 1 0-18z"/></svg>
+            <span id="lang-current-label" data-i18n="lang_label">Язык</span>
+            <svg class="lang-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="tools-dropdown-menu lang-dropdown-menu hidden glass-card" id="lang-dropdown-menu" role="menu" style="position: absolute; top: calc(100% + 8px); left: 0; min-width: 200px; display: flex; flex-direction: column; gap: 3px; padding: 6px; border-radius: 12px; z-index: 999999;"></div>
+        </div>
+
         <!-- Tools Dropdown Button -->
         <div class="tools-dropdown-wrap" style="position: relative;">
           <button class="topbar-btn-pill" id="btn-top-tools-dropdown" title="Инструменты разработки и редакторы">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px; height:13px;"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-            <span>Инструменты ▾</span>
+            <span data-i18n="tools">Инструменты ▾</span>
           </button>
           <div class="tools-dropdown-menu hidden glass-card" id="tools-dropdown-menu" style="position: absolute; top: calc(100% + 8px); left: 0; right: auto; min-width: 220px; display: flex; flex-direction: column; gap: 4px; padding: 8px; border-radius: 12px; z-index: 150; box-shadow: 0 12px 35px rgba(0,0,0,0.5);">
             <button class="menu-dropdown-item" id="btn-open-skill-editor" style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: transparent; border: none; color: var(--text-main); font-size: 12px; font-weight: 600; cursor: pointer; border-radius: 8px; text-align: left;">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px; height:14px; color: var(--color-purple);"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
-              <span>Редактор навыков</span>
+              <span data-i18n="tools_skill">Редактор навыков</span>
             </button>
             <button class="menu-dropdown-item" id="btn-open-md-editor" style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: transparent; border: none; color: var(--text-main); font-size: 12px; font-weight: 600; cursor: pointer; border-radius: 8px; text-align: left;">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px; height:14px; color: var(--color-emerald);"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-              <span>Редактор MD</span>
+              <span data-i18n="tools_md">Редактор MD</span>
             </button>
             <button class="menu-dropdown-item" id="btn-open-live-workspace" style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: transparent; border: none; color: var(--text-main); font-size: 12px; font-weight: 600; cursor: pointer; border-radius: 8px; text-align: left;">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px; height:14px; color: var(--color-blue);"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
-              <span>Живая рабочая среда</span>
+              <span data-i18n="tools_workspace">Живая рабочая среда</span>
             </button>
             <button class="menu-dropdown-item" id="btn-open-deploy" style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: transparent; border: none; color: var(--text-main); font-size: 12px; font-weight: 600; cursor: pointer; border-radius: 8px; text-align: left;">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px; height:14px; color: var(--color-amber);"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-              <span>Деплой на Netlify/GitHub</span>
+              <span data-i18n="tools_deploy">Деплой на Netlify/GitHub</span>
             </button>
           </div>
         </div>
 
         <button class="topbar-btn-pill highlight-gold" id="btn-top-leaderboard" title="Рейтинг AI моделей">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.45 1-1 1H7c-.55 0-1-.45-1-1v-2.34"/><path d="M18 14.66V17c0 .55-.45 1-1 1h-2c-.55 0-1-.45-1-1v-2.34"/><path d="M6 4h12v7a6 6 0 0 1-12 0V4z"/></svg>
-          <span>Рейтинг AI</span>
+          <span data-i18n="leaderboard">Рейтинг AI</span>
         </button>
         <button class="topbar-btn-pill" id="btn-top-open-ceo" title="CEO Брифинг и аналитика">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
@@ -107,15 +117,15 @@
         </button>
         <button class="topbar-btn-pill" id="btn-hive-open-roles" title="Матрица ролей и навыков">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-          <span>Роли</span>
+          <span data-i18n="roles">Роли</span>
         </button>
         <button class="topbar-btn-pill" id="btn-top-setup" title="Настройки API и провайдеров">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-          <span>Настройки</span>
+          <span data-i18n="setup">Настройки</span>
         </button>
         <button class="topbar-btn-pill btn-glow-purple" id="btn-pm-console-toggle" title="Консоль Project Manager">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-          <span>PM Консоль</span>
+          <span data-i18n="pm_console">PM Консоль</span>
         </button>
         <button class="topbar-theme-toggle" id="btn-theme-toggle" title="Сменить тему оформления">
           <svg class="theme-icon-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
@@ -241,7 +251,7 @@
 
     <!-- Feed List Area -->
     <div class="drawer-body">
-      <div class="pm-feed-list" id="pm-feed-list">
+      <div class="pm-feed-list" id="pm-feed-list" data-i18n-skip>
         <div class="empty-feed-placeholder" id="pm-empty-placeholder">
           <div class="placeholder-icon-wrap">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
@@ -291,7 +301,7 @@
 
       <div class="pm-input-wrapper" id="pm-input-wrapper">
         <div class="pm-drop-hint" id="pm-drop-hint">Отпустите файл — он будет прикреплён к задаче</div>
-        <textarea id="pm-task-input" class="pm-textarea" placeholder="Поставьте задачу для Project Manager (например: 'Создать интерактивную страницу на HTML + CSS + JS')..." rows="2"></textarea>
+        <textarea id="pm-task-input" class="pm-textarea" data-i18n-placeholder="chat_placeholder" placeholder="Поставьте задачу для Project Manager (например: 'Создать интерактивную страницу на HTML + CSS + JS')..." rows="2"></textarea>
         <div class="pm-input-bottom-bar">
           <span class="pm-input-hint">Нажмите <strong>Enter</strong> для отправки, <strong>Shift+Enter</strong> для новой строки</span>
           <div class="pm-send-group">
@@ -300,7 +310,7 @@
               <span>Стоп</span>
             </button>
             <button class="btn-pm-send" id="btn-pm-send-task">
-              <span>Отправить</span>
+              <span data-i18n="send">Отправить</span>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
             </button>
           </div>
@@ -338,11 +348,11 @@
       <!-- Fayllar daraxti -->
       <div class="lw-panel lw-panel-tree">
         <div class="lw-panel-head">
-          <span class="lw-panel-title">
+          <span class="lw-panel-title" data-i18n="lw_files">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px; height:14px;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
             Файлы проекта
           </span>
-          <span class="lw-panel-meta" id="lw-tree-meta">—</span>
+          <span class="lw-panel-meta" id="lw-tree-meta"><span id="lw-tree-meta-n">—</span> <span data-i18n="kpi_files">файлов</span></span>
         </div>
         <div class="lw-tree-scroll" id="lw-tree-scroll">
           <div class="lw-placeholder">Загрузка дерева файлов…</div>
@@ -352,11 +362,11 @@
       <!-- Terminal oqimi -->
       <div class="lw-panel lw-panel-term">
         <div class="lw-panel-head">
-          <span class="lw-panel-title">
+          <span class="lw-panel-title" data-i18n="lw_terminal">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px; height:14px;"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
             Терминал агентов
           </span>
-          <span class="lw-panel-meta" id="lw-term-meta">0 команд</span>
+          <span class="lw-panel-meta" id="lw-term-meta"><span id="lw-term-meta-n">0</span> <span data-i18n="cnt_commands">команд</span></span>
         </div>
         <div class="lw-term-scroll" id="lw-term-scroll">
           <div class="lw-placeholder">Ожидание команд от агентов…</div>
@@ -650,7 +660,7 @@
           </div>
           <div class="setup-first-run-body">
             <strong>Добавьте API-ключ, чтобы агенты заработали</strong>
-            <p>Пока не задан ни один ключ, платформа не сможет обращаться к моделям.
+            <p>Пока не задан ни один ключ, платформа не сможет обращаться к моделям.<br>
                Достаточно <b>одного</b> провайдера — ключ сохранится в файле <code>.env</code>.</p>
             <div class="setup-key-links">
               <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">Gemini — бесплатно</a>
@@ -750,9 +760,9 @@
           <div class="byok-intro">
             <h4>Подключите своего AI-провайдера</h4>
             <p>
-              Выберите провайдера, вставьте свой API-ключ и нажмите «Проверить».
-              Ключ шифруется (AES-256-GCM) и никогда не возвращается в браузер —
-              в интерфейсе виден только отпечаток вида <code>sk-...ABCD</code>.
+              Выберите провайдера, вставьте свой API-ключ и нажмите «Проверить».<br>
+              Ключ шифруется (AES-256-GCM) и никогда не возвращается в браузер —<br>
+              в интерфейсе виден только отпечаток вида <code>sk-...ABCD</code>.<br>
               Список моделей загружается прямо от провайдера, поэтому он всегда актуален.
             </p>
           </div>
@@ -833,7 +843,7 @@
               <div>
                 <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">API ключ или GitHub Token:</label>
                 <div class="key-test-row">
-                  <input type="password" id="setup-single-key" class="search-input key-test-input" placeholder="github_pat_... или sk-or-v1-... или AIzaSy...">
+                  <input type="password" id="setup-single-key" class="search-input key-test-input" data-i18n-placeholder="ph_github_key" placeholder="github_pat_... или sk-or-v1-... или AIzaSy...">
                   <button class="btn-key-test" type="button" data-test-provider="single">Проверить</button>
                 </div>
                 <div class="key-test-result" id="key-test-single"></div>
@@ -887,7 +897,7 @@
               <div>
                 <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">Base URL (OpenAI-совместимый / Ollama):</label>
                 <div style="display: flex; gap: 8px;">
-                  <input type="text" id="setup-custom-url" class="search-input" placeholder="http://localhost:11434/v1 или https://openrouter.ai/api/v1" value="http://localhost:11434/v1" style="flex: 1; border: 1px solid var(--border-subtle); background: var(--bg-card); color: var(--text-main); border-radius: var(--radius-sm); padding: 8px;">
+                  <input type="text" id="setup-custom-url" class="search-input" data-i18n-placeholder="ph_ollama_url" placeholder="http://localhost:11434/v1 или https://openrouter.ai/api/v1" value="http://localhost:11434/v1" style="flex: 1; border: 1px solid var(--border-subtle); background: var(--bg-card); color: var(--text-main); border-radius: var(--radius-sm); padding: 8px;">
                   <button class="btn-hive-action" id="btn-fetch-custom-models" style="background: #3b82f6; color: #fff; padding: 8px 14px; white-space: nowrap; font-size: 11.5px; font-weight: 700;">
                     Загрузить список моделей
                   </button>
@@ -895,7 +905,7 @@
               </div>
               <div>
                 <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">API ключ (при необходимости / опционально):</label>
-                <input type="password" id="setup-custom-key" class="search-input" placeholder="sk-... или ollama" style="width: 100%; border: 1px solid var(--border-subtle); background: var(--bg-card); color: var(--text-main); border-radius: var(--radius-sm); padding: 8px;">
+                <input type="password" id="setup-custom-key" class="search-input" data-i18n-placeholder="ph_custom_key" placeholder="sk-... или ollama" style="width: 100%; border: 1px solid var(--border-subtle); background: var(--bg-card); color: var(--text-main); border-radius: var(--radius-sm); padding: 8px;">
               </div>
               <div id="custom-models-fetch-box" class="custom-models-result-box hidden" style="background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px;">
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
@@ -1056,7 +1066,7 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/></svg>
           </div>
           <div>
-            <div class="modal-title">Deploy проекта</div>
+            <div class="modal-title" data-i18n="deploy_title">Deploy проекта</div>
             <div class="modal-sub">GitHub push и / или Netlify публикация</div>
           </div>
         </div>
@@ -1117,6 +1127,7 @@
   <script src="/static/vendor/three.min.js"></script>
   <script src="/static/vendor/OrbitControls.js"></script>
   <script src="/static/js/hive3d.js?t=1787136469"></script>
+  <script src="/static/js/i18n.js?t=1787136469"></script>
   <script src="/static/js/app.js?t=1787136469"></script>
 </body>
 </html>
