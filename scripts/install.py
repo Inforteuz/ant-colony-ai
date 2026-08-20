@@ -60,6 +60,8 @@ def test_api_key(provider: str, key: str, base_url: str = None) -> bool:
         test_url = "https://api.openai.com/v1/models"
     elif provider == "groq":
         test_url = "https://api.groq.com/openai/v1/models"
+    elif provider == "17_wtf":
+        test_url = "https://api.17.wtf/v1/models"
     elif base_url:
         test_url = f"{base_url.rstrip('/')}/models"
 
@@ -81,32 +83,55 @@ def test_api_key(provider: str, key: str, base_url: str = None) -> bool:
     return False
 
 def save_env_config(config: dict):
-    lines = [
-        "# Ant Colony AI Environment Configuration",
-        f"# Yaratilgan vaqt: {time.strftime('%Y-%m-%d %H:%M:%S')}",
-        "",
-        f"PORT={config.get('PORT', '8088')}",
-        f"HOST={config.get('HOST', '0.0.0.0')}",
-        f"PROJECTS_BASE_DIR={config.get('PROJECTS_BASE_DIR', os.path.expanduser('~/Desktop/04_Loyihalar'))}",
-        "",
-        "# API Kalitlari",
-        f"OPENROUTER_API_KEY={config.get('OPENROUTER_API_KEY', '')}",
-        f"GEMINI_API_KEY={config.get('GEMINI_API_KEY', '')}",
-        f"OPENAI_API_KEY={config.get('OPENAI_API_KEY', '')}",
-        f"GROQ_API_KEY={config.get('GROQ_API_KEY', '')}",
-        f"CUSTOM_API_KEY={config.get('CUSTOM_API_KEY', '')}",
-        f"CUSTOM_BASE_URL={config.get('CUSTOM_BASE_URL', '')}",
-        "",
-        "# Default provider selection mode",
-        f"SETUP_MODE={config.get('SETUP_MODE', 'single')}",
-        f"PRIMARY_PROVIDER={config.get('PRIMARY_PROVIDER', 'openrouter')}",
+    # Birlashtirish (merge): mavjud .env dagi foydalanuvchi kalitlari va izohlar
+    # saqlanadi; faqat sehrgar o'zgartirgan `managed` ro'yxatdagi o'zgaruvchilar
+    # yangilanadi. To'liq ustiga yozish avval AGENT_* kabi maxsus sozlamalarni
+    # yo'qotardi. SETUP_MODE / PRIMARY_PROVIDER ilova tomonidan IG'NOR qilinadi —
+    # yozilmaydi va mavjud bo'lsa o'chirib tashlanadi (tozalik uchun).
+    managed = [
+        "ANT_HOST", "ANT_PORT", "ANT_RELOAD", "PROJECTS_BASE_DIR",
+        "OPENROUTER_API_KEY", "GEMINI_API_KEY", "OPENAI_API_KEY", "GROQ_API_KEY",
+        "GITHUB_TOKEN", "WTF_API_KEY", "CUSTOM_API_KEY", "CUSTOM_BASE_URL",
     ]
-    with open(ENV_FILE, "w", encoding="utf-8") as f:
-        f.write("\n".join(lines) + "\n")
-    print_success(f"Sozlamalar `{ENV_FILE}` fayliga saqlandi.")
+    drop = {"SETUP_MODE", "PRIMARY_PROVIDER"}
+
+    lines = []
+    seen = {}
+    if ENV_FILE.exists():
+        for raw in ENV_FILE.read_text(encoding="utf-8").splitlines():
+            stripped = raw.strip()
+            if stripped and not stripped.startswith("#") and "=" in stripped:
+                k = stripped.split("=", 1)[0].strip()
+                if k in drop:
+                    continue  # eski/ignored o'zgaruvchini o'chirib tashlaymiz
+                seen[k] = len(lines)
+            lines.append(raw)
+
+    for key in managed:
+        val = config.get(key, "")
+        if val == "":
+            continue  # bo'sh qiymat — mavjud kalitni saqlaymiz (o'chirmaymiz)
+        newline = f"{key}={val}"
+        if key in seen:
+            lines[seen[key]] = newline
+        else:
+            lines.append(newline)
+
+    content = "\n".join(lines)
+    if not ENV_FILE.exists():
+        content = (
+            "# Ant Colony AI Environment Configuration\n"
+            f"# Yaratilgan vaqt: {time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+            + content
+        )
+    ENV_FILE.write_text(content + "\n", encoding="utf-8")
+    print_success("Sozlamalar `.env` fayliga saqlandi (mavjud kalitlar saqlanib qoldi).")
 
 def create_start_script():
     start_sh = BASE_DIR / "start.sh"
+    # `python run.py` ant_colony.server:app ni ishga tushiradi va ANT_HOST /
+    # ANT_PORT / ANT_RELOAD o'zgaruvchilarini .env dan o'qiydi. Eski
+    # `server:app` modul yo'li noto'g'ri edi (bunday modul mavjud emas).
     content = """#!/usr/bin/env bash
 # Ant Colony AI — 1-klikda ishga tushirish skripti
 set -e
@@ -117,7 +142,7 @@ if [ -d "venv" ]; then
     source venv/bin/activate
 fi
 
-python3 -m uvicorn server:app --host 0.0.0.0 --port 8088 --reload
+python run.py
 """
     start_sh.write_text(content, encoding="utf-8")
     start_sh.chmod(0o755)
@@ -135,8 +160,9 @@ def main():
     choice = input("\nTanlovingizni kiriting [1-3] (standart: 1): ").strip() or "1"
     
     env_config = {
-        "PORT": "8088",
-        "HOST": "0.0.0.0",
+        "ANT_PORT": "8080",
+        "ANT_HOST": "127.0.0.1",
+        "ANT_RELOAD": "0",
         "PROJECTS_BASE_DIR": os.path.expanduser("~/Desktop/04_Loyihalar")
     }
 
@@ -147,8 +173,9 @@ def main():
         print("  2. Google Gemini (Gemini 2.5 Flash / Pro)")
         print("  3. OpenAI (GPT-4o, GPT-4o-mini)")
         print("  4. Groq (Juda tezkor Llama 3.3 / DeepSeek R1)")
+        print("  5. 17.wtf (mutlaqo tekin modellar: posiden/*, elon/grok-4.5-free)")
         
-        p_choice = input("Provayder raqami [1-4] (standart: 1): ").strip() or "1"
+        p_choice = input("Provayder raqami [1-5] (standart: 1): ").strip() or "1"
         
         if p_choice == "1":
             env_config["PRIMARY_PROVIDER"] = "openrouter"
@@ -174,6 +201,12 @@ def main():
             if key:
                 test_api_key("groq", key)
                 env_config["GROQ_API_KEY"] = key
+        elif p_choice == "5":
+            env_config["PRIMARY_PROVIDER"] = "17_wtf"
+            key = input("\n17.wtf API kalitini kiriting (sk-lm0-...): ").strip()
+            if key:
+                test_api_key("17_wtf", key)
+                env_config["WTF_API_KEY"] = key
 
     elif choice == "2":
         env_config["SETUP_MODE"] = "multi"
@@ -200,6 +233,11 @@ def main():
             test_api_key("openai", openai_key)
             env_config["OPENAI_API_KEY"] = openai_key
 
+        wtf_key = input("5. 17.wtf API kaliti: ").strip()
+        if wtf_key:
+            test_api_key("17_wtf", wtf_key)
+            env_config["WTF_API_KEY"] = wtf_key
+
     elif choice == "3":
         env_config["SETUP_MODE"] = "custom"
         print_step("3-REJIM: Lokal yoki Maxsus Endpoint")
@@ -225,8 +263,9 @@ def main():
     print("="*65)
     print("\nPlatformani ishga tushirish uchun:")
     print("  \033[1;32m./start.sh\033[0m")
-    print("  yoki: \033[1;36mpython3 -m uvicorn server:app --host 0.0.0.0 --port 8088\033[0m\n")
-    print("Web interfeys: \033[1;34mhttp://localhost:8088\033[0m\n")
+    print("  yoki: \033[1;36mpython run.py\033[0m")
+    print("  yoki: \033[1;36mpython3 -m uvicorn ant_colony.server:app --host 127.0.0.1 --port 8080\033[0m\n")
+    print("Web interfeys: \033[1;34mhttp://localhost:8080\033[0m\n")
 
 if __name__ == "__main__":
     main()

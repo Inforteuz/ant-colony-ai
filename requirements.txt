@@ -11,3 +11,6 @@ python-multipart>=0.0.9
 # LLM provayderlariga HTTP so'rovlar
 aiohttp>=3.9,<4.0
 httpx>=0.27,<1.0
+
+# Provayder kalitlarini shifrlash (AES-256-GCM) — providers/secrets.py talab qiladi
+cryptography>=41,<55

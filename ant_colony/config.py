@@ -109,6 +109,14 @@ PROVIDERS = {
         "default_key": os.getenv("GROQ_API_KEY", ""),
         "chat_endpoint": "/chat/completions",
         "supports_native_tools": True
+    },
+    "openai": {
+        "id": "openai",
+        "name": "OpenAI",
+        "base_url": "https://api.openai.com/v1",
+        "default_key": os.getenv("OPENAI_API_KEY", ""),
+        "chat_endpoint": "/chat/completions",
+        "supports_native_tools": True
     }
 }
 
@@ -237,6 +245,18 @@ MODELS_CATALOG = [
         "supports_reasoning": True,
         "recommended_for": "large_context",
         "default_role": "Complex System Architect",
+        "is_free": True
+    },
+    {
+        "id": "elon/grok-4.5-free",
+        "provider": "17_wtf",
+        "name": "Grok 4.5 Free (17.wtf)",
+        "context_window": 131072,
+        "max_output": 16384,
+        "features": ["Free", "Tools", "Fast"],
+        "supports_reasoning": True,
+        "recommended_for": "general",
+        "default_role": "General Assistant",
         "is_free": True
     },
     # OpenRouter Models
@@ -397,6 +417,91 @@ MODELS_CATALOG = [
         "recommended_for": "coder",
         "default_role": "Senior System Architect",
         "is_free": True
+    },
+    # OpenAI Models (paid — OPENAI_API_KEY required, not free-mode eligible)
+    {
+        "id": "gpt-4o",
+        "provider": "openai",
+        "name": "GPT-4o",
+        "context_window": 128000,
+        "max_output": 16384,
+        "features": ["Vision", "Code", "Function Calling", "Multimodal"],
+        "supports_reasoning": False,
+        "recommended_for": "coder",
+        "default_role": "Full-Stack Engineer & Architect",
+        "is_free": False
+    },
+    {
+        "id": "gpt-4o-mini",
+        "provider": "openai",
+        "name": "GPT-4o Mini",
+        "context_window": 128000,
+        "max_output": 16384,
+        "features": ["Fast", "Vision", "Code", "Cost-Effective"],
+        "supports_reasoning": False,
+        "recommended_for": "fast_tasks",
+        "default_role": "Rapid Responder & Note Taker",
+        "is_free": False
+    },
+    {
+        "id": "gpt-4.1",
+        "provider": "openai",
+        "name": "GPT-4.1",
+        "context_window": 1047576,
+        "max_output": 32768,
+        "features": ["1M Context", "High Intelligence", "Vision", "Code"],
+        "supports_reasoning": False,
+        "recommended_for": "pm",
+        "default_role": "Master Project Manager & Chief Architect",
+        "is_free": False
+    },
+    {
+        "id": "gpt-4.1-mini",
+        "provider": "openai",
+        "name": "GPT-4.1 Mini",
+        "context_window": 1047576,
+        "max_output": 32768,
+        "features": ["1M Context", "Balanced", "Vision"],
+        "supports_reasoning": False,
+        "recommended_for": "coding",
+        "default_role": "Code Architect & Full-Stack Developer",
+        "is_free": False
+    },
+    {
+        "id": "gpt-4.1-nano",
+        "provider": "openai",
+        "name": "GPT-4.1 Nano",
+        "context_window": 1047576,
+        "max_output": 32768,
+        "features": ["1M Context", "Ultra Fast", "Lightweight"],
+        "supports_reasoning": False,
+        "recommended_for": "fast_tasks",
+        "default_role": "Rapid Scripting & QA Tester",
+        "is_free": False
+    },
+    {
+        "id": "o3-mini",
+        "provider": "openai",
+        "name": "o3-mini",
+        "context_window": 200000,
+        "max_output": 100000,
+        "features": ["Reasoning", "Math & Logic", "Code"],
+        "supports_reasoning": True,
+        "recommended_for": "reasoning",
+        "default_role": "Math & Logic Solver",
+        "is_free": False
+    },
+    {
+        "id": "o1",
+        "provider": "openai",
+        "name": "o1",
+        "context_window": 200000,
+        "max_output": 100000,
+        "features": ["Deep Reasoning", "Complex Planning"],
+        "supports_reasoning": True,
+        "recommended_for": "complex_planning",
+        "default_role": "Project Lead & Master Planner",
+        "is_free": False
     }
 ]
 

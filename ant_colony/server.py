@@ -70,11 +70,10 @@ _JANITOR: Optional[WorkspaceJanitor] = None
 # In-memory storage
 AGENTS_STORE: Dict[str, Dict[str, Any]] = {a["id"]: a.copy() for a in WORKSTATIONS.values()}
 
-CUSTOM_KEYS: Dict[str, str] = {
-    "gemini": PROVIDERS["gemini"]["default_key"],
-    "17_wtf": PROVIDERS["17_wtf"]["default_key"],
-    "openrouter": PROVIDERS["openrouter"]["default_key"]
-}
+# Barcha ro'yxatdan o'tgan provayderlarning kalitlarini muhit o'zgaruvchilaridan
+# (PROVIDERS[...]["default_key"] -> .env) olamiz, shunda UI "faol provayderlar"
+# ro'yxati github/groq kabi .env orqali sozlangan provayderlarni ham ko'rsatadi.
+CUSTOM_KEYS: Dict[str, str] = {pid: PROVIDERS[pid]["default_key"] for pid in PROVIDERS}
 
 # --- Roles & Skill Matrix Endpoints ---
 
@@ -772,6 +771,7 @@ class SetupConfigRequest(BaseModel):
     gemini_key: Optional[str] = None
     openai_key: Optional[str] = None
     groq_key: Optional[str] = None
+    wtf_key: Optional[str] = None
     custom_base_url: Optional[str] = None
     custom_key: Optional[str] = None
     projects_dir: Optional[str] = None
@@ -784,7 +784,8 @@ async def save_setup_configuration(req: SetupConfigRequest):
         CUSTOM_KEYS["gemini"] = req.gemini_key.strip()
     if req.openrouter_key:
         CUSTOM_KEYS["openrouter"] = req.openrouter_key.strip()
-        CUSTOM_KEYS["17_wtf"] = req.openrouter_key.strip()
+    if req.wtf_key:
+        CUSTOM_KEYS["17_wtf"] = req.wtf_key.strip()
     if req.openai_key:
         CUSTOM_KEYS["openai"] = req.openai_key.strip()
     if req.groq_key:
@@ -792,20 +793,36 @@ async def save_setup_configuration(req: SetupConfigRequest):
     if req.custom_key:
         CUSTOM_KEYS["custom"] = req.custom_key.strip()
 
+    # Mavjud .env ni o'qib, faqat wizard to'ldirgan (bo'sh bo'lmagan) kalitlarni
+    # yangilaymiz. Aks holda wizard butun faylni ustiga yozib WTF_API_KEY,
+    # ANT_HOST, ANT_PORT kabi mavjud kalitlarni yo'qotardi.
     env_path = BASE_DIR / ".env"
-    lines = [
-        "# Ant Colony AI Environment Configuration",
-        f"SETUP_MODE={req.mode}",
-        f"PRIMARY_PROVIDER={req.provider}",
-        f"GITHUB_TOKEN={req.github_key or ''}",
-        f"OPENROUTER_API_KEY={req.openrouter_key or ''}",
-        f"GEMINI_API_KEY={req.gemini_key or ''}",
-        f"OPENAI_API_KEY={req.openai_key or ''}",
-        f"GROQ_API_KEY={req.groq_key or ''}",
-        f"CUSTOM_BASE_URL={req.custom_base_url or ''}",
-        f"CUSTOM_API_KEY={req.custom_key or ''}",
-        f"PROJECTS_BASE_DIR={req.projects_dir or str(PROJECTS_BASE_DIR)}",
-    ]
+    # SETUP_MODE / PRIMARY_PROVIDER ilova tomonidan IG'NOR qilinadi — .env ga
+    # yozilmaydi (tozalik uchun). Ular faqat wizard ichki holati sifatida ishlatiladi.
+    managed = {
+        "GITHUB_TOKEN": req.github_key or "",
+        "OPENROUTER_API_KEY": req.openrouter_key or "",
+        "GEMINI_API_KEY": req.gemini_key or "",
+        "WTF_API_KEY": req.wtf_key or "",
+        "OPENAI_API_KEY": req.openai_key or "",
+        "GROQ_API_KEY": req.groq_key or "",
+        "CUSTOM_BASE_URL": req.custom_base_url or "",
+        "CUSTOM_API_KEY": req.custom_key or "",
+        "PROJECTS_BASE_DIR": req.projects_dir or str(PROJECTS_BASE_DIR),
+    }
+    existing: Dict[str, str] = {}
+    if env_path.exists():
+        for raw in env_path.read_text(encoding="utf-8").splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            k, _, v = line.partition("=")
+            existing[k.strip()] = v.strip()
+    for k, v in managed.items():
+        if v:  # faqat to'ldirilgan qiymatlarni yozamiz; bo'shlar mavjud kalitni o'chirmaydi
+            existing[k] = v
+    lines = ["# Ant Colony AI Environment Configuration"]
+    lines += [f"{k}={v}" for k, v in existing.items()]
     env_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return {"success": True, "message": "Конфигурация успешно сохранена и активирована."}
 

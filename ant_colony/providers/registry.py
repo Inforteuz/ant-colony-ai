@@ -30,17 +30,17 @@ CUSTOM_PROVIDER_ID = "custom_openai"
 PROVIDER_DEFINITIONS: Dict[str, Dict[str, Any]] = {
     "openai": {
         "label": "OpenAI",
-        "driver": DRIVER_OPENAI_RESPONSES,
+        "driver": DRIVER_OPENAI_CHAT,
         "base_url": "https://api.openai.com/v1",
         "models_path": "/models",
-        "generate_path": "/responses",
+        "generate_path": "/chat/completions",
         "test_path": "/models",
         "auth": AUTH_BEARER,
         "key_required": True,
         "key_hint": "sk-...",
         "console_url": "https://platform.openai.com/api-keys",
         "docs_url": "https://developers.openai.com/api/docs/quickstart",
-        "notes": "Responses API — yangi integratsiyalar uchun asosiy generatsiya yuzasi.",
+        "notes": "Chat Completions API — runtime ham shu endpoint orqali ishlaydi (birlashtirilgan).",
     },
     "anthropic": {
         "label": "Anthropic / Claude",
@@ -88,6 +88,26 @@ PROVIDER_DEFINITIONS: Dict[str, Dict[str, Any]] = {
         "console_url": "https://console.groq.com/keys",
         "docs_url": "https://console.groq.com/docs/openai",
         "notes": "OpenAI-mos; Responses endpointi beta — barqarorlik uchun Chat Completions.",
+    },
+    "17_wtf": {
+        "label": "17.wtf API",
+        "driver": DRIVER_OPENAI_CHAT,
+        "base_url": "https://api.17.wtf/v1",
+        "models_path": "/models",
+        "generate_path": "/chat/completions",
+        "test_path": "/models",
+        "auth": AUTH_BEARER,
+        "key_required": True,
+        "key_hint": "sk-... (17.wtf dan olingan)",
+        "console_url": "https://17.wtf",
+        "docs_url": "https://17.wtf",
+        "notes": (
+            "OpenAI-mos API (chat/completions). Bir nechta foydalanuvchi (posiden, "
+            "elon, zeus ...) taqdim etgan modellar, jumladan bir qancha mutlaqo "
+            "tekin modellar: posiden/deepseek-v4-flash, posiden/hy3, "
+            "posiden/nemotron-3.5-lightning, posiden/nemotron-3-ultra va "
+            "elon/grok-4.5-free."
+        ),
     },
     "openrouter": {
         "label": "OpenRouter",
@@ -232,7 +252,7 @@ PROVIDER_DEFINITIONS: Dict[str, Dict[str, Any]] = {
 
 # UI ro'yxatida ko'rsatiladigan tartib (mashhurlik/qulaylik bo'yicha).
 PROVIDER_ORDER: List[str] = [
-    "openai", "anthropic", "gemini", "groq", "openrouter", "mistral",
+    "openai", "anthropic", "gemini", "groq", "openrouter", "17_wtf", "mistral",
     "deepseek", "xai", "cerebras", "cohere", "together", "ollama",
     CUSTOM_PROVIDER_ID,
 ]
