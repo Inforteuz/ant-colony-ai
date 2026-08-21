@@ -806,6 +806,7 @@ class AntColonyApp {
     this.deploy = new DeployController();
     this.setupPhoneMode();
     this.setupPhoneSheets();
+    this.setupPhoneKeyboard();
     this.restoreChatHistory();
     this.checkAndReconnectActiveJob();
     this.fetchRealStats();
@@ -952,6 +953,11 @@ class AntColonyApp {
     on('pm-task-input', 'keydown', (e) => {
       // isComposing — IME (masalan, kirill/xitoy klaviaturasi) matn kiritayotgan
       // paytda Enter bosilsa, so'z tasdiqlanishi kerak, topshiriq yuborilmasligi.
+      // Telefonda Enter YANGI QATOR qo'yishi kerak: ekran klaviaturasida Shift
+      // yo'q, shuning uchun Enter yuborsa ko'p qatorli matn yozib bo'lmaydi.
+      // Yuborish uchun "Отправить" tugmasi bor (pm-input-hint ham telefonda
+      // yashiriladi, ya'ni ko'rsatma va xatti-harakat mos keladi).
+      if (this.isPhone && this.isPhone()) return;
       if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && e.keyCode !== 229) {
         e.preventDefault();
         this.dispatchPMTask();
@@ -1097,6 +1103,45 @@ class AntColonyApp {
       if (mq.addEventListener) mq.addEventListener('change', onChange);
       else if (mq.addListener) mq.addListener(onChange);
     }
+  }
+
+  // Mobil klaviatura ochilganda LAYOUT viewport (va demak `100dvh`) o'zgarmaydi
+  // — faqat VISUAL viewport qisqaradi. Shu sababli `height: 100dvh` bo'lgan
+  // drawer klaviatura ostiga kirib ketardi va kiritish maydoni ko'rinmasdi.
+  // Haqiqiy balandlikni CSS o'zgaruvchisiga yozamiz; CSS uni telefon media
+  // query'sida ishlatadi (`--vvh`), shuning uchun desktopga ta'sir qilmaydi.
+  setupPhoneKeyboard() {
+    const vv = window.visualViewport;
+    if (!vv) return;   // eski brauzer — `100dvh` fallback ishlaydi
+
+    const scrollFeedToBottom = () => {
+      const feed = document.getElementById('pm-feed-list');
+      if (feed) feed.scrollTop = feed.scrollHeight;
+    };
+
+    const apply = () => {
+      const isPhone = this.isPhone ? this.isPhone() : false;
+      if (!isPhone) {
+        document.documentElement.style.removeProperty('--vvh');
+        return;
+      }
+      document.documentElement.style.setProperty('--vvh', vv.height + 'px');
+    };
+
+    vv.addEventListener('resize', () => {
+      apply();
+      // Klaviatura chiqqanda oxirgi xabar ko'rinmay qolmasin.
+      if (document.getElementById('pm-console-drawer')?.classList.contains('open')) {
+        scrollFeedToBottom();
+      }
+    });
+    apply();
+
+    // Kiritish maydoniga bosilganda klaviatura animatsiyasi tugagach lentani
+    // pastga suramiz — `resize` ba'zi brauzerlarda animatsiyadan oldin keladi.
+    document.getElementById('pm-task-input')?.addEventListener('focus', () => {
+      if (this.isPhone && this.isPhone()) setTimeout(scrollFeedToBottom, 300);
+    });
   }
 
   saveChatHistory() {
