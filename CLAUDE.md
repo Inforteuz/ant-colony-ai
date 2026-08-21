@@ -34,6 +34,15 @@ python run.py                    # → http://127.0.0.1:8080  (FastAPI, SSE)
 - **CEO "Активный агент и модель" syncs live** from `reasoning` / `agent_message` /
   `model_fallback` events (they carry the *actual* model), not just the coarse
   `ceo_briefing` checkpoints.
+- **Mouse room navigation.** Clicking a zone (football / gym / ping-pong / conference /
+  marketing / legal) moves the camera there. `hive3d.js` `pickAt()` handles both stations
+  and zones; dragged clicks (OrbitControls) are ignored.
+- **Prompt cache can be switched off** in Settings > generation (`GET/POST /api/cache/enabled`,
+  persisted in `data/app_settings.json`, restored on startup).
+- **Roles can be pinned to a model** (`pinned_roles` in the skill matrix). A pinned role
+  short-circuits ELO/UCB selection entirely; evaluation still records scores.
+- **PM plans now carry `subtasks`** ({title, file, detail, done_when}) which are fed into the
+  specialist's context, plus a `role_reason` shown in the PM feed.
 - **LLM reply language: wired correctly.** Backend steers the PM/agent reply to the selected
   UI language; frontend `/api/orchestrator/dispatch` does NOT send `language` and the backend
   falls back to the saved preference (`get_language_preference()`).
@@ -70,6 +79,9 @@ Everything lives in `static/js/i18n.js`. There is **no framework** — a custom 
 | `roles/*.md` | one editable system prompt per agent role |
 
 ## Open tasks (continue here)
+0. **Mobile UI (T5)** — the only feature task left. `style.css` bottoms out at a 720px
+   breakpoint; the 3D canvas and both drawers need a dedicated small-screen layout.
+   Deliberately deferred by the user to be done last, on its own.
 1. ~~Wire 17.wtf into the Setup Wizard UI~~ ✅ DONE (commit `f4327c7`): both single + multi
    wizard panels offer 17.wtf and the save handler sends `wtf_key`; no remaining open tasks
    from this session.

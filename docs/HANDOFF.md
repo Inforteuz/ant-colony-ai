@@ -18,7 +18,13 @@ Companion to root `CLAUDE.md`. Last updated 2026-08-21._
 | LLM reply follows UI language | ✅ wired (verified) | `bc5d1c0` |
 | 17.wtf "Проверить" button (multi panel id mismatch) | ✅ fixed | working tree |
 | PM feed clear survives reload (`/api/orchestrator/forget`) | ✅ fixed | working tree |
-| CEO "Активный агент и модель" live sync | ✅ done | working tree |
+| CEO "Активный агент и модель" live sync | ✅ done | `9cc065c` |
+| Biomechanics tilt leak (goalkeeper dive) | ✅ fixed | `21d1ed6` |
+| Prompt cache on/off switch | ✅ done | `21d1ed6` |
+| Manual role → model pinning | ✅ done | `476e3d8` |
+| Mouse room navigation (click a zone) | ✅ done | `a775f59` |
+| PM decomposition + role-choice rules | ✅ done | `2b2f1db` |
+| Mobile UI | ❌ open (deferred, do last) | — |
 
 ---
 
@@ -135,6 +141,41 @@ model fallback'ga o'tganda eski model ko'rinardi. Yangi `setCeoActiveAgent(label
 modelni alohida saqlaydi; `reasoning` / `agent_message` / `model_fallback` hodisalaridagi ANIQ
 model (`event.model` / `event.actual_model`) ustuvor. Qo'shma yorliq ("QA (a) + Security (b)")
 butunligicha qoldiriladi.
+
+### T6 — Biomexanika og'ish (bajarildi, `21d1ed6`)
+Darvozabon sakrashi `mesh.rotation.z` ni og'diradi va uni faqat o'sha shoxobchada nolga
+qaytaradi. Agent sakrash paytida vazifaga chaqirilsa shoxobcha boshqa ishlamaydi va agent
+stoliga qiyshaygan holda qaytardi. Yechim: agent update siklining BOSHIDA (holat
+shoxobchalaridan oldin) `rotation.z`/`rotation.x` nolga lerp qilinadi. Pozani ataylab
+o'rnatgan animatsiyalar keyin ishlaydi, shuning uchun sakrash buzilmaydi.
+
+### T7 — Prompt kesh on/off (bajarildi, `21d1ed6`)
+`PromptCache.enabled` + `set_enabled()`; `GET/POST /api/cache/enabled`; holat
+`data/app_settings.json` da, startup'da tiklanadi. O'chirilganda yozuvlar O'CHIRILMAYDI —
+qayta yoqilganda eski kesh ishlaydi. UI: Sozlamalar > generatsiya panelida
+`gen-prompt-cache` toggle'i.
+
+### T8 — Rol → model qo'lda biriktirish (bajarildi, `476e3d8`)
+`skill_matrix.matrix["pinned_roles"]`; `get_best_model_for_role` eng boshida pin'ni
+tekshiradi va ELO/UCB umuman ishlamaydi. `record_evaluation` davom etadi, shuning uchun
+pin olib tashlangach avtomatik tanlov darhol to'g'ri ishlaydi.
+`POST/DELETE /api/roles/{role_id}/model`; Roles modalida selektor, kartochkada 📌.
+
+### T9 — Sichqoncha bilan xonaga o'tish (bajarildi, `a775f59`)
+`pickAt()` stansiya va zonani aniqlaydi. Zona aniqlash ikki bosqichli: guruh obyekti
+bosilgan (aniq) yoki zona POLIGA bosilgan (XZ chegarasi; bir nechta mos kelsa markazi
+eng yaqini). Sudralgan bosish e'tiborsiz qoldiriladi — aks holda OrbitControls bilan
+aylantirgandan keyin kamera sakrab ketardi.
+
+### T10 — PM dekompozitsiyasi (bajarildi, `2b2f1db`)
+Yangi `subtasks` maydoni ({title, file, detail, done_when}) mutaxassis kontekstiga
+qo'shiladi; promptga dekompozitsiya sifati va rol tanlash qoidalari; `role_reason`
+PM lentasida ko'rsatiladi. `roles/pm_orchestrator.md` qayta yozildi.
+
+### T11 — Mobile UI (OCHIQ, oxirida qilinadi)
+`style.css` da eng past breakpoint — 720px. 3D canvas, PM konsoli va Live Workspace
+drawer'lari kichik ekran uchun alohida layout talab qiladi. Foydalanuvchi buni
+ataylab oxirgi, alohida ish sifatida qoldirdi.
 
 ### T2 — (optional) localise transient toasts
 A few `this.toast(...)` / `pmFeedError(...)` calls in `app.js` still pass hardcoded Russian
