@@ -24,8 +24,9 @@ python run.py                    # → http://127.0.0.1:8080  (FastAPI, SSE)
 ## Current state (as of 2026-08-21)
 - **Multi-language UI: DONE.** uz / ru / en (+ `uz_cyr` auto-generated from uz). All static
   chrome localised; PM panel + Live Workspace drawer fixed at root cause (commit `bc5d1c0`).
-- **17.wtf provider: BACKEND DONE, FRONTEND NOT WIRED.** The provider works via `.env`
-  (`WTF_API_KEY`) but the Setup Wizard UI has no 17.wtf option. This is the main open task.
+- **17.wtf provider: DONE end-to-end.** Backend (`server.py` saves `WTF_API_KEY` into `.env`
+  and `test-key` hits `https://api.17.wtf/api/v1/models`) and frontend (Setup Wizard single +
+  multi panels offer 17.wtf, save handler sends `wtf_key`). Commit `f4327c7`.
 - **LLM reply language: wired correctly.** Backend steers the PM/agent reply to the selected
   UI language; frontend `/api/orchestrator/dispatch` does NOT send `language` and the backend
   falls back to the saved preference (`get_language_preference()`).
@@ -62,11 +63,9 @@ Everything lives in `static/js/i18n.js`. There is **no framework** — a custom 
 | `roles/*.md` | one editable system prompt per agent role |
 
 ## Open tasks (continue here)
-1. **Wire 17.wtf into the Setup Wizard UI** (backend already supports it). In
-   `static/index.html` add `<option value="17_wtf">` to the provider `<select>`; in
-   `static/js/app.js` the Setup Wizard save handler must send `wtf_key` in both the single and
-   multi branches; add a `setup-multi-wtf` input. After that, 17.wtf is end-to-end usable
-   without editing `.env`.
+1. ~~Wire 17.wtf into the Setup Wizard UI~~ ✅ DONE (commit `f4327c7`): both single + multi
+   wizard panels offer 17.wtf and the save handler sends `wtf_key`; no remaining open tasks
+   from this session.
 2. (Optional) Localise the remaining hardcoded-Russian **toast/error** strings in `app.js`
    via `I18N.t` — lower priority, they are transient.
 3. Smoke-test language switching in a real browser (the static chrome + greeting are covered;

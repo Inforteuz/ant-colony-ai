@@ -14,7 +14,7 @@ Companion to root `CLAUDE.md`. Last updated 2026-08-21._
 | 3D canvas role/action labels localised | ✅ complete | `155c1c8` |
 | Language switcher (custom dropdown) | ✅ complete | `155c1c8` |
 | 17.wtf provider — backend (config/registry/client/server) | ✅ complete | `d4afad8` |
-| 17.wtf provider — Setup Wizard UI | ❌ NOT wired (open) | — |
+| 17.wtf provider — Setup Wizard UI | ✅ complete | `f4327c7` |
 | LLM reply follows UI language | ✅ wired (verified) | `bc5d1c0` |
 
 ---
@@ -99,16 +99,18 @@ Verified the backend already steers agent replies to the UI language
 
 ## 4. Open task queue (do these next)
 
-### T1 — Wire 17.wtf into the Setup Wizard UI  ⭐ top priority
-Backend is ready; only the frontend is missing.
-- `static/index.html`: add `<option value="17_wtf">17.wtf</option>` to the provider `<select>`
+### T1 — Wire 17.wtf into the Setup Wizard UI  ⭐ top priority  ✅ DONE (commit `f4327c7`)
+Backend was ready; the frontend is now wired too.
+- `static/index.html`: added `<option value="17_wtf">17.wtf</option>` to the provider `<select>`
   in the single-provider wizard.
-- `static/index.html`: add a `setup-multi-wtf` text input (mirror the existing multi-key inputs).
-- `static/js/app.js`: in the Setup Wizard save handler, read the 17.wtf key and include
-  `wtf_key` in the `payload` for **both** the single and multi branches (currently only
-  github/openrouter/gemini/openai/groq are sent).
-- Verify: run the wizard, enter a 17.wtf key, confirm it lands in `.env` as `WTF_API_KEY` and
-  the provider appears in "Мои провайдеры (BYOK)".
+- `static/index.html`: added a `setup-multi-wtf` text input (mirrors the existing multi-key inputs)
+  plus a "Проверить" button (`data-test-provider="17_wtf"`) and `key-test-17_wtf` result div.
+- `static/js/app.js`: the Setup Wizard save handler now sends `wtf_key` in **both** the single
+  branch (`else if (prov === '17_wtf') payload.wtf_key = key;`) and the multi branch
+  (`payload.wtf_key = document.getElementById('setup-multi-wtf').value.trim();`).
+- Verified: `node --check` passes; backend `server.py` already writes `WTF_API_KEY` to `.env` and
+  `test-key` resolves `17_wtf` → `https://api.17.wtf/api/v1/models`. 17.wtf is end-to-end usable
+  without editing `.env`.
 
 ### T2 — (optional) localise transient toasts
 A few `this.toast(...)` / `pmFeedError(...)` calls in `app.js` still pass hardcoded Russian
