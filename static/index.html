@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
-  <link rel="stylesheet" href="/static/css/style.css?t=1787134706">
+  <link rel="stylesheet" href="/static/css/style.css?t=1787308809">
 </head>
 <body class="dark-theme full-3d-body">
 
@@ -34,6 +34,15 @@
           <span style="font-size: 8.5px; font-weight: 700; color: var(--color-purple); letter-spacing: 0.8px; white-space: nowrap;">AI SWARM</span>
         </div>
       </div>
+
+      <!-- Telefonda KPI'lar topbarga sig'maydi: bu chip bosilganda ular pastdan
+           chiquvchi panel ko'rinishida ochiladi. Panel — AYNAN shu .hud-kpi-bar
+           elementining o'zi (CSS bilan joylashtiriladi), shuning uchun qiymatlarni
+           sinxronlash yoki hodisalarni dublikat qilish kerak emas. -->
+      <button class="hud-phone-btn" id="btn-kpi-sheet" type="button"
+              data-i18n-title="kpi_sheet_title" title="Показатели" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="4" width="3" height="14"/></svg>
+      </button>
 
             <!-- Sleek, High-Precision HUD KPI Stats -->
       <div class="hud-kpi-bar">
@@ -132,6 +141,18 @@
           <svg class="theme-icon-light hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         </button>
       </div>
+
+      <!-- Telefon boshqaruvlari. .hud-actions-group panel ko'rinishida ochilgani
+           uchun eng ko'p ishlatiladigan amal (PM konsoli) bir bosishda qolsin:
+           bu tugma mavjud tugmaning click'ini chaqiradi — mantiq dublikat emas. -->
+      <button class="hud-phone-btn" id="btn-phone-pm" type="button"
+              data-i18n-title="pm_console" title="Консоль Project Manager">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      </button>
+      <button class="hud-phone-btn" id="btn-hud-menu" type="button"
+              data-i18n-title="hud_menu" title="Меню" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
     </header>
 
     <!-- FLOATING CAMERA PRESET BAR (Top-Left 3D Control) -->
@@ -227,6 +248,10 @@
     </div>
 
   </div>
+
+  <!-- Telefon panellari uchun umumiy fon. HUD qatlami `pointer-events: none`
+       bo'lgani uchun bu element undan tashqarida turadi. -->
+  <div class="hud-sheet-backdrop" id="hud-sheet-backdrop" hidden></div>
 
   <!-- 3. ADVANCED PM CONSOLE DRAWER (Radically upgraded) -->
   <div class="pm-console-drawer" id="pm-console-drawer">
@@ -1150,8 +1175,8 @@
   <!-- SCRIPTS -->
   <script src="/static/vendor/three.min.js"></script>
   <script src="/static/vendor/OrbitControls.js"></script>
-  <script src="/static/js/hive3d.js?t=1787136469"></script>
-  <script src="/static/js/i18n.js?t=1787136469"></script>
-  <script src="/static/js/app.js?t=1787136469"></script>
+  <script src="/static/js/hive3d.js?t=1787308809"></script>
+  <script src="/static/js/i18n.js?t=1787308809"></script>
+  <script src="/static/js/app.js?t=1787308809"></script>
 </body>
 </html>

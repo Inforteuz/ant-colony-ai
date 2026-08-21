@@ -6869,3 +6869,121 @@ html, body {
     min-width: 44px;
   }
 }
+
+
+/* ==========================================================================
+   MOBILE — FAZA 1: topbar  ·  docs/MOBILE_UI_PLAN.md
+   G'oya: KPI paneli va amal tugmalari guruhi telefonda YANGI elementga
+   ko'chirilmaydi — AYNAN o'sha elementlarning o'zi pastdan chiquvchi panelga
+   aylantiriladi. Shu sababli qiymatlarni sinxronlash va hodisalarni dublikat
+   qilish kerak emas: bosiladigan tugmalar o'sha-o'sha tugmalar.
+   ========================================================================== */
+
+/* Telefon tugmalari katta ekranda umuman ko'rinmaydi. */
+.hud-phone-btn { display: none; }
+
+.hud-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  background: rgba(0, 0, 0, 0.5);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+.hud-sheet-backdrop[hidden] { display: none; }
+
+@media (max-width: 480px) {
+  /* --- Brand: matn olib tashlanadi, faqat logo qoladi (135px joy bo'shaydi) */
+  .hud-brand-box { min-width: auto !important; }
+  .hud-brand-box > div { display: none !important; }
+
+  /* --- Topbar: bitta qatorga sig'sin, o'ralmasin */
+  .hud-topbar {
+    left: 8px;
+    right: 8px;
+    gap: 6px;
+    padding-left: 8px;
+    padding-right: 8px;
+    flex-wrap: nowrap;
+    overflow: visible;   /* panellar topbardan tashqariga chiqadi */
+  }
+
+  .hud-phone-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    flex-shrink: 0;
+    margin-left: auto;   /* birinchisi qolgan joyni egallaydi */
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    background: var(--bg-card);
+    color: var(--text-main);
+    cursor: pointer;
+  }
+  .hud-phone-btn + .hud-phone-btn { margin-left: 0; }
+  .hud-phone-btn svg { width: 20px; height: 20px; }
+  .hud-phone-btn[aria-expanded="true"] {
+    background: var(--color-purple);
+    color: #fff;
+    border-color: var(--color-purple);
+  }
+
+  /* --- KPI paneli va amal tugmalari guruhi: pastdan chiquvchi panel.
+     Ikkalasi bir xil qoidalarga bo'ysunadi, faqat ochilish klassi boshqa. */
+  .hud-kpi-bar,
+  .hud-actions-group {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    z-index: 60;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    margin: 0;
+    padding: 14px 14px calc(14px + env(safe-area-inset-bottom));
+    max-height: 70dvh;
+    overflow-y: auto;
+    background: var(--bg-sidebar);
+    border-top: 1px solid var(--border-subtle);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.45);
+    pointer-events: auto;
+    transform: translateY(105%);
+    transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  body.kpi-sheet-open .hud-kpi-bar { transform: translateY(0); }
+  body.hud-menu-open .hud-actions-group { transform: translateY(0); }
+
+  /* Panel ichidagi elementlar to'liq kenglikda va barmoqqa qulay bo'lsin */
+  .hud-kpi-bar > .hud-kpi-pill,
+  .hud-actions-group > .topbar-btn-pill,
+  .hud-actions-group > .lang-dropdown-wrap,
+  .hud-actions-group > .lang-dropdown-wrap > .lang-btn,
+  .hud-actions-group > .topbar-theme-toggle {
+    width: 100%;
+    min-height: 48px;
+    justify-content: flex-start;
+    gap: 12px;
+  }
+  /* Kichik ekranda yashiringan KPI matnlarini panelda QAYTA ko'rsatamiz —
+     panelda joy bor va raqamning nimani anglatishi ko'rinishi kerak. */
+  .hud-kpi-bar .kpi-label,
+  .hud-kpi-bar .kpi-sub {
+    display: inline !important;
+  }
+
+  /* --- Panellar ochiq turganda ustidagi HUD boshqaruvlari xalaqit bermasin */
+  body.kpi-sheet-open .hud-camera-bar,
+  body.kpi-sheet-open .hud-workflow-bar,
+  body.kpi-sheet-open .hud-live-hud,
+  body.hud-menu-open .hud-camera-bar,
+  body.hud-menu-open .hud-workflow-bar,
+  body.hud-menu-open .hud-live-hud {
+    display: none;
+  }
+}

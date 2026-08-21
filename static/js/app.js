@@ -805,6 +805,7 @@ class AntColonyApp {
     this.liveWorkspace.refreshTree();
     this.deploy = new DeployController();
     this.setupPhoneMode();
+    this.setupPhoneSheets();
     this.restoreChatHistory();
     this.checkAndReconnectActiveJob();
     this.fetchRealStats();
@@ -1025,6 +1026,77 @@ class AntColonyApp {
     if (phoneMQ.addEventListener) phoneMQ.addEventListener('change', apply);
     else if (phoneMQ.addListener) phoneMQ.addListener(apply);   // eski Safari
     this.isPhone = () => phoneMQ.matches;
+  }
+
+  // Telefon panellari (KPI va menyu). Panel — alohida yangi element emas,
+  // balki mavjud `.hud-kpi-bar` / `.hud-actions-group` ning o'zi: CSS ularni
+  // telefonda pastdan chiquvchi ko'rinishga o'tkazadi. Shu sababli bu yerda
+  // faqat ochish/yopish klassi boshqariladi — hech qanday tugma yoki qiymat
+  // dublikat qilinmaydi.
+  setupPhoneSheets() {
+    const SHEETS = {
+      kpi: { cls: 'kpi-sheet-open', btn: 'btn-kpi-sheet' },
+      menu: { cls: 'hud-menu-open', btn: 'btn-hud-menu' },
+    };
+    const backdrop = document.getElementById('hud-sheet-backdrop');
+
+    const closeAll = () => {
+      Object.values(SHEETS).forEach(({ cls, btn }) => {
+        document.body.classList.remove(cls);
+        document.getElementById(btn)?.setAttribute('aria-expanded', 'false');
+      });
+      if (backdrop) backdrop.hidden = true;
+    };
+    this.closePhoneSheets = closeAll;
+
+    Object.entries(SHEETS).forEach(([key, { cls, btn }]) => {
+      const el = document.getElementById(btn);
+      if (!el) return;
+      el.addEventListener('click', () => {
+        const willOpen = !document.body.classList.contains(cls);
+        closeAll();  // bir vaqtda faqat bitta panel ochiq bo'lsin
+        if (willOpen) {
+          document.body.classList.add(cls);
+          el.setAttribute('aria-expanded', 'true');
+          if (backdrop) backdrop.hidden = false;
+        }
+      });
+    });
+
+    if (backdrop) backdrop.addEventListener('click', closeAll);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeAll();
+    });
+
+    // Panel ichidagi biror amal bosilsa panel yopilsin — aks holda u modal
+    // ustida osilib qolardi.
+    ['hud-kpi-bar', 'hud-actions-group'].forEach(cls => {
+      document.querySelector('.' + cls)?.addEventListener('click', (e) => {
+        // Til tanlash o'z ichki dropdownini ochadi — uni yopib yubormaymiz.
+        if (e.target.closest && e.target.closest('.lang-dropdown-wrap')) return;
+        if (e.target.closest && e.target.closest('button, [role="button"]')) closeAll();
+      });
+    });
+
+    // Telefondagi PM tugmasi mavjud tugmaning o'zini bosadi: PM konsolini
+    // ochish mantiqi bitta joyda qoladi.
+    const phonePm = document.getElementById('btn-phone-pm');
+    if (phonePm) {
+      phonePm.addEventListener('click', () => {
+        closeAll();
+        document.getElementById('btn-pm-console-toggle')?.click();
+      });
+    }
+
+    // Katta ekranga qaytilganda ochiq panel klassi qolib ketmasin — desktopda
+    // u `.hud-kpi-bar` ni noto'g'ri joyda ko'rsatmaydi (CSS media query ichida),
+    // lekin holat toza bo'lgani ma'qul.
+    if (window.matchMedia) {
+      const mq = window.matchMedia('(max-width: 480px)');
+      const onChange = () => { if (!mq.matches) closeAll(); };
+      if (mq.addEventListener) mq.addEventListener('change', onChange);
+      else if (mq.addListener) mq.addListener(onChange);
+    }
   }
 
   saveChatHistory() {

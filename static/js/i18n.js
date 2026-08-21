@@ -2430,6 +2430,8 @@
   (function addExtraStrings() {
     var EXTRA = {
       en: {
+        kpi_sheet_title: "Metrics",
+        hud_menu: "Menu",
         role_model_label: "Lead model",
         role_model_auto: "Auto (by ELO rating)",
         role_model_auto_hint: "Auto — the model is picked by ELO rating",
@@ -2616,6 +2618,8 @@
         ceo_continue: "Shall we continue one of the deferred plans, or do you have a new idea? Say the word — we'll start."
       },
       uz: {
+        kpi_sheet_title: "Ko'rsatkichlar",
+        hud_menu: "Menyu",
         role_model_label: "Yetakchi model",
         role_model_auto: "Auto (ELO reytingi bo'yicha)",
         role_model_auto_hint: "Auto — model ELO reytingi bo'yicha tanlanadi",
@@ -2798,6 +2802,8 @@
         ceo_continue: "Qoldirilgan rejalaridan birini davom ettiramizmi yoki yangi fikringiz bormi? So'z ayting — boshladik."
       },
       ru: {
+        kpi_sheet_title: "Показатели",
+        hud_menu: "Меню",
         role_model_label: "Ведущая модель",
         role_model_auto: "Auto (по рейтингу ELO)",
         role_model_auto_hint: "Auto — модель выбирается по рейтингу ELO",
