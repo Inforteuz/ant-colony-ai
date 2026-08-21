@@ -804,6 +804,7 @@ class AntColonyApp {
     this.liveWorkspace = new LiveWorkspaceController();
     this.liveWorkspace.refreshTree();
     this.deploy = new DeployController();
+    this.setupPhoneMode();
     this.restoreChatHistory();
     this.checkAndReconnectActiveJob();
     this.fetchRealStats();
@@ -1010,6 +1011,20 @@ class AntColonyApp {
 
     // Clear Chat History
     on('btn-clear-pm-feed', 'click', () => this.clearChatHistory());
+  }
+
+  // Telefon rejimi bitta joydan aniqlanadi: CSS ham, JS ham AYNAN bir xil
+  // chegaradan (480px) foydalanishi kerak, aks holda layout va mantiq bir-biriga
+  // mos kelmay qoladi. `resize` emas, `matchMedia` — qurilma aylantirilganda ham
+  // ishlaydi va ortiqcha hisoblash qilmaydi.
+  setupPhoneMode() {
+    if (!window.matchMedia) return;
+    const phoneMQ = window.matchMedia('(max-width: 480px)');
+    const apply = () => document.body.classList.toggle('is-phone', phoneMQ.matches);
+    apply();
+    if (phoneMQ.addEventListener) phoneMQ.addEventListener('change', apply);
+    else if (phoneMQ.addListener) phoneMQ.addListener(apply);   // eski Safari
+    this.isPhone = () => phoneMQ.matches;
   }
 
   saveChatHistory() {

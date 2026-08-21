@@ -6796,3 +6796,76 @@ body.light-theme .btn-exec-launch.launched {
   color: var(--text-muted);
 }
 .role-model-hint.is-pinned { color: var(--color-purple); font-weight: 700; }
+
+
+/* ==========================================================================
+   MOBILE — FAZA 0: poydevor va touch  ·  docs/MOBILE_UI_PLAN.md
+   Bu blokdagi hamma narsa QO'SHIMCHA: mavjud desktop qoidalari o'chirilmagan
+   va o'zgartirilmagan. Ish yarimta qolsa ham katta ekran buzilmasligi kerak.
+   Breakpointlar faqat uchta: 900 (tablet) / 720 (mobile) / 480 (phone).
+   ========================================================================== */
+
+/* --- Balandlik: mobil brauzerda `100vh` manzil paneli tufayli haqiqiy
+   ko'rinadigan balandlikdan katta bo'ladi va kontent pastdan kesiladi.
+   `dvh` shuni tuzatadi. `vh` qoidalari o'chirilmaydi — eski brauzer uchun
+   fallback bo'lib qoladi (`dvh` ni tushunmagan brauzer bu qatorni tashlaydi). */
+@supports (height: 100dvh) {
+  .fullscreen-viewport,
+  .fullscreen-viewport canvas {
+    height: 100dvh !important;
+  }
+  .colony-hud-layer {
+    height: 100dvh;
+  }
+  .pm-console-drawer,
+  .live-workspace-drawer {
+    height: 100dvh;
+  }
+}
+
+/* --- Sahifa "tortilib" ketmasin (pull-to-refresh / rubber-band). 3D sahnani
+   aylantirayotganda brauzer sahifani yangilab yuborishi mumkin edi. */
+html, body {
+  overscroll-behavior: none;
+}
+
+/* --- Canvas: jestlarni to'liq OrbitControls boshqarsin. `touch-action`siz
+   brauzer scroll/zoom ni o'zi ushlab qoladi va kamera qimirlamaydi. */
+#hive-canvas {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;   /* uzoq bosishda iOS kontekst menyusi chiqmasin */
+}
+
+@media (max-width: 480px) {
+  /* --- Safe area: iPhone'ning yuqoridagi "notch"i va pastdagi home-indicator
+     chizig'i ostida boshqaruvlar qolib ketmasin. */
+  .hud-topbar {
+    padding-top: calc(env(safe-area-inset-top) * 0.5);
+  }
+  .hud-workflow-bar,
+  .hud-camera-bar {
+    margin-bottom: env(safe-area-inset-bottom);
+  }
+  .pm-console-drawer .pm-input-wrapper,
+  .pm-console-drawer .drawer-footer {
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  }
+  .colony-modal-card {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* --- Touch target: barmoq uchun 44px minimal o'lcham (Apple HIG / Material).
+     Hozirgi tugmalar 28-32px — barmoq bilan aniq bosib bo'lmaydi. */
+  .topbar-btn-pill,
+  .topbar-theme-toggle,
+  .btn-cam-view,
+  .btn-drawer-action,
+  .btn-hive-action,
+  .btn-zoom-ctrl,
+  .pm-attach-btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}

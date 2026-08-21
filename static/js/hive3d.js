@@ -3143,13 +3143,22 @@ class IsometricHive3D {
     // tugaydi. Endi sahnaning ancha katta qismi bosiladigan bo'lgani uchun
     // har sudrash oxirida kamera boshqa xonaga sakrab ketishi mumkin edi.
     // Shuning uchun sudralgan bosishni e'tiborsiz qoldiramiz.
-    let downX = 0, downY = 0, dragged = false;
+    // Sudrash chegarasi kirish turiga bog'liq: sichqoncha aniq turadi, barmoq esa
+    // bosish paytida tabiiy ravishda bir necha piksel siljiydi. 5px barmoq uchun
+    // juda tor edi — telefonda deyarli har tap "sudrash" deb hisoblanib, xonaga
+    // bosib o'tish umuman ishlamasdi.
+    const DRAG_SLOP_MOUSE = 5;
+    const DRAG_SLOP_TOUCH = 12;
+    let downX = 0, downY = 0, dragged = false, dragSlop = DRAG_SLOP_MOUSE;
     this.canvas.addEventListener('pointerdown', (e) => {
       downX = e.clientX; downY = e.clientY; dragged = false;
+      dragSlop = (e.pointerType === 'mouse') ? DRAG_SLOP_MOUSE : DRAG_SLOP_TOUCH;
     });
     this.canvas.addEventListener('pointermove', (e) => {
       if (e.buttons === 0) return;  // tugma bosilmagan harakat — sudrash emas
-      if (Math.abs(e.clientX - downX) > 5 || Math.abs(e.clientY - downY) > 5) dragged = true;
+      if (Math.abs(e.clientX - downX) > dragSlop || Math.abs(e.clientY - downY) > dragSlop) {
+        dragged = true;
+      }
     });
 
     this.canvas.addEventListener('click', (e) => {
@@ -3165,8 +3174,12 @@ class IsometricHive3D {
     // Bosish mumkin bo'lgan joy ustida kursor "pointer" bo'ladi — aks holda
     // xonaga bosib o'tish mumkinligi umuman bilinmasdi. Raycast qimmat,
     // shuning uchun ~90ms ga throttle qilinadi.
+    // Sensorli qurilmada hover holati yo'q — kursor o'zgartirish ma'nosiz, lekin
+    // har harakatda raycast qilib, telefonda behuda FPS yeyardi.
+    const hasHover = !window.matchMedia || window.matchMedia('(hover: hover)').matches;
     let lastMove = 0;
     this.canvas.addEventListener('mousemove', (e) => {
+      if (!hasHover) return;
       const now = performance.now();
       if (now - lastMove < 90) return;
       lastMove = now;
