@@ -203,7 +203,7 @@ barcha amallar ikki bosishda yetarli. Desktopda (>480px) topbar aynan avvalgidek
 
 ---
 
-## Faza 2 — HUD suzuvchi panellari (~200 CSS / 50 JS)
+## Faza 2 — HUD suzuvchi panellari (~200 CSS / 50 JS) — BAJARILDI (`60f532c`)
 
 375px da 4 ta panel ekranning yarmini egallaydi. Har biri uchun qaror:
 
@@ -216,8 +216,18 @@ barcha amallar ikki bosishda yetarli. Desktopda (>480px) topbar aynan avvalgidek
 
 `z-index` tartibi bir joyda hujjatlashtirilsin (hozir turli qiymatlar tarqoq).
 
+> **Amalda qanday qilindi:** panellar pastdan yuqoriga qatlamlandi —
+> `[topbar] / [live HUD yig'ilgan] / ...3D... / [kamera lentasi] / [workflow]`.
+> Live HUD `body.live-hud-open` klassi bilan bosilganda ochiladi (JS
+> `setupPhoneSheets()` ichida, `closeAll()` uni ham yopadi). Workflow'da faqat
+> FAOL qadamning nomi ko'rinadi, qolganlari ikonka. Zoom paneli inline
+> `display: flex` bilan yozilgani uchun `!important` bilan yashirildi.
+> **Faza 0 dagi `margin-bottom: env(safe-area-inset-bottom)` bu yerda bekor
+> qilindi** — `position: fixed` elementda u panelni yuqoriga surib yuborardi;
+> xavfsiz zona endi `bottom`/`padding` ichida.
+
 **Qabul mezoni:** 3D sahnaning kamida 60% i bo'sh ko'rinadi; hech bir panel boshqasini
-qoplamaydi; camera-strip barmoq bilan surилади.
+qoplamaydi; camera-strip barmoq bilan suriladi.
 
 ---
 
@@ -325,13 +335,15 @@ Faza 0  ──►  Faza 1  ──►  Faza 2
 Faza 0 — majburiy birinchi. 1, 3, 4 undan keyin **istalgan tartibda** va **alohida
 sessiyalarda** bajarilishi mumkin.
 
-**Holat (2026-08-21):** Faza 0, 1 va 3 bajarildi. **Qolgan: Faza 2 (HUD panellari) va
-Faza 4 (modallar), keyin Faza 5 (real qurilmada sinov).**
+**Holat (2026-08-21):** Faza 0, 1, 2 va 3 bajarildi.
+**Qolgan: Faza 4 (modallar), keyin Faza 5 (real qurilmada sinov).**
 
 Davom ettiradigan agent uchun muhim eslatmalar:
 - Sheet mexanizmi Faza 1 da yozilgan — `#hud-sheet-backdrop`, `body.kpi-sheet-open` /
-  `body.hud-menu-open`, `app.js` -> `setupPhoneSheets()`. **Faza 2 shundan foydalansin,
-  qaytadan yozilmasin.**
+  `body.hud-menu-open`, `app.js` -> `setupPhoneSheets()`. Faza 2 shundan foydalandi
+  (`body.live-hud-open` ham o'sha metodda). Faza 4 ham qaytadan yozmasin.
+- Telefonda ochiladigan yangi holat qo'shsangiz, uni `closeAll()` ichida ham
+  yoping — aks holda modal ustida osilib qoladi.
 - `body.is-phone` klassi va `this.isPhone()` — `setupPhoneMode()` da (Faza 0).
 - `--vvh` CSS o'zgaruvchisi — `setupPhoneKeyboard()` da (Faza 3). Balandligi
   klaviaturaga bog'liq har qanday telefon elementi shuni ishlatsin.

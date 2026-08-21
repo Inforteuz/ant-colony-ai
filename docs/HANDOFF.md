@@ -28,7 +28,7 @@ Companion to root `CLAUDE.md`. Last updated 2026-08-21._
 | Mobile UI — Faza 0 (poydevor + touch) | ✅ done | `f30ac89` |
 | Mobile UI — Faza 1 (topbar) | ✅ done | `4403ad8` |
 | Mobile UI — Faza 3 (PM drawer) | ✅ done | `1fd3406` |
-| Mobile UI — Faza 2 (HUD panellari) | ❌ open | — |
+| Mobile UI — Faza 2 (HUD panellari) | ✅ done | `60f532c` |
 | Mobile UI — Faza 4 (modallar) | ❌ open | — |
 | Mobile UI — Faza 5 (qurilmada sinov) | ❌ open (foydalanuvchi) | — |
 
