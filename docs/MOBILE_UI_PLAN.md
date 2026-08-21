@@ -72,7 +72,7 @@ ichidan qayta yoziladi. Sabab — bu ish yarimta qolsa ham desktop buzilmasligi 
 
 ---
 
-## Faza 0 — Poydevor va touch (~80 CSS / 60 JS)
+## Faza 0 — Poydevor va touch (~80 CSS / 60 JS) — BAJARILDI (`f30ac89`)
 
 Mustaqil faza: desktopga umuman tegmaydi, yolg'iz o'zi ham to'liq qiymat beradi.
 
@@ -142,7 +142,7 @@ home-indicator chizig'i ostida qolmaydi. Desktopda hech narsa o'zgarmaydi.
 
 ---
 
-## Faza 1 — Topbar (~180 CSS / 70 JS / 40 HTML)
+## Faza 1 — Topbar (~180 CSS / 70 JS / 40 HTML) — BAJARILDI (`4403ad8`)
 
 375px da topbar'da o'ntadan ortiq element bor. Yechim: **KPI'lar bitta chipga yig'iladi,
 amal tugmalari hamburger menyuga tushadi.**
@@ -190,6 +190,13 @@ faqat SVG logo qoladi. `min-width: 135px` → `min-width: auto`.
 ### 1.5 i18n
 Yangi kalitlar (uchala dictga — `i18n.js` `EXTRA` bloki): `kpi_sheet_title`, `hud_menu`,
 `hud_menu_title`, `sheet_close`.
+
+> **Amalda qanday qilindi (rejadan farq):** reja `#sheet-kpi` / `#sheet-hud-menu`
+> nomli YANGI elementlar va ularga KPI'larni nusxalashni ko'zda tutgan edi. Buning
+> o'rniga `.hud-kpi-bar` va `.hud-actions-group` ning O'ZI CSS bilan panelga
+> aylantirildi. Sabab: nusxalash qiymat sinxronlash va handler dublikatini
+> keltirib chiqarardi — ikkita joyda tuzatish kerak bo'lardi. Yagona istisno —
+> `#btn-phone-pm`, u mavjud tugmaning `.click()` ini chaqiradi.
 
 **Qabul mezoni (Faza 1):** 375px da topbar bitta qatorga sig'adi, gorizontal scroll yo'q,
 barcha amallar ikki bosishda yetarli. Desktopda (>480px) topbar aynan avvalgidek.
@@ -304,7 +311,12 @@ Faza 0  ──►  Faza 1  ──►  Faza 2
 ```
 
 Faza 0 — majburiy birinchi. 1, 3, 4 undan keyin **istalgan tartibda** va **alohida
-sessiyalarda** bajarilishi mumkin. Faza 2 — Faza 1 dan keyin (sheet komponenti o'sha
+sessiyalarda** bajarilishi mumkin.
+
+**Holat (2026-08-21):** Faza 0 va 1 bajarildi. Keyingi ish — **Faza 3 (PM drawer)**,
+u eng ko'p ishlatiladigan ekran; keyin Faza 2 va 4. Sheet komponenti (`.hud-sheet-backdrop`,
+`body.kpi-sheet-open` / `body.hud-menu-open` va `setupPhoneSheets()`) Faza 1 da yozildi —
+Faza 2 shundan foydalanadi, qaytadan yozmang. Faza 2 — Faza 1 dan keyin (sheet komponenti o'sha
 yerda yoziladi va 2 da qayta ishlatiladi).
 
 ## Xavflar

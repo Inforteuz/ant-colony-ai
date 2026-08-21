@@ -24,7 +24,10 @@ Companion to root `CLAUDE.md`. Last updated 2026-08-21._
 | Manual role → model pinning | ✅ done | `476e3d8` |
 | Mouse room navigation (click a zone) | ✅ done | `a775f59` |
 | PM decomposition + role-choice rules | ✅ done | `2b2f1db` |
-| Mobile UI | ❌ open (deferred, do last) | — |
+| Mobile UI — reja (5 faza) | ✅ `docs/MOBILE_UI_PLAN.md` | `e4a13e2` |
+| Mobile UI — Faza 0 (poydevor + touch) | ✅ done | `f30ac89` |
+| Mobile UI — Faza 1 (topbar) | ✅ done | `4403ad8` |
+| Mobile UI — Faza 2/3/4/5 | ❌ open | — |
 
 ---
 
