@@ -268,7 +268,7 @@ to'liq ishlaydi; klaviatura input'ni yopmaydi.
 
 ---
 
-## Faza 4 — Modallar (~250 CSS / 40 JS / 40 HTML)
+## Faza 4 — Modallar (~250 CSS / 40 JS / 40 HTML) — BAJARILDI (`8a07b47`)
 
 15 ta modal. `.colony-modal-card` allaqachon ≤720px da to'liq ekran — qolgan ish **ichki
 layout**.
@@ -291,6 +291,22 @@ layout**.
 - `#setup-mode-tabs` (6 ta tab) → gorizontal scroll-strip.
 - `.gen-grid` allaqachon ≤720px da `1fr` (`style.css:4759`) — tekshirib chiqilsin.
 - Kalit inputlari + "Проверить" tugmasi (`.key-test-row`) → `flex-wrap: wrap`.
+
+> **Amalda qanday qilindi (rejadan farq):** reja `data-mobile-pane="list|detail"`
+> ko'rinishidagi "ro'yxat -> tafsilot" navigatsiyasini ko'zda tutgan edi. Uning
+> o'rniga ustunlar VERTIKAL joylashtirildi va ro'yxatga o'z scroll'i bilan
+> balandlik chegarasi berildi (roles 34vh / workspace 30vh / editor 26vh).
+> Sabab: navigatsiya 6 ta modal uchun 6 ta alohida JS holat talab qilardi;
+> vertikal stack nol JS bilan ishlaydi va ikkala qism bir vaqtda ko'rinadi.
+> Balandlik chegarasi majburiy — usiz 20 ta rol butun ekranni egallab,
+> tafsilotga yetib bo'lmasdi.
+>
+> Jadvallar: `display: block` + `min-width: max-content` — ustunlar kengligini
+> saqlaydi va jadval O'Z ICHIDA suriladi (sahifa emas). `.lb-table th` sticky
+> bekor qilindi, chunki `display: block` da u ishlamaydi.
+>
+> `.metrics-row` ataylab qamralmadi — u `style.css:1028` da e'lon qilingan,
+> lekin hech qanday markup'da ishlatilmaydi (o'lik qoida).
 
 **Qabul mezoni:** har bir modal telefonda ochiladi, gorizontal scroll faqat jadvallarda
 bo'ladi, har modaldan chiqish yo'li aniq.
@@ -335,10 +351,11 @@ Faza 0  ──►  Faza 1  ──►  Faza 2
 Faza 0 — majburiy birinchi. 1, 3, 4 undan keyin **istalgan tartibda** va **alohida
 sessiyalarda** bajarilishi mumkin.
 
-**Holat (2026-08-21):** Faza 0, 1, 2 va 3 bajarildi.
-**Qolgan: Faza 4 (modallar), keyin Faza 5 (real qurilmada sinov).**
+**Holat (2026-08-21):** Faza 0, 1, 2, 3 va 4 — **hammasi bajarildi**.
+Qolgan yagona qadam — **Faza 5: real qurilmada sinov** (agent brauzer ishga tushira
+olmaydi, shuning uchun buni foydalanuvchi bajaradi; ro'yxat yuqorida).
 
-Davom ettiradigan agent uchun muhim eslatmalar:
+Kelajakda mobil UI ga tegadigan agent uchun muhim eslatmalar:
 - Sheet mexanizmi Faza 1 da yozilgan — `#hud-sheet-backdrop`, `body.kpi-sheet-open` /
   `body.hud-menu-open`, `app.js` -> `setupPhoneSheets()`. Faza 2 shundan foydalandi
   (`body.live-hud-open` ham o'sha metodda). Faza 4 ham qaytadan yozmasin.
@@ -347,8 +364,9 @@ Davom ettiradigan agent uchun muhim eslatmalar:
 - `body.is-phone` klassi va `this.isPhone()` — `setupPhoneMode()` da (Faza 0).
 - `--vvh` CSS o'zgaruvchisi — `setupPhoneKeyboard()` da (Faza 3). Balandligi
   klaviaturaga bog'liq har qanday telefon elementi shuni ishlatsin.
-- Barcha mobil CSS `style.css` OXIRIDA, uchta izohli blokda (FAZA 0 / 1 / 3).
-  Yangi ish ham shu yerga, o'z blokida qo'shilsin.
+- Barcha mobil CSS `style.css` OXIRIDA, beshta izohli blokda
+  (FAZA 0 / 1 / 2 / 3 / 4). Yangi ish ham shu yerga, o'z blokida qo'shilsin.
+- Breakpointlar faqat 900 / 720 / 480 — yangi qiymat kiritilmasin.
 - **Har o'zgarishdan keyin `index.html` dagi `?t=` cache-bust tokenini yangilang** —
   aks holda brauzer eski CSS/JS ni ushlab qoladi va ish qilinmagandek ko'rinadi. Faza 2 — Faza 1 dan keyin (sheet komponenti o'sha
 yerda yoziladi va 2 da qayta ishlatiladi).

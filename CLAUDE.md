@@ -79,9 +79,12 @@ Everything lives in `static/js/i18n.js`. There is **no framework** — a custom 
 | `roles/*.md` | one editable system prompt per agent role |
 
 ## Open tasks (continue here)
-0. **Mobile UI (T5)** — the only feature task left. `style.css` bottoms out at a 720px
-   breakpoint; the 3D canvas and both drawers need a dedicated small-screen layout.
-   Deliberately deferred by the user to be done last, on its own.
+0. ~~Mobile UI (T5)~~ ✅ DONE. All five phases landed (`f30ac89`, `4403ad8`, `60f532c`,
+   `1fd3406`, `8a07b47`). A `≤480px` phone layer now covers touch, topbar, HUD panels,
+   the PM drawer and the modals — see `docs/MOBILE_UI_PLAN.md`. **Only device testing
+   remains**, and it must be done by the user (this project never starts a server).
+   Every mobile rule lives in five commented blocks at the end of `style.css`;
+   breakpoints are fixed at 900 / 720 / 480.
 1. ~~Wire 17.wtf into the Setup Wizard UI~~ ✅ DONE (commit `f4327c7`): both single + multi
    wizard panels offer 17.wtf and the save handler sends `wtf_key`; no remaining open tasks
    from this session.
