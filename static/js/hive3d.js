@@ -2294,6 +2294,21 @@ class IsometricHive3D {
       ag.animTime += delta;
       const mesh = ag.mesh;
 
+      // --- Biomexanika: gavdani har kadrda tik holatga qaytarish ---
+      // Ba'zi rekreatsiya animatsiyalari BUTUN mesh'ni og'diradi (masalan
+      // darvozabonning sakrashi `mesh.rotation.z = ±0.65` qiladi) va uni
+      // faqat o'sha shoxobchaning oxirgi bosqichida nolga qaytaradi. Agent
+      // aynan sakrash paytida vazifaga chaqirilsa, o'sha shoxobcha boshqa
+      // ishlamaydi va agent stoliga QIYSHAYGAN holda qaytardi.
+      //
+      // Shuning uchun og'ishni har kadr boshida nolga lerp qilamiz. Bu
+      // holatga bog'liq emas, demak kelajakda qo'shiladigan animatsiyalar
+      // ham xuddi shu tarzda avtomatik tozalanadi. Pozani ATAYLAB o'rnatgan
+      // shoxobchalar shu qatordan KEYIN ishlaydi, shuning uchun sakrash
+      // animatsiyasi buzilmaydi.
+      mesh.rotation.z = THREE.MathUtils.lerp(mesh.rotation.z, 0, 0.18);
+      mesh.rotation.x = THREE.MathUtils.lerp(mesh.rotation.x, 0, 0.18);
+
       // WORKING (At Chair, Coding & Typing)
       // Realistik holat: o'tirgan, oyoq bukilgan tizza bilan, qo'l klaviaturaga
       // egilgan (tirsak ~90°), engil nafas olish (chest scale).

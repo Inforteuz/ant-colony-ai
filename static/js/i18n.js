@@ -2430,6 +2430,8 @@
   (function addExtraStrings() {
     var EXTRA = {
       en: {
+        gen_prompt_cache: "Token saving (prompt cache)",
+        gen_prompt_cache_hint: "Repeated deterministic requests are served from the disk cache and spend no tokens. Turn off if you always need fresh answers.",
         // --- Asosiy data-i18n kalitlari (index.html) ---
         kpi_models: "models",
         kpi_cache: "saved",
@@ -2610,6 +2612,8 @@
         ceo_continue: "Shall we continue one of the deferred plans, or do you have a new idea? Say the word — we'll start."
       },
       uz: {
+        gen_prompt_cache: "Token tejash (prompt kesh)",
+        gen_prompt_cache_hint: "Takrorlangan deterministik so'rovlar disk keshidan olinadi va token sarflamaydi. Har doim yangi javob kerak bo'lsa — o'chiring.",
         kpi_models: "modellar",
         kpi_cache: "tejalandi",
         kpi_tokens: "tokenlar",
@@ -2786,6 +2790,8 @@
         ceo_continue: "Qoldirilgan rejalaridan birini davom ettiramizmi yoki yangi fikringiz bormi? So'z ayting — boshladik."
       },
       ru: {
+        gen_prompt_cache: "Экономия токенов (кэш промптов)",
+        gen_prompt_cache_hint: "Повторные детерминированные запросы берутся из дискового кэша и не тратят токены. Выключите, если нужны всегда свежие ответы.",
         kpi_models: "моделей",
         kpi_cache: "сэкономлено",
         kpi_tokens: "токенов",

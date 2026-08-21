@@ -4299,6 +4299,16 @@ class AntColonyApp {
       if (vEl) vEl.checked = !!g.enable_vision;
       if (fEl) fEl.checked = !!g.free_models_only;
     } catch (e) {}
+
+    // Prompt kesh holati alohida endpointda saqlanadi (generation-settings
+    // emas) — u LLM parametri emas, platforma rejimi. Alohida so'rov qilamiz,
+    // shunda yuqoridagi so'rov yiqilsa ham toggle to'g'ri ko'rinadi.
+    try {
+      const cRes = await fetch('/api/cache/enabled');
+      const c = await cRes.json();
+      const cEl = document.getElementById('gen-prompt-cache');
+      if (cEl) cEl.checked = c.enabled !== false;
+    } catch (e) {}
   }
 
   async saveGenSettings() {
@@ -4306,6 +4316,23 @@ class AntColonyApp {
     const m = parseInt(document.getElementById('gen-max-tokens').value, 10);
     const v = document.getElementById('gen-vision').checked;
     const f = document.getElementById('gen-free-only').checked;
+
+    // Kesh toggle'i alohida endpointga boradi. Uni birinchi yuboramiz, shunda
+    // generation-settings xatosi keshni yoqib/o'chirmay qoldirmaydi.
+    const cEl = document.getElementById('gen-prompt-cache');
+    let cacheOn = null;
+    if (cEl) {
+      cacheOn = cEl.checked;
+      try {
+        await fetch('/api/cache/enabled', {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({enabled: cacheOn}),
+        });
+      } catch (e) {
+        this.toast('Сеть', 'Не удалось сохранить режим кэша: ' + e.message, 'error');
+      }
+    }
+
     try {
       const res = await fetch('/api/setup/generation-settings', {
         method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -4313,7 +4340,8 @@ class AntColonyApp {
       });
       const data = await res.json();
       if (data.success) {
-        this.toast('Параметры сохранены', `temp=${t}, max_tokens=${m}, vision=${v ? 'вкл' : 'выкл'}, free=${f ? 'да' : 'нет'}`, 'ok');
+        const cacheTxt = cacheOn === null ? '' : `, кэш=${cacheOn ? 'вкл' : 'выкл'}`;
+        this.toast('Параметры сохранены', `temp=${t}, max_tokens=${m}, vision=${v ? 'вкл' : 'выкл'}, free=${f ? 'да' : 'нет'}${cacheTxt}`, 'ok');
       } else {
         this.toast('Ошибка', data.error || '—', 'error');
       }

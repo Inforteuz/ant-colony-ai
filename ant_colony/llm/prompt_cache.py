@@ -32,6 +32,10 @@ FLUSH_EVERY_N_SETS = 25
 class PromptCache:
     def __init__(self, ttl_seconds: int = 86400 * 7):  # 7 days TTL
         self.ttl = ttl_seconds
+        # Foydalanuvchi sozlamalar orqali keshni butunlay o'chirib qo'yishi
+        # mumkin (token tejash rejimini boshqarish). O'chirilganda mavjud
+        # yozuvlar SAQLANADI — qayta yoqilganda ular yana ishlaydi.
+        self.enabled = True
         self.cache: "OrderedDict[str, Dict[str, Any]]" = OrderedDict()
         self.stats = {
             "hits": 0,
@@ -52,6 +56,8 @@ class PromptCache:
         return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
     def get(self, model_id: str, messages: list) -> Optional[Dict[str, Any]]:
+        if not self.enabled:
+            return None
         key = self._generate_key(model_id, messages)
         entry = self.cache.get(key)
         if not entry:
@@ -85,6 +91,8 @@ class PromptCache:
         }
 
     def set(self, model_id: str, messages: list, response: Dict[str, Any], tokens_saved: int = 0):
+        if not self.enabled:
+            return
         key = self._generate_key(model_id, messages)
         self.cache[key] = {
             "model_id": model_id,
@@ -102,6 +110,11 @@ class PromptCache:
         now = time.time()
         if self._dirty_count >= FLUSH_EVERY_N_SETS or (now - self._last_flush) >= FLUSH_INTERVAL_S:
             self.save_cache()
+
+    def set_enabled(self, enabled: bool) -> bool:
+        """Keshni yoqadi/o'chiradi va yangi holatni qaytaradi."""
+        self.enabled = bool(enabled)
+        return self.enabled
 
     def invalidate_all(self) -> int:
         removed = len(self.cache)
@@ -137,6 +150,7 @@ class PromptCache:
                            reverse=True)
 
         return {
+            "enabled": self.enabled,
             "total_cached_entries": len(self.cache),
             "max_entries": MAX_ENTRIES,
             "cache_hits": self.stats["hits"],

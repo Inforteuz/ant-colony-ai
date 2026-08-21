@@ -65,6 +65,12 @@ async def on_startup():
     _JANITOR.start()
     # PM Memory — long-term xotira (fayl asosida)
     init_memory(DATA_DIR / "pm_memory.json")
+    # Prompt kesh holati foydalanuvchi sozlamasida saqlanadi — restart'dan
+    # keyin ham o'chirilgan holat saqlanib qolishi kerak.
+    try:
+        prompt_cache.set_enabled(load_app_settings().get("prompt_cache_enabled", True))
+    except Exception as e:
+        print(f"[startup] prompt cache holatini tiklab bo'lmadi: {e}")
 
 
 _JANITOR: Optional[WorkspaceJanitor] = None
@@ -456,6 +462,31 @@ async def get_cache_stats():
 async def clear_cache():
     removed = prompt_cache.invalidate_all()
     return {"success": True, "removed_entries": removed}
+
+
+class PromptCacheToggleRequest(BaseModel):
+    enabled: bool
+
+
+@app.get("/api/cache/enabled")
+async def get_cache_enabled():
+    return {"enabled": prompt_cache.enabled}
+
+
+@app.post("/api/cache/enabled")
+async def set_cache_enabled(req: PromptCacheToggleRequest):
+    """
+    Token tejash rejimini (prompt caching) yoqadi/o'chiradi.
+
+    O'chirilganda mavjud yozuvlar O'CHIRILMAYDI — shunchaki o'qilmaydi va
+    yangi javob yozilmaydi. Qayta yoqilganda eski kesh yana ishlaydi
+    (foydalanuvchi tozalashni xohlasa `/api/cache/clear` bor).
+    """
+    enabled = prompt_cache.set_enabled(req.enabled)
+    settings = load_app_settings()
+    settings["prompt_cache_enabled"] = enabled
+    save_app_settings(settings)
+    return {"success": True, "enabled": enabled}
 
 # --- Token Usage Ledger: provayder / model / vazifa kesimidagi sarf ---
 
