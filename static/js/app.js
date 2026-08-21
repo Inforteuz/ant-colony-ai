@@ -2666,9 +2666,13 @@ class AntColonyApp {
         this.activeThinkingCard.classList.add('collapsed');
       }
 
-      const roleLine = event.assigned_role
+      let roleLine = event.assigned_role
         ? `\n\n**Назначенный специалист:** ${event.assigned_role} (${cleanModelLabel(event.assigned_model)})`
         : '';
+      // PM nega shu rolni tanlagani va nechta qadamga bo'lgani — noto'g'ri
+      // taqsimot darhol ko'rinsin (ilgari faqat rol nomi ko'rsatilardi).
+      if (roleLine && event.role_reason) roleLine += `\n_${event.role_reason}_`;
+      if (roleLine && event.subtasks_count) roleLine += `\n\n**Подзадач в плане:** ${event.subtasks_count}`;
       this.canvas.updateStationModel('pm', cleanModelLabel(event.assigned_model), 'План составлен');
       this.canvas.updateStationModel('coder', cleanModelLabel(event.assigned_model), 'Подготовка');
       this.appendFeedItem(feed, {

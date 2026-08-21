@@ -548,6 +548,61 @@ def sanitize_event(event: Dict[str, Any]) -> Dict[str, Any]:
     return event
 
 
+def _clean_subtasks(raw: Any) -> List[Dict[str, str]]:
+    """
+    PM qaytargan `subtasks` ro'yxatini tozalaydi.
+
+    LLM bu maydonni turli ko'rinishda qaytarishi mumkin (matnlar ro'yxati,
+    yarim to'ldirilgan lug'atlar, o'nlab element). Mutaxassisga beriladigan
+    kontekst barqaror bo'lishi uchun bu yerda bitta shaklga keltiramiz va
+    12 ta bilan cheklaymiz — undan ortig'i kontekstni to'ldirib, foydali
+    ma'lumotni siqib chiqaradi.
+    """
+    if not isinstance(raw, list):
+        return []
+    out: List[Dict[str, str]] = []
+    for item in raw[:12]:
+        if isinstance(item, str):
+            title = item.strip()
+            if title:
+                out.append({"title": title, "file": "", "detail": "", "done_when": ""})
+            continue
+        if not isinstance(item, dict):
+            continue
+        title = str(item.get("title") or item.get("step") or item.get("name") or "").strip()
+        if not title:
+            continue
+        out.append({
+            "title": title,
+            "file": str(item.get("file") or "").strip(),
+            "detail": str(item.get("detail") or item.get("description") or "").strip(),
+            "done_when": str(item.get("done_when") or item.get("acceptance") or "").strip(),
+        })
+    return out
+
+
+def _format_subtasks(subtasks: List[Dict[str, str]]) -> str:
+    """Mutaxassis agent uchun o'qiladigan ish taqsimoti matni."""
+    if not subtasks:
+        return ""
+    rows = []
+    for i, st in enumerate(subtasks, 1):
+        line = f"{i}. {st['title']}"
+        if st["file"]:
+            line += f"  [fayl: {st['file']}]"
+        if st["detail"]:
+            line += f"\n   - Nima qilinadi: {st['detail']}"
+        if st["done_when"]:
+            line += f"\n   - Tugadi hisoblanadi: {st['done_when']}"
+        rows.append(line)
+    return (
+        "ISH TAQSIMOTI (Project Manager tuzgan — shu tartibda bajaring, "
+        "har bir qadamni tugallamasdan keyingisiga o'tmang):\n"
+        + "\n".join(rows)
+        + "\n"
+    )
+
+
 class AgentEngine:
     def __init__(self):
         pass
@@ -696,9 +751,24 @@ class AgentEngine:
             '  "files": ["yaratilishi kerak bo\'lgan fayllar yo\'llari"],\n'
             '  "steps": ["bajarilishi kerak bo\'lgan aniq qadamlar"],\n'
             '  "acceptance_criteria": ["ish tugadi deyish uchun tekshiriladigan shartlar"],\n'
+            '  "role_reason": "nega aynan shu rol tanlandi — bir jumla",\n'
+            '  "subtasks": [\n'
+            '    {"title": "qadam nomi", "file": "shu qadam tegadigan fayl", "detail": "aynan nima qilinadi", "done_when": "qanday tekshiriladi"}\n'
+            '  ],\n'
             '  "verification_command": "natijani tekshiruvchi terminal buyrug\'i yoki bo\'sh satr"\n'
             "}\n"
-            "```"
+            "```\n\n"
+            "5. DEKOMPOZITSIYA SIFATI (MAJBURIY — reja boyicha mutaxassis agent ishlaydi):\n"
+            "   * `subtasks` — 3 tadan 8 tagacha. Har biri BITTA aniq natijaga olib kelsin. Kamroq bolsa mutaxassis nima qilishni bilmaydi, kop bolsa qadamlar sigmaydi.\n"
+            "   * Har bir subtask `file` maydoni `files` royxatidagi fayllardan biri bolsin. Faylga tegmaydigan qadam (masalan tahlil qilish) — subtask EMAS.\n"
+            "   * `done_when` TEKSHIRILADIGAN bolsin: ishlaydi / chiroyli / togri — YAROQSIZ. Yaroqli: sahifa 200 qaytaradi, `pytest -q` xatosiz otadi, formada 3 ta maydon bor.\n"
+            "   * Qadamlar BAJARILISH TARTIBIDA: avval tuzilma va konfiguratsiya, keyin mantiq, oxirida test va hujjat. Keyingi qadam oldingisining natijasiga tayansin.\n"
+            "   * TOLDIRUVCHI qadam yozmang (loyihani rejalashtirish, kod yozish, yakunlash) — ular hech qanday malumot bermaydi.\n\n"
+            "6. ROL TANLASH QOIDASI (MAJBURIY):\n"
+            "   * `specialist_role` ni vazifaning ASOSIY NATIJASIGA qarab tanlang, ishlatiladigan texnologiyaga qarab emas: sayt interfeysi — `frontend_architect`, API yoki server — `backend_engineer`, malumot tahlili — `data_bi_analyst`, mobil ilova — `mobile_developer`.\n"
+            "   * Odat boyicha `backend_engineer` ni tanlamang — bu eng kop uchraydigan xato.\n"
+            "   * `role_reason` da tanlovni bir jumlada asoslang. Asoslay olmasangiz — rol notogri.\n"
+            "   * Faqat royxatdagi `id` larni yozing. Mos rol bolmasa — 3b bandidagi `new_role` blokini ishlating."
         )
 
         with usage_ledger.agent_scope("Project Manager", role="pm_orchestrator", phase="planning"):
@@ -721,7 +791,7 @@ class AgentEngine:
                     "ok": True, "error": None,
                     "plan_text": default_answer, "reasoning": fallback_reasoning,
                     "model_used": pm_model,
-                    "spec": {"task_type": "conversational", "direct_answer": default_answer, "specialist_role": default_role, "files": [], "steps": [], "acceptance_criteria": [], "verification_command": "", "project_name": None},
+                    "spec": {"task_type": "conversational", "direct_answer": default_answer, "specialist_role": default_role, "files": [], "steps": [], "acceptance_criteria": [], "subtasks": [], "role_reason": "", "verification_command": "", "project_name": None},
                     "usage": {},
                 }
 
@@ -729,7 +799,7 @@ class AgentEngine:
                 "ok": False, "error": res.get("error", ""),
                 "plan_text": "", "reasoning": "", "model_used": pm_model,
                 "spec": {"task_type": "code_project", "specialist_role": default_role, "files": [], "steps": [],
-                         "acceptance_criteria": [], "verification_command": "", "project_name": None},
+                         "acceptance_criteria": [], "subtasks": [], "role_reason": "", "verification_command": "", "project_name": None},
                 "usage": {},
             }
 
@@ -776,6 +846,8 @@ class AgentEngine:
                 "files": spec.get("files") if isinstance(spec.get("files"), list) else [],
                 "steps": spec.get("steps") if isinstance(spec.get("steps"), list) else [],
                 "acceptance_criteria": spec.get("acceptance_criteria") if isinstance(spec.get("acceptance_criteria"), list) else [],
+                "subtasks": _clean_subtasks(spec.get("subtasks")),
+                "role_reason": str(spec.get("role_reason") or "").strip(),
                 "verification_command": spec.get("verification_command") or "",
             },
         }
@@ -958,6 +1030,10 @@ class AgentEngine:
             "plan_content": plan_display,
             "metrics": plan["usage"],
             "assigned_role": coder_role_id, "assigned_model": coder_model,
+            # PM nega aynan shu rolni tanlaganini foydalanuvchi ko'rsin —
+            # noto'g'ri taqsimot darhol sezilsin.
+            "role_reason": spec.get("role_reason") or "",
+            "subtasks_count": len(spec.get("subtasks") or []),
             "project_dir": str(project_dir),
         }
 
@@ -985,6 +1061,7 @@ class AgentEngine:
         else:
             coder_context = (
                 f"Project Manager rejasi:\n{plan['plan_text']}\n\n"
+                + _format_subtasks(spec.get("subtasks") or [])
                 + (f"Yaratilishi kerak bo'lgan fayllar: {', '.join(spec['files'])}\n" if spec["files"] else "")
                 + (f"Qadamlar:\n" + "\n".join(f"{i+1}. {s}" for i, s in enumerate(spec["steps"])) + "\n" if spec["steps"] else "")
                 + (f"Qabul shartlari:\n" + "\n".join(f"- {c}" for c in spec["acceptance_criteria"]) + "\n" if spec["acceptance_criteria"] else "")
