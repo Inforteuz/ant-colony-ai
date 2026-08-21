@@ -221,7 +221,7 @@ qoplamaydi; camera-strip barmoq bilan surилади.
 
 ---
 
-## Faza 3 — PM console drawer (~150 CSS / 60 JS)
+## Faza 3 — PM console drawer (~150 CSS / 60 JS) — BAJARILDI (`1fd3406`)
 
 Eng ko'p ishlatiladigan ekran — sifat shu yerda hal bo'ladi.
 
@@ -240,6 +240,18 @@ Eng ko'p ishlatiladigan ekran — sifat shu yerda hal bo'ladi.
 - **Feed:** `.pm-feed-item` padding kamaytiriladi, `font-size: 13px`.
 - **Auto-scroll:** klaviatura ochilganda oxirgi xabar ko'rinib tursin.
 - **Drop hint** telefonda `display: none` (fayl tashlash yo'q) — o'rniga attach tugmasi.
+
+> **Amalda qanday qilindi:**
+> - Drawer telefonda `translateY` bilan pastdan chiqadi (desktopdagi `translateX`
+>   qoidasi media query tashqarisida tegilmagan holda qoladi).
+> - Klaviatura: `setupPhoneKeyboard()` `visualViewport.height` ni `--vvh` CSS
+>   o'zgaruvchisiga yozadi; CSS uni FAQAT `@media (max-width: 480px)` ichida
+>   ishlatadi. `visualViewport` yo'q brauzerda `100dvh` fallback qoladi.
+> - **Enter telefonda yangi qator qo'yadi** (ekran klaviaturasida Shift yo'q).
+>   `.pm-input-hint` ham yashiriladi — ko'rsatma va xatti-harakat mos keladi.
+> - Telefonda barcha `input`/`textarea` shrifti `16px` — iOS Safari undan
+>   kichik shriftda sahifani avtomatik kattalashtirib, layoutni buzadi.
+> - Taklif chiplari gorizontal scroll + `scroll-snap`; drop-hint yo'q.
 
 **Qabul mezoni:** telefonda vazifa yozib yuborish, javobni o'qish, to'xtatish va tozalash
 to'liq ishlaydi; klaviatura input'ni yopmaydi.
@@ -313,10 +325,20 @@ Faza 0  ──►  Faza 1  ──►  Faza 2
 Faza 0 — majburiy birinchi. 1, 3, 4 undan keyin **istalgan tartibda** va **alohida
 sessiyalarda** bajarilishi mumkin.
 
-**Holat (2026-08-21):** Faza 0 va 1 bajarildi. Keyingi ish — **Faza 3 (PM drawer)**,
-u eng ko'p ishlatiladigan ekran; keyin Faza 2 va 4. Sheet komponenti (`.hud-sheet-backdrop`,
-`body.kpi-sheet-open` / `body.hud-menu-open` va `setupPhoneSheets()`) Faza 1 da yozildi —
-Faza 2 shundan foydalanadi, qaytadan yozmang. Faza 2 — Faza 1 dan keyin (sheet komponenti o'sha
+**Holat (2026-08-21):** Faza 0, 1 va 3 bajarildi. **Qolgan: Faza 2 (HUD panellari) va
+Faza 4 (modallar), keyin Faza 5 (real qurilmada sinov).**
+
+Davom ettiradigan agent uchun muhim eslatmalar:
+- Sheet mexanizmi Faza 1 da yozilgan — `#hud-sheet-backdrop`, `body.kpi-sheet-open` /
+  `body.hud-menu-open`, `app.js` -> `setupPhoneSheets()`. **Faza 2 shundan foydalansin,
+  qaytadan yozilmasin.**
+- `body.is-phone` klassi va `this.isPhone()` — `setupPhoneMode()` da (Faza 0).
+- `--vvh` CSS o'zgaruvchisi — `setupPhoneKeyboard()` da (Faza 3). Balandligi
+  klaviaturaga bog'liq har qanday telefon elementi shuni ishlatsin.
+- Barcha mobil CSS `style.css` OXIRIDA, uchta izohli blokda (FAZA 0 / 1 / 3).
+  Yangi ish ham shu yerga, o'z blokida qo'shilsin.
+- **Har o'zgarishdan keyin `index.html` dagi `?t=` cache-bust tokenini yangilang** —
+  aks holda brauzer eski CSS/JS ni ushlab qoladi va ish qilinmagandek ko'rinadi. Faza 2 — Faza 1 dan keyin (sheet komponenti o'sha
 yerda yoziladi va 2 da qayta ishlatiladi).
 
 ## Xavflar
