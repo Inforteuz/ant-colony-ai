@@ -1016,6 +1016,16 @@ class AntColonyApp {
     const feed = document.getElementById('pm-feed-list');
     if (!feed) return;
 
+    // Lentada haqiqiy kontent qolmagan bo'lsa (faqat bo'sh-holat placeholder'i),
+    // tarixni saqlamaymiz — o'chiramiz. Ilgari "Очистить" dan keyin kelgan
+    // istalgan hodisa placeholder markup'ini localStorage ga yozib qo'yardi va
+    // reload'da restoreChatHistory uni tiklab, ustiga #pm-empty-placeholder ni
+    // yashirar edi — natijada butunlay bo'sh oq maydon ko'rinardi.
+    if (!feed.querySelector('.pm-feed-item, .chat-thinking-card, .exec-summary-card')) {
+      try { localStorage.removeItem('ant_chat_history'); } catch (e) {}
+      return;
+    }
+
     // localStorage ~5MB bilan cheklangan. Ilgari kvota oshib ketsa xato jimgina
     // yutilardi va tarix umuman saqlanmay qolardi. Endi eng eski elementlarni
     // tashlab, qayta urinamiz.
@@ -1072,7 +1082,7 @@ class AntColonyApp {
     }
   }
 
-  clearChatHistory() {
+  async clearChatHistory() {
     const feed = document.getElementById('pm-feed-list');
     if (!feed) return;
 
@@ -1084,12 +1094,16 @@ class AntColonyApp {
 
     try { localStorage.removeItem('ant_chat_history'); } catch (e) {}
 
-    // Serverda ishlayotgan vazifa bo'lsa — uni ham bekor qilamiz. Aks
-    // holda server ishlashda davom etadi va sahifa reload bo'lganda
-    // checkAndReconnectActiveJob tarixni qayta chizadi (eski kontent
-    // qaytib keladi — "Очистить" ning asosiy sababi).
-    if (this.isRunning) {
-      try { fetch('/api/orchestrator/cancel', { method: 'POST' }).catch(() => {}); } catch (e) {}
+    // Serverdagi tarixni ham unuttiramiz. Faqat localStorage ni tozalash
+    // yetarli emas edi: reload'da checkAndReconnectActiveJob
+    // /api/orchestrator/latest dan eski vazifani olib, uning hodisalarini
+    // qayta chizardi — tozalangan chat qaytib kelardi. `forget` bitta
+    // chaqiruvda faol vazifani bekor qiladi VA saqlangan job'larni o'chiradi
+    // (alohida `cancel` bilan poyga bo'lmasligi uchun ataylab bitta endpoint).
+    try {
+      await fetch('/api/orchestrator/forget', { method: 'POST' });
+    } catch (e) {
+      console.warn("Orkestratsiya tarixini unuttirib bo'lmadi:", e && e.message);
     }
 
     // UI ni "bo'sh / idle" holatiga qaytaramiz (CEO paneli, timeline,
@@ -1108,8 +1122,7 @@ class AntColonyApp {
     if (_ceoStatus) _ceoStatus.textContent = 'Ожидаем постановку задачи';
     var _ceoEta = document.getElementById('ceo-eta-badge');
     if (_ceoEta) _ceoEta.textContent = 'ETA: —';
-    var _ceoAgent = document.getElementById('ceo-kpi-agent');
-    if (_ceoAgent) _ceoAgent.textContent = '—';
+    this.resetCeoActiveAgent('—');
     var _ceoBN = document.getElementById('ceo-kpi-bottleneck');
     if (_ceoBN) {
       _ceoBN.textContent = 'Узких мест нет (Оптимально)';
@@ -1842,6 +1855,51 @@ class AntColonyApp {
     document.getElementById('pm-console-drawer')?.classList.toggle('is-busy', this.isRunning);
   }
 
+  // CEO paneli — "Активный агент и модель".
+  //
+  // Ilgari bu KPI faqat `ceo_briefing` hodisasidan yangilanardi. U esa bosqich
+  // BOSHIDA bir marta chiqadi (10% / 35% / 65% / 100%), shuning uchun uzoq
+  // ishlaydigan agent davomida qiymat qotib qolardi va model fallback'ga
+  // o'tganda (`model_fallback`) panel eski modelni ko'rsatib turaverardi.
+  //
+  // Endi model haqidagi ANIQ ma'lumot kelgan har bir hodisa (reasoning /
+  // agent_message / model_fallback — ularda `model` yoki `actual_model` bor)
+  // KPI ni yangilaydi. Nom va model alohida saqlanadi: model nomi noma'lum
+  // hodisa (masalan `station_action`) faqat nomni almashtiradi, oxirgi
+  // ma'lum modelni o'chirmaydi.
+  setCeoActiveAgent(label, model) {
+    if (label) {
+      const raw = String(label).trim();
+      // "Coder (deepseek-v4)" ko'rinishidagi tayyor yorliqni ajratamiz, lekin
+      // "QA (a) + Security (b)" kabi qo'shma yorliqni butunligicha qoldiramiz.
+      const parenCount = (raw.match(/\(/g) || []).length;
+      const m = parenCount === 1 ? raw.match(/^(.*?)\s*\(([^()]+)\)\s*$/) : null;
+      if (m) {
+        this._ceoAgentName = m[1].trim();
+        if (!model) this._ceoAgentModel = m[2].trim();
+      } else {
+        this._ceoAgentName = raw;
+        if (parenCount > 1) this._ceoAgentModel = '';  // modellar allaqachon matn ichida
+      }
+    }
+    if (model) this._ceoAgentModel = String(model).trim();
+
+    const el = document.getElementById('ceo-kpi-agent');
+    if (!el) return;
+    const name = this._ceoAgentName || 'В ожидании';
+    const shortModel = this._ceoAgentModel ? cleanModelLabel(this._ceoAgentModel) : '';
+    el.textContent = shortModel ? `${name} (${shortModel})` : name;
+    // To'liq model id qisqartirilgani uchun — hover'da to'lig'i ko'rinsin.
+    el.title = this._ceoAgentModel ? `${name} — ${this._ceoAgentModel}` : name;
+  }
+
+  resetCeoActiveAgent(text) {
+    this._ceoAgentName = null;
+    this._ceoAgentModel = null;
+    const el = document.getElementById('ceo-kpi-agent');
+    if (el) { el.textContent = text || '—'; el.title = ''; }
+  }
+
   pmFeedError(feed, title, message) {
     if (!feed) return;
     const errItem = document.createElement('div');
@@ -2477,8 +2535,7 @@ class AntColonyApp {
         if (ceoStatus) ceoStatus.textContent = 'Задача отменена по запросу пользователя';
         const ceoEta = document.getElementById('ceo-eta-badge');
         if (ceoEta) ceoEta.textContent = 'ETA: —';
-        const ceoAgent = document.getElementById('ceo-kpi-agent');
-        if (ceoAgent) ceoAgent.textContent = '—';
+        this.resetCeoActiveAgent('—');
         const ceoBottleneck = document.getElementById('ceo-kpi-bottleneck');
         if (ceoBottleneck) {
           ceoBottleneck.textContent = 'Остановлено пользователем';
@@ -2547,8 +2604,7 @@ class AntColonyApp {
       const eta = document.getElementById('ceo-eta-badge');
       if (eta) eta.textContent = `ETA: ${event.eta_seconds}s`;
       
-      const agentEl = document.getElementById('ceo-kpi-agent');
-      if (agentEl) agentEl.textContent = event.active_agent;
+      this.setCeoActiveAgent(event.active_agent);
       
       const dirEl = document.getElementById('ceo-kpi-dir');
       if (dirEl) dirEl.textContent = event.project_dir;
@@ -2572,6 +2628,7 @@ class AntColonyApp {
       const pId = event.phase_id;
       const stId = event.station || 'pm';
       this.canvas.setActiveStation(stId, event.title, cleanModelLabel(event.agent_name));
+      this.setCeoActiveAgent(event.agent_name);
 
       const el = document.getElementById(`wf-step-${pId}`);
       if (el) {
@@ -2586,6 +2643,7 @@ class AntColonyApp {
 
     // 3. Reasoning (Claude / ChatGPT style live streaming)
     if (type === 'reasoning') {
+      this.setCeoActiveAgent(event.agent_name, event.model);
       if (!this.activeThinkingCard || !feed.contains(this.activeThinkingCard)) {
         this.activeThinkingCard = this.createThinkingCard(feed);
       }
@@ -2649,6 +2707,7 @@ class AntColonyApp {
 
     // 3.4. Specialist agent summary
     if (type === 'agent_message') {
+      this.setCeoActiveAgent(event.agent_name, event.model);
       this.canvas.setActiveStation('coder', 'Решение сдано');
       this.appendFeedItem(feed, {
         title: `${event.agent_name || 'Agent'} заключение (${cleanModelLabel(event.model)})`,
@@ -2671,6 +2730,7 @@ class AntColonyApp {
 
     // 3.6. Model Fallback
     if (type === 'model_fallback') {
+      this.setCeoActiveAgent(event.agent_name, event.actual_model);
       this.appendFeedItem(feed, {
         title: 'Переход на резервную модель',
         titleColor: '#f59e0b', borderColor: '#f59e0b',
@@ -2695,6 +2755,7 @@ class AntColonyApp {
 
         // 4. Station Actions & Terminal Commands
     if (type === 'station_action') {
+      this.setCeoActiveAgent(event.agent_name);
       const st = event.station || 'coder';
       this.canvas.setActiveStation(st, `${event.tool}`);
       this.renderToolCard(event, feed);
@@ -4479,7 +4540,7 @@ class AntColonyApp {
       payload.openrouter_key = document.getElementById('setup-multi-openrouter').value.trim();
       payload.gemini_key = document.getElementById('setup-multi-gemini').value.trim();
       payload.openai_key = document.getElementById('setup-multi-openai').value.trim();
-      payload.wtf_key = document.getElementById('setup-multi-wtf').value.trim();
+      payload.wtf_key = document.getElementById('setup-multi-17_wtf').value.trim();
     } else if (mode === 'custom') {
       payload.custom_base_url = document.getElementById('setup-custom-url').value.trim();
       payload.custom_key = document.getElementById('setup-custom-key').value.trim();

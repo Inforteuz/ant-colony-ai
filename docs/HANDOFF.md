@@ -16,6 +16,9 @@ Companion to root `CLAUDE.md`. Last updated 2026-08-21._
 | 17.wtf provider — backend (config/registry/client/server) | ✅ complete | `d4afad8` |
 | 17.wtf provider — Setup Wizard UI | ✅ complete | `f4327c7` |
 | LLM reply follows UI language | ✅ wired (verified) | `bc5d1c0` |
+| 17.wtf "Проверить" button (multi panel id mismatch) | ✅ fixed | working tree |
+| PM feed clear survives reload (`/api/orchestrator/forget`) | ✅ fixed | working tree |
+| CEO "Активный агент и модель" live sync | ✅ done | working tree |
 
 ---
 
@@ -111,6 +114,27 @@ Backend was ready; the frontend is now wired too.
 - Verified: `node --check` passes; backend `server.py` already writes `WTF_API_KEY` to `.env` and
   `test-key` resolves `17_wtf` → `https://api.17.wtf/api/v1/models`. 17.wtf is end-to-end usable
   without editing `.env`.
+
+### T1a — 17.wtf "Проверить" tugmasi (bajarildi)
+`testProviderKey(scope)` input'ni `setup-multi-${scope}` ko'rinishida qidiradi; scope esa
+tugmadagi `data-test-provider="17_wtf"`. Input id `setup-multi-wtf` bo'lgani uchun element
+topilmay, tugma har doim "введите ключ" deb qaytarardi. Id `setup-multi-17_wtf` ga
+o'zgartirildi (`index.html` + `app.js` save handler'i).
+
+### T4 — PM lentasini tozalash reload'dan keyin ham saqlanadi (bajarildi)
+Ilgari faqat `cancelled` holatdagi vazifa qayta chizilmasdi; `completed`/`failed` vazifa esa
+`/api/orchestrator/latest` orqali to'liq replay bo'lardi va tozalangan chat qaytib kelardi.
+Yangi `POST /api/orchestrator/forget` faol vazifani bekor qiladi va `ACTIVE_JOBS`/`CURRENT_JOB`
+ni tozalaydi — `/latest` `idle` qaytaradi. `clearChatHistory` endi `async` va shu endpointni
+kutadi (alohida `cancel` bilan poyga yo'q). Qo'shimcha: `saveChatHistory` lentada faqat
+placeholder qolgan bo'lsa localStorage kalitini yozmasdan o'chiradi.
+
+### T5 — CEO "Активный агент и модель" jonli sinxron (bajarildi)
+`ceo_briefing` faqat bosqich boshida keladi (10/35/65/100%), shuning uchun KPI qotib qolardi va
+model fallback'ga o'tganda eski model ko'rinardi. Yangi `setCeoActiveAgent(label, model)` nom va
+modelni alohida saqlaydi; `reasoning` / `agent_message` / `model_fallback` hodisalaridagi ANIQ
+model (`event.model` / `event.actual_model`) ustuvor. Qo'shma yorliq ("QA (a) + Security (b)")
+butunligicha qoldiriladi.
 
 ### T2 — (optional) localise transient toasts
 A few `this.toast(...)` / `pmFeedError(...)` calls in `app.js` still pass hardcoded Russian

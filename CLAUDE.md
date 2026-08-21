@@ -26,7 +26,14 @@ python run.py                    # → http://127.0.0.1:8080  (FastAPI, SSE)
   chrome localised; PM panel + Live Workspace drawer fixed at root cause (commit `bc5d1c0`).
 - **17.wtf provider: DONE end-to-end.** Backend (`server.py` saves `WTF_API_KEY` into `.env`
   and `test-key` hits `https://api.17.wtf/api/v1/models`) and frontend (Setup Wizard single +
-  multi panels offer 17.wtf, save handler sends `wtf_key`). Commit `f4327c7`.
+  multi panels offer 17.wtf, save handler sends `wtf_key`). Commit `f4327c7`; the multi-input
+  id was later renamed to `setup-multi-17_wtf` so the "Проверить" button finds it
+  (`testProviderKey` looks up `setup-multi-${scope}` where scope is the provider id).
+- **PM feed clear is now durable.** `POST /api/orchestrator/forget` cancels any running job
+  *and* drops the server-side job history, so a reload no longer replays a cleared chat.
+- **CEO "Активный агент и модель" syncs live** from `reasoning` / `agent_message` /
+  `model_fallback` events (they carry the *actual* model), not just the coarse
+  `ceo_briefing` checkpoints.
 - **LLM reply language: wired correctly.** Backend steers the PM/agent reply to the selected
   UI language; frontend `/api/orchestrator/dispatch` does NOT send `language` and the backend
   falls back to the saved preference (`get_language_preference()`).

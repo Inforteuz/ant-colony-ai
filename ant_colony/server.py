@@ -1400,6 +1400,46 @@ async def cancel_active_orchestration():
         }
     return {"success": False, "message": "Faol vazifa topilmadi."}
 
+@app.post("/api/orchestrator/forget")
+async def forget_orchestration_history():
+    """
+    PM lentasi "Очистить" tugmasi bilan tozalanganda chaqiriladi.
+
+    Faqat localStorage ni tozalash yetarli emas edi: sahifa reload bo'lganda
+    `checkAndReconnectActiveJob` `/api/orchestrator/latest` dan eski vazifani
+    olib, uning barcha hodisalarini qayta chizardi — tozalangan chat qaytib
+    kelardi. `cancelled` holat uchun bu ilgari tuzatilgan edi, lekin
+    `completed` / `failed` vazifalar baribir qayta chizilardi.
+
+    Shu sababli serverdagi tarixni ham unutamiz: faol vazifa bekor qilinadi
+    (bitta chaqiruvda, alohida `cancel` bilan poyga bo'lmasligi uchun) va
+    saqlangan job'lar tozalanadi — `/latest` endi `idle` qaytaradi.
+    """
+    global CURRENT_JOB
+    cancelled = 0
+    for job in list(ACTIVE_JOBS.values()):
+        if job.status != "running":
+            continue
+        try:
+            job.add_event({
+                "type": "orchestration_cancelled",
+                "job_id": job.job_id,
+                "timestamp": time.time(),
+            })
+        except Exception:
+            pass
+        job.status = "cancelled"
+        if job.asyncio_task and not job.asyncio_task.done():
+            job.asyncio_task.cancel()
+        cancelled += 1
+
+    # Oqim generatorlari job obyektiga o'z havolasini ushlab turadi, shuning
+    # uchun ro'yxatni tozalash ularni buzmaydi — ular `status == cancelled`
+    # ni ko'rib o'zi yakunlanadi.
+    ACTIVE_JOBS.clear()
+    CURRENT_JOB = None
+    return {"success": True, "cancelled": cancelled}
+
 @app.post("/api/orchestrator/dispatch")
 async def dispatch_orchestrator(req: OrchestratorRequest):
     """
