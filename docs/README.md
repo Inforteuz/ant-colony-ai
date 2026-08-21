@@ -9,6 +9,8 @@ This folder holds project specs and runtime status notes for Ant Colony AI.
 ## Contents
 
 - [status.md](status.md) — current provider integrations and known issues.
+- [HANDOFF.md](HANDOFF.md) — session history and the open task queue.
+- [MOBILE_UI_PLAN.md](MOBILE_UI_PLAN.md) — phased plan for the mobile UI work (T5).
 
 ## Conventions
 
