@@ -7172,3 +7172,89 @@ html, body {
   body.live-hud-open .hud-live-hud .hud-agent-label,
   body.live-hud-open .hud-live-hud .hud-model-tag { max-width: none; }
 }
+
+
+/* ==========================================================================
+   MOBILE — FAZA 4: modallar  ·  docs/MOBILE_UI_PLAN.md
+   `.colony-modal-card` <=720px da allaqachon to'liq ekran edi — bu yerda ICHKI
+   layout hal qilinadi.
+
+   Ikki ustunli modallarda "ro'yxat -> tafsilot" navigatsiyasi o'rniga ustunlar
+   VERTIKAL joylashtirildi va ro'yxatga o'z scroll'i bilan balandlik chegarasi
+   berildi. Sabab: navigatsiya har modal uchun alohida JS ulash talab qilardi
+   (6 ta modal, 6 ta holat), vertikal stack esa nol JS bilan ishlaydi va
+   foydalanuvchi ikkalasini bir vaqtda ko'radi.
+   ========================================================================== */
+@media (max-width: 480px) {
+  /* --- Modal ramkasi */
+  .modal-top { padding: 12px 14px; gap: 8px; }
+  .modal-top h3 { font-size: 14px; }
+  .modal-scroll-body { padding: 12px 14px; }
+  .btn-modal-x,
+  .btn-drawer-close {
+    min-width: 44px;
+    min-height: 44px;
+    flex-shrink: 0;
+  }
+
+  /* --- Ikki ustunli modallar: ustunlar ustma-ust, ro'yxat o'z scroll'ida.
+     Balandlik chegarasisiz 20 ta rol / o'nlab fayl butun ekranni egallab,
+     tafsilot qismiga umuman yetib bo'lmasdi. */
+  .roles-layout-grid,
+  .workspace-grid-layout,
+  .editor-layout {
+    grid-template-columns: 1fr !important;
+    gap: 10px;
+  }
+  .roles-items-container { max-height: 34vh; overflow-y: auto; }
+  .workspace-file-list   { max-height: 30vh; overflow-y: auto; }
+  .editor-file-list      { max-height: 26vh; overflow-y: auto; }
+
+  /* --- Ko'p ustunli statistika panellari */
+  /* `.metrics-row` ataylab yo'q: u style.css:1028 da e'lon qilingan, lekin
+     hech qanday markup'da ishlatilmaydi (o'lik qoida). */
+  .ceo-kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .scorecard-breakdown { grid-template-columns: 1fr !important; }
+
+  /* --- Jadvallar: ustunlarni siqib tashlamaymiz — gorizontal suriladi.
+     `display: block` + `min-width: max-content` klassik naqsh: ustunlar o'z
+     kengligini saqlaydi, jadval esa o'z ichida suriladi (sahifa emas). */
+  .colony-table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+  }
+  .colony-table > thead,
+  .colony-table > tbody { min-width: max-content; }
+  .colony-table th,
+  .colony-table td { font-size: 11.5px; padding: 7px 8px; }
+  /* Sticky sarlavha `display: block` da ishlamaydi — chalkashmasin. */
+  .lb-table th { position: static !important; }
+
+  /* --- Setup wizard: 6 ta tab bitta qatorga sig'maydi */
+  #setup-mode-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+  }
+  #setup-mode-tabs .lb-filter-btn {
+    flex-shrink: 0;
+    scroll-snap-align: start;
+    min-height: 44px;
+  }
+  /* Kalit inputi va "Проверить" tugmasi bitta qatorga sig'masa — ajralsin */
+  .key-test-row { flex-wrap: wrap; gap: 6px; }
+  .key-test-row .key-test-input { flex: 1 1 100%; }
+  .key-test-row .btn-key-test { min-height: 44px; }
+
+  /* --- Leaderboard podiumi 375px da ham uch ustun bo'lib qoladi (u shunga
+     mo'ljallangan), faqat shrift kichraytiriladi. */
+  .leaderboard-podium-grid { gap: 6px; }
+
+  /* --- Provayder kartalari toraymasin */
+  .byok-provider-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)) !important;
+  }
+}
