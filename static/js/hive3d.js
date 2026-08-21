@@ -3055,32 +3055,125 @@ class IsometricHive3D {
     });
   }
 
+  // Xona (zona) guruhlari — kamera preseti kaliti bo'yicha. Kalitlar
+  // `cameraPresets` dagi nomlar bilan bir xil, shuning uchun aniqlangan
+  // zonani to'g'ridan-to'g'ri `focusCamera(key)` ga berish mumkin.
+  zoneGroups() {
+    return {
+      pingpong: this.pingPongGroup,
+      gym: this.gymGroup,
+      football: this.footballGroup,
+      conference: this.conferenceGroup,
+      marketing: this.marketingGroup,
+      legal: this.legalGroup,
+    };
+  }
+
+  // Zona chegaralari bir marta hisoblanadi — geometriya statik, har bosishda
+  // qayta hisoblash behuda bo'lardi.
+  zoneBounds() {
+    if (this._zoneBoundsCache) return this._zoneBoundsCache;
+    const out = [];
+    for (const [key, group] of Object.entries(this.zoneGroups())) {
+      if (!group) continue;
+      const box = new THREE.Box3().setFromObject(group);
+      if (box.isEmpty()) continue;
+      // Zona chekkasiga (masalan futbol maydonining chizig'iga) bosilganda
+      // ham tushsin — lekin katta kengaytirish ofis poliga yolg'on moslik
+      // beradi, shuning uchun atigi ~1 birlik.
+      box.expandByScalar(1.2);
+      out.push({ key, group, box, center: box.getCenter(new THREE.Vector3()) });
+    }
+    this._zoneBoundsCache = out;
+    return out;
+  }
+
+  // Bosilgan nuqta / obyekt qaysi xonaga tegishli ekanini aniqlaydi.
+  zoneAtPoint(point, hitObj) {
+    // 1) Aniq usul: bevosita zona guruhining o'zi (yoki uning bolasi) bosilgan.
+    for (const [key, group] of Object.entries(this.zoneGroups())) {
+      if (!group || !group.visible) continue;
+      if (hitObj === group || (hitObj && hitObj.parent === group)) return key;
+    }
+    // 2) Zaxira: zona POLIGA bosilgan bo'lishi mumkin — pol alohida, sahnaga
+    //    to'g'ridan-to'g'ri qo'shilgan obyekt. Bu holda XZ chegarasi bo'yicha
+    //    aniqlaymiz. Bir nechta zona mos kelsa — markazi eng yaqinini olamiz
+    //    (masalan `conference` va `legal` bir tomonda joylashgan).
+    if (!point) return null;
+    let best = null;
+    let bestDist = Infinity;
+    for (const z of this.zoneBounds()) {
+      if (!z.group.visible) continue;
+      if (point.x < z.box.min.x || point.x > z.box.max.x) continue;
+      if (point.z < z.box.min.z || point.z > z.box.max.z) continue;
+      const d = (point.x - z.center.x) ** 2 + (point.z - z.center.z) ** 2;
+      if (d < bestDist) { bestDist = d; best = z.key; }
+    }
+    return best;
+  }
+
+  // Bosilgan joydan stansiya yoki xona aniqlaydi. `null` — bo'sh joy.
+  pickAt(clientX, clientY) {
+    const rect = this.canvas.getBoundingClientRect();
+    this.mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    this.mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+
+    this.raycaster.setFromCamera(this.mouse, this.camera);
+    const intersects = this.raycaster.intersectObjects(this.scene.children, true);
+    if (!intersects.length) return null;
+
+    let hitObj = intersects[0].object;
+    while (hitObj && hitObj.parent && hitObj.parent !== this.scene) {
+      hitObj = hitObj.parent;
+    }
+
+    for (const [stId, obj] of Object.entries(this.stationObjects)) {
+      if (hitObj === obj) return { type: 'station', key: stId };
+    }
+
+    const zoneKey = this.zoneAtPoint(intersects[0].point, hitObj);
+    return zoneKey ? { type: 'zone', key: zoneKey } : null;
+  }
+
   setupInteractions() {
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
 
+    // OrbitControls bilan kamerani aylantirish ham 'click' hodisasi bilan
+    // tugaydi. Endi sahnaning ancha katta qismi bosiladigan bo'lgani uchun
+    // har sudrash oxirida kamera boshqa xonaga sakrab ketishi mumkin edi.
+    // Shuning uchun sudralgan bosishni e'tiborsiz qoldiramiz.
+    let downX = 0, downY = 0, dragged = false;
+    this.canvas.addEventListener('pointerdown', (e) => {
+      downX = e.clientX; downY = e.clientY; dragged = false;
+    });
+    this.canvas.addEventListener('pointermove', (e) => {
+      if (e.buttons === 0) return;  // tugma bosilmagan harakat — sudrash emas
+      if (Math.abs(e.clientX - downX) > 5 || Math.abs(e.clientY - downY) > 5) dragged = true;
+    });
+
     this.canvas.addEventListener('click', (e) => {
-      const rect = this.canvas.getBoundingClientRect();
-      this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-
-      this.raycaster.setFromCamera(this.mouse, this.camera);
-      const intersects = this.raycaster.intersectObjects(this.scene.children, true);
-
-      if (intersects.length > 0) {
-        let hitObj = intersects[0].object;
-        while (hitObj && hitObj.parent && hitObj.parent !== this.scene) {
-          hitObj = hitObj.parent;
-        }
-
-        for (const [stId, obj] of Object.entries(this.stationObjects)) {
-          if (hitObj === obj) {
-            this.focusCamera(stId);
-            this.setActiveStation(stId, 'Фокус на станции');
-            break;
-          }
-        }
+      if (dragged) return;
+      const hit = this.pickAt(e.clientX, e.clientY);
+      if (!hit) return;
+      this.focusCamera(hit.key);
+      if (hit.type === 'station') {
+        this.setActiveStation(hit.key, 'Фокус на станции');
       }
+    });
+
+    // Bosish mumkin bo'lgan joy ustida kursor "pointer" bo'ladi — aks holda
+    // xonaga bosib o'tish mumkinligi umuman bilinmasdi. Raycast qimmat,
+    // shuning uchun ~90ms ga throttle qilinadi.
+    let lastMove = 0;
+    this.canvas.addEventListener('mousemove', (e) => {
+      const now = performance.now();
+      if (now - lastMove < 90) return;
+      lastMove = now;
+      this.canvas.style.cursor = this.pickAt(e.clientX, e.clientY) ? 'pointer' : '';
+    });
+    this.canvas.addEventListener('mouseleave', () => {
+      this.canvas.style.cursor = '';
     });
   }
 
