@@ -4473,11 +4473,13 @@ class AntColonyApp {
       else if (prov === 'gemini') payload.gemini_key = key;
       else if (prov === 'openai') payload.openai_key = key;
       else if (prov === 'groq') payload.groq_key = key;
+      else if (prov === '17_wtf') payload.wtf_key = key;
     } else if (mode === 'multi') {
       payload.github_key = document.getElementById('setup-multi-github').value.trim();
       payload.openrouter_key = document.getElementById('setup-multi-openrouter').value.trim();
       payload.gemini_key = document.getElementById('setup-multi-gemini').value.trim();
       payload.openai_key = document.getElementById('setup-multi-openai').value.trim();
+      payload.wtf_key = document.getElementById('setup-multi-wtf').value.trim();
     } else if (mode === 'custom') {
       payload.custom_base_url = document.getElementById('setup-custom-url').value.trim();
       payload.custom_key = document.getElementById('setup-custom-key').value.trim();

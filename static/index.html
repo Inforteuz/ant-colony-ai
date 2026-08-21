@@ -839,6 +839,7 @@
                 <option value="gemini">Google Gemini (Gemini 2.5 Flash / Pro)</option>
                 <option value="openai">OpenAI (GPT-4o, GPT-4o-mini)</option>
                 <option value="groq">Groq (Llama 3.3 70B, DeepSeek R1 Distill)</option>
+                <option value="17_wtf">17.wtf (OpenAI-совместимый прокси — DeepSeek, GPT, Claude, Llama)</option>
               </select></div>
               <div>
                 <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">API ключ или GitHub Token:</label>
@@ -886,6 +887,14 @@
                   <button class="btn-key-test" type="button" data-test-provider="openai">Проверить</button>
                 </div>
                 <div class="key-test-result" id="key-test-openai"></div>
+              </div>
+              <div>
+                <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">17.wtf API ключ:</label>
+                <div class="key-test-row">
+                  <input type="password" id="setup-multi-wtf" class="search-input key-test-input" placeholder="sk-...">
+                  <button class="btn-key-test" type="button" data-test-provider="17_wtf">Проверить</button>
+                </div>
+                <div class="key-test-result" id="key-test-17_wtf"></div>
               </div>
             </div>
           </div>
