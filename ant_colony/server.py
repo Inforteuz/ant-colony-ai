@@ -92,6 +92,38 @@ async def get_roles():
         "leaderboard": skill_matrix.get_leaderboard()
     }
 
+class RoleModelRequest(BaseModel):
+    # Bo'sh yoki None — avtomatik (ELO) tanlovga qaytarish.
+    model_id: Optional[str] = None
+
+
+@app.post("/api/roles/{role_id}/model")
+async def set_role_model(role_id: str, req: RoleModelRequest):
+    """
+    Rolga modelni qo'lda biriktiradi. Biriktirilgan rolga ELO/UCB avtomatik
+    tanlovi tegmaydi (lekin baholash davom etadi, shuning uchun reyting
+    to'planaveradi va pin olib tashlangach darhol ishlaydi).
+    """
+    if not any(r["id"] == role_id for r in skill_matrix.get_all_roles()):
+        raise HTTPException(status_code=404, detail=f"Rol topilmadi: {role_id}")
+
+    model_id = (req.model_id or "").strip()
+    if model_id:
+        known = {m["id"] for m in MODELS_CATALOG} | set(skill_matrix.matrix.get("models", {}).keys())
+        if model_id not in known:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Noma'lum model: {model_id}. Avval uni provayder orqali ulang.",
+            )
+    return {"success": True, **skill_matrix.set_role_model(role_id, model_id)}
+
+
+@app.delete("/api/roles/{role_id}/model")
+async def clear_role_model(role_id: str):
+    """Rolni avtomatik (ELO) model tanloviga qaytaradi."""
+    return {"success": True, **skill_matrix.clear_role_model(role_id)}
+
+
 @app.get("/api/roles/{role_id}/md")
 async def get_role_md(role_id: str):
     roles = skill_matrix.get_all_roles()

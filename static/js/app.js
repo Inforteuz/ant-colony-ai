@@ -3181,7 +3181,7 @@ class AntColonyApp {
           </div>
           <div class="role-card-sub">${this.esc(r.description || '')}</div>
           <div style="font-size:10px; color:var(--color-purple); font-family:var(--font-mono); margin-top:2px;">
-            Ведущая модель: <strong>${this.esc(r.model_name || r.assigned_model || 'Auto')}</strong>
+            Ведущая модель: <strong>${this.esc(r.model_name || r.assigned_model || 'Auto')}</strong>${r.pinned ? ' 📌' : ''}
           </div>
         `;
         card.addEventListener('click', () => {
@@ -3198,8 +3198,105 @@ class AntColonyApp {
     }
   }
 
+  // Rol -> model biriktirish selektini to'ldiradi. Ro'yxat /api/models dan
+  // olinadi va bir marta keshlanadi (modal har rol bosilganda qayta so'ramasin).
+  async _loadAssignableModels() {
+    if (this._assignableModels) return this._assignableModels;
+    try {
+      const res = await fetch('/api/models');
+      const data = await res.json();
+      const raw = data.models;
+      const list = Array.isArray(raw) ? raw : Object.values(raw || {});
+      this._assignableModels = list
+        .map(m => ({
+          id: m.model_id || m.id,
+          name: m.model_name || m.name || m.model_id || m.id,
+          provider: m.provider || '',
+          status: m.status || 'unknown',
+        }))
+        .filter(m => m.id)
+        .sort((a, b) => (a.provider + a.name).localeCompare(b.provider + b.name));
+    } catch (e) {
+      this._assignableModels = [];
+    }
+    return this._assignableModels;
+  }
+
+  async renderRoleModelSelect(role) {
+    const sel = document.getElementById('role-model-select');
+    const hint = document.getElementById('role-model-hint');
+    if (!sel) return;
+
+    const models = await this._loadAssignableModels();
+    // Biriktirilgan model ro'yxatda bo'lmasligi mumkin (katalogdan chiqib
+    // ketgan) — uni ham qo'shamiz, aks holda tanlov jimgina "Auto" ga tushardi.
+    const ids = new Set(models.map(m => m.id));
+    const extra = [];
+    if (role.pinned_model && !ids.has(role.pinned_model)) {
+      extra.push({ id: role.pinned_model, name: role.pinned_model, provider: '?', status: 'unknown' });
+    }
+
+    const autoLabel = (window.I18N ? I18N.t('role_model_auto') : '') || 'Auto (по рейтингу ELO)';
+    sel.innerHTML = `<option value="">${this.esc(autoLabel)}</option>` +
+      [...models, ...extra].map(m => {
+        const mark = m.status === 'online' ? '' : ' •';
+        const label = `${m.name}${m.provider ? ' — ' + m.provider : ''}${mark}`;
+        return `<option value="${this.esc(m.id)}">${this.esc(label)}</option>`;
+      }).join('');
+    sel.value = role.pinned_model || '';
+
+    if (hint) {
+      if (role.pinned) {
+        hint.textContent = (window.I18N ? I18N.t('role_model_pinned_hint') : '') ||
+          'Закреплено вручную — авто-переназначение по ELO отключено для этой роли';
+        hint.classList.add('is-pinned');
+      } else {
+        hint.textContent = (window.I18N ? I18N.t('role_model_auto_hint') : '') ||
+          'Auto — модель выбирается по рейтингу ELO';
+        hint.classList.remove('is-pinned');
+      }
+    }
+
+    sel.onchange = () => this.saveRoleModel(role, sel.value);
+  }
+
+  async saveRoleModel(role, modelId) {
+    const hint = document.getElementById('role-model-hint');
+    try {
+      const res = modelId
+        ? await fetch(`/api/roles/${encodeURIComponent(role.id)}/model`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({model_id: modelId}),
+          })
+        : await fetch(`/api/roles/${encodeURIComponent(role.id)}/model`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok || data.success === false) {
+        throw new Error(data.detail || data.error || `HTTP ${res.status}`);
+      }
+      // Lokal holatni ham yangilaymiz, aks holda rolni qayta bosganda
+      // eski qiymat ko'rinardi.
+      role.pinned = !!data.pinned;
+      role.pinned_model = data.model_id || null;
+      if (data.model_id) role.assigned_model = data.model_id;
+      if (hint) {
+        hint.textContent = data.pinned
+          ? ((window.I18N ? I18N.t('role_model_pinned_hint') : '') || 'Закреплено вручную — авто-переназначение по ELO отключено для этой роли')
+          : ((window.I18N ? I18N.t('role_model_auto_hint') : '') || 'Auto — модель выбирается по рейтингу ELO');
+        hint.classList.toggle('is-pinned', !!data.pinned);
+      }
+      this.toast(
+        data.pinned ? 'Модель закреплена' : 'Автовыбор включен',
+        `${role.name}: ${data.model_id || 'Auto (ELO)'}`,
+        'ok'
+      );
+    } catch (e) {
+      this.toast('Не удалось назначить модель', e.message, 'error');
+    }
+  }
+
   async viewRoleMD(role) {
     this.activeSelectedRole = role;
+    this.renderRoleModelSelect(role);
     const titleEl = document.getElementById('role-preview-title');
     const contentEl = document.getElementById('role-preview-content');
     const textareaEl = document.getElementById('role-inline-textarea');

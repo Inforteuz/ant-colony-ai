@@ -452,6 +452,12 @@
                 <span class="editor-save-status" id="role-save-status"></span>
               </div>
             </div>
+            <!-- Rol uchun modelni QO'LDA biriktirish. "Auto" — ELO/UCB o'zi tanlaydi. -->
+            <div class="role-model-bar" id="role-model-bar">
+              <label class="role-model-label" for="role-model-select" data-i18n="role_model_label">Ведущая модель</label>
+              <select id="role-model-select" class="search-input"></select>
+              <span class="role-model-hint" id="role-model-hint" data-i18n="role_model_auto_hint">Auto — модель выбирается по рейтингу ELO</span>
+            </div>
             <div class="role-md-content formatted-markdown" id="role-preview-content">Выберите роль слева для просмотра инструкции.</div>
             <textarea class="code-editor-textarea hidden" id="role-inline-textarea"></textarea>
           </div>

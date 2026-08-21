@@ -274,7 +274,8 @@ class SkillMatrixEngine:
     def get_all_roles(self) -> List[Dict[str, Any]]:
         roles = []
         for r in DEFAULT_ROLE_DEFINITIONS:
-            assigned_model_id = self.matrix.get("role_assignments", {}).get(r["id"], r["initial_model"])
+            pinned_model_id = (self.matrix.get("pinned_roles") or {}).get(r["id"])
+            assigned_model_id = pinned_model_id or self.matrix.get("role_assignments", {}).get(r["id"], r["initial_model"])
             model_info = self.matrix.get("models", {}).get(assigned_model_id, {})
             category = r["category"]
             cat_score = model_info.get("category_scores", {}).get(category, 90.0)
@@ -287,12 +288,33 @@ class SkillMatrixEngine:
                 "description": r["description"],
                 "md_file": r["md_file"],
                 "assigned_model": assigned_model_id,
+                "pinned": bool(pinned_model_id),
+                "pinned_model": pinned_model_id,
                 "model_name": model_info.get("model_name", assigned_model_id),
                 "model_provider": model_info.get("provider", ""),
                 "skill_score": round(cat_score, 1),
                 "total_evaluations": model_info.get("total_evaluations", 0)
             })
         return roles
+
+    def set_role_model(self, role_id: str, model_id: str) -> Dict[str, Any]:
+        """
+        Rolga modelni QO'LDA biriktiradi (pin). Shundan keyin ELO/UCB tanlovi
+        bu rolga tegmaydi. `model_id` bo'sh bo'lsa — pin olib tashlanadi.
+        """
+        pinned = self.matrix.setdefault("pinned_roles", {})
+        if model_id:
+            pinned[role_id] = model_id
+            self.matrix.setdefault("role_assignments", {})[role_id] = model_id
+        else:
+            pinned.pop(role_id, None)
+        self.matrix["last_updated"] = time.time()
+        self.save_matrix()
+        return {"role_id": role_id, "pinned": bool(model_id), "model_id": model_id or None}
+
+    def clear_role_model(self, role_id: str) -> Dict[str, Any]:
+        """Rolni avtomatik (ELO) tanlovga qaytaradi."""
+        return self.set_role_model(role_id, "")
 
     def _category_evals(self, m_data: Dict[str, Any], category: str) -> int:
         """Shu modelning aynan shu kategoriyada necha marta baholanganini sanaydi."""
@@ -311,6 +333,20 @@ class SkillMatrixEngine:
         Endi UCB1 uslubidagi izlanish bonusi qo'shiladi va ishlamayotgan
         modellar chetlatiladi.
         """
+        # Foydalanuvchi rol uchun modelni QO'LDA biriktirgan bo'lsa, ELO/UCB
+        # tanlovi umuman ishlamaydi — aks holda avtomatik qayta biriktirish
+        # foydalanuvchi tanlovini keyingi vazifada bekor qilib qo'yardi.
+        # Baholash (record_evaluation) baribir davom etadi, shunchaki tanlovga
+        # ta'sir qilmaydi.
+        pinned = (self.matrix.get("pinned_roles") or {}).get(role_id)
+        if pinned:
+            assignments = self.matrix.setdefault("role_assignments", {})
+            if assignments.get(role_id) != pinned:
+                assignments[role_id] = pinned
+                self.matrix["last_updated"] = time.time()
+                self.save_matrix()
+            return pinned
+
         role_def = next((r for r in DEFAULT_ROLE_DEFINITIONS if r["id"] == role_id), None)
         if not role_def:
             return "gemini-3.7-flash"
