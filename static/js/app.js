@@ -1051,6 +1051,7 @@ class AntColonyApp {
         document.body.classList.remove(cls);
         document.getElementById(btn)?.setAttribute('aria-expanded', 'false');
       });
+      document.body.classList.remove('live-hud-open');
       if (backdrop) backdrop.hidden = true;
     };
     this.closePhoneSheets = closeAll;
@@ -1068,6 +1069,18 @@ class AntColonyApp {
         }
       });
     });
+
+    // Live HUD telefonda yig'ilgan holatda turadi (faqat agent chipi) — bosilganda
+    // oqim matni va progress ochiladi. Katta ekranda u doim to'liq ko'rinadi,
+    // shuning uchun klass faqat telefonda ma'noga ega (CSS media query ichida).
+    const liveHud = document.getElementById('hive-live-hud');
+    if (liveHud) {
+      liveHud.addEventListener('click', () => {
+        if (this.isPhone && this.isPhone()) {
+          document.body.classList.toggle('live-hud-open');
+        }
+      });
+    }
 
     if (backdrop) backdrop.addEventListener('click', closeAll);
     document.addEventListener('keydown', (e) => {
