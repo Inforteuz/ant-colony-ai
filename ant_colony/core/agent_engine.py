@@ -1072,7 +1072,11 @@ class AgentEngine:
             station="coder", agent_name=coder_display, model_id=coder_model,
             role_md=coder_md, task=task_prompt, context=coder_context,
             tool_names=["write_file", "edit_file", "read_file", "list_dir",
-                        "run_shell_command", "execute_python", "calculate"],
+                        "find_relevant_files", "verify_code_syntax",
+                        "run_shell_command", "run_shell_command_background",
+                        "bg_status", "bg_stop", "execute_python", "calculate",
+                        "http_get", "http_post", "browser_navigate",
+                        "browser_execute_js", "browser_screenshot"],
             temperature=0.2, max_tokens=8192, custom_keys=custom_keys,
         ):
             if event["type"] == "agent_done":
@@ -1191,7 +1195,10 @@ class AgentEngine:
                 task=f"Устранение замечаний: {task_prompt}",
                 context=repair_context,
                 tool_names=["read_file", "list_dir", "edit_file", "write_file",
-                            "run_shell_command", "execute_python"],
+                            "find_relevant_files", "verify_code_syntax",
+                            "run_shell_command", "run_shell_command_background",
+                            "bg_status", "bg_stop", "execute_python",
+                            "http_get", "browser_navigate", "browser_execute_js"],
                 max_steps=max(4, AGENT_CONFIG["max_tool_steps"] // 2),
                 temperature=0.15, max_tokens=8192, custom_keys=custom_keys,
             ):
@@ -1407,7 +1414,9 @@ class AgentEngine:
             self._capture_agent(
                 station="tester", agent_name="QA Specialist", model_id=tester_model,
                 role_md=tester_md, task=qa_task,
-                tool_names=["list_dir", "read_file", "execute_python", "run_shell_command"],
+                tool_names=["list_dir", "read_file", "execute_python", "run_shell_command",
+                            "verify_code_syntax", "http_get", "browser_navigate",
+                            "browser_execute_js"],
                 max_steps=6, temperature=0.1, sink=qa_result, custom_keys=custom_keys,
             )
         ]
@@ -1416,7 +1425,8 @@ class AgentEngine:
                 self._capture_agent(
                     station="tester", agent_name="Security Auditor", model_id=security_model,
                     role_md=security_md, task=security_task,
-                    tool_names=["list_dir", "read_file"],
+                    tool_names=["list_dir", "read_file", "verify_code_syntax",
+                                "http_get", "browser_navigate"],
                     max_steps=5, temperature=0.1, sink=sec_result, custom_keys=custom_keys,
                 )
             )

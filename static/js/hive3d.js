@@ -1602,6 +1602,177 @@ class IsometricHive3D {
     return tex;
   }
 
+  // ============================================================
+  // GLASS DOORS & WALL SEGMENTS — Pixel Agents pixel-office uslubida
+  // Har xonaga glassmorph eshik + kirish tomonini ochib qoluvchi
+  // qisman devorlar. Perimetr neon chiziqlar bilan yoritiladi.
+  // ============================================================
+  buildGlassDoor(accentHex, opts = {}) {
+    const width = opts.width ?? 1.6;
+    const height = opts.height ?? 2.6;
+    const isLight = this.isLight;
+    const door = new THREE.Group();
+
+    // Frame (ramka)
+    const frameMat = new THREE.MeshStandardMaterial({
+      color: isLight ? 0x1e293b : 0x0f172a,
+      metalness: 0.92, roughness: 0.18,
+      emissive: new THREE.Color(accentHex),
+      emissiveIntensity: 0.28,
+    });
+    const t = 0.08; // frame thickness
+    const top = new THREE.Mesh(new THREE.BoxGeometry(width + t * 2, t, 0.12), frameMat);
+    top.position.y = height + t / 2;
+    door.add(top);
+    const bottomBar = new THREE.Mesh(new THREE.BoxGeometry(width + t * 2, t, 0.12), frameMat);
+    bottomBar.position.y = -t / 2;
+    door.add(bottomBar);
+    const left = new THREE.Mesh(new THREE.BoxGeometry(t, height, 0.12), frameMat);
+    left.position.set(-(width / 2 + t / 2), height / 2, 0);
+    door.add(left);
+    const right = new THREE.Mesh(new THREE.BoxGeometry(t, height, 0.12), frameMat);
+    right.position.set(width / 2 + t / 2, height / 2, 0);
+    door.add(right);
+
+    // Glass panel (yarim shaffof)
+    const glassMat = new THREE.MeshPhysicalMaterial({
+      color: isLight ? 0xdbeafe : 0x0ea5e9,
+      transparent: true, opacity: 0.32,
+      transmission: 0.65, roughness: 0.08,
+      metalness: 0.05, thickness: 0.02,
+      emissive: new THREE.Color(accentHex),
+      emissiveIntensity: isLight ? 0.05 : 0.14,
+    });
+    const glass = new THREE.Mesh(new THREE.BoxGeometry(width, height, 0.04), glassMat);
+    glass.position.y = height / 2;
+    door.add(glass);
+
+    // Vertikal accent chiziq (Pixel Agents motive)
+    const stripe = new THREE.Mesh(
+      new THREE.BoxGeometry(0.04, height * 0.85, 0.05),
+      new THREE.MeshBasicMaterial({ color: accentHex })
+    );
+    stripe.position.set(width / 2 - 0.14, height / 2, 0.03);
+    door.add(stripe);
+
+    // Handle (dastak)
+    const handleMat = new THREE.MeshStandardMaterial({ color: 0xd1d5db, metalness: 0.9, roughness: 0.2 });
+    const handle = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.55, 0.05), handleMat);
+    handle.position.set(width / 2 - 0.18, height / 2, 0.06);
+    door.add(handle);
+
+    // Yumshoq ostki nur — kimdir yaqinlashganda "avtoeshik" hissi
+    const glow = new THREE.PointLight(accentHex, isLight ? 0.35 : 0.85, 4.5);
+    glow.position.set(0, 0.6, 0.4);
+    door.add(glow);
+    door.userData = { doorPulse: glow, accentHex };
+    return door;
+  }
+
+  // Devor segmenti — xona chegarasini belgilaydi, tepasi neon perimetr bilan.
+  buildWallSegment(width, height, accentHex, opts = {}) {
+    const isLight = this.isLight;
+    const wall = new THREE.Group();
+    const solidMat = new THREE.MeshStandardMaterial({
+      color: isLight ? 0xe2e8f0 : 0x111827,
+      roughness: 0.55, metalness: 0.25,
+      emissive: new THREE.Color(accentHex),
+      emissiveIntensity: isLight ? 0.03 : 0.08,
+      transparent: true, opacity: opts.opacity ?? 0.94,
+    });
+    const solid = new THREE.Mesh(new THREE.BoxGeometry(width, height, 0.08), solidMat);
+    solid.position.y = height / 2;
+    solid.castShadow = true;
+    solid.receiveShadow = true;
+    wall.add(solid);
+
+    // Tepa neon chiziq
+    const topLine = new THREE.Mesh(
+      new THREE.BoxGeometry(width, 0.05, 0.12),
+      new THREE.MeshBasicMaterial({ color: accentHex, transparent: true, opacity: 0.85 })
+    );
+    topLine.position.y = height + 0.025;
+    wall.add(topLine);
+
+    // Pastki neon plita
+    const baseLine = new THREE.Mesh(
+      new THREE.BoxGeometry(width, 0.03, 0.14),
+      new THREE.MeshBasicMaterial({ color: accentHex, transparent: true, opacity: 0.55 })
+    );
+    baseLine.position.y = 0.02;
+    wall.add(baseLine);
+
+    return wall;
+  }
+
+  // Xona atrofiga to'rt tomon devor + old tomonda 2 ta segment orasida eshik.
+  // width/depth — xonaning ichki o'lchami (buildRoomFloor bilan bir xil).
+  // doorSide: 'front' | 'back' | 'left' | 'right' — eshik qaysi tomonda bo'lsin.
+  buildRoomEnclosure(group, width, depth, accentHex, doorSide = 'front') {
+    const height = 3.2;
+    const doorWidth = 1.7;
+    const halfW = width / 2;
+    const halfD = depth / 2;
+
+    const placeWall = (w, x, z, rotY = 0) => {
+      const seg = this.buildWallSegment(w, height, accentHex);
+      seg.position.set(x, 0.06, z);
+      seg.rotation.y = rotY;
+      group.add(seg);
+      return seg;
+    };
+
+    // Back wall (butun)
+    if (doorSide !== 'back') placeWall(width, 0, -halfD);
+    else {
+      const side = (width - doorWidth) / 2;
+      placeWall(side, -(halfW - side / 2), -halfD);
+      placeWall(side,  (halfW - side / 2), -halfD);
+    }
+
+    // Front wall (odatda shu yerda eshik)
+    if (doorSide !== 'front') placeWall(width, 0, halfD);
+    else {
+      const side = (width - doorWidth) / 2;
+      placeWall(side, -(halfW - side / 2), halfD);
+      placeWall(side,  (halfW - side / 2), halfD);
+      // eshikni qo'yamiz
+      const door = this.buildGlassDoor(accentHex, { width: doorWidth, height: height - 0.4 });
+      door.position.set(0, 0.06, halfD);
+      group.add(door);
+      group.userData = group.userData || {};
+      group.userData.entranceDoor = door;
+    }
+
+    // Left wall
+    if (doorSide !== 'left') placeWall(depth, -halfW, 0, Math.PI / 2);
+    else {
+      const side = (depth - doorWidth) / 2;
+      placeWall(side, -halfW, -(halfD - side / 2), Math.PI / 2);
+      placeWall(side, -halfW,  (halfD - side / 2), Math.PI / 2);
+      const door = this.buildGlassDoor(accentHex, { width: doorWidth, height: height - 0.4 });
+      door.position.set(-halfW, 0.06, 0);
+      door.rotation.y = Math.PI / 2;
+      group.add(door);
+      group.userData = group.userData || {};
+      group.userData.entranceDoor = door;
+    }
+
+    // Right wall
+    if (doorSide !== 'right') placeWall(depth, halfW, 0, Math.PI / 2);
+    else {
+      const side = (depth - doorWidth) / 2;
+      placeWall(side, halfW, -(halfD - side / 2), Math.PI / 2);
+      placeWall(side, halfW,  (halfD - side / 2), Math.PI / 2);
+      const door = this.buildGlassDoor(accentHex, { width: doorWidth, height: height - 0.4 });
+      door.position.set(halfW, 0.06, 0);
+      door.rotation.y = Math.PI / 2;
+      group.add(door);
+      group.userData = group.userData || {};
+      group.userData.entranceDoor = door;
+    }
+  }
+
   // Umumiy ofis stuli (ish stansiyalaridagidan soddaroq, xonalar uchun).
   buildRoomChair(accentHex) {
     const isLight = this.isLight;
@@ -1657,6 +1828,7 @@ class IsometricHive3D {
     group.position.set(-22.0, 0, 16.0);
 
     this.buildRoomFloor(group, 12.0, 14.0, accentHex);
+    this.buildRoomEnclosure(group, 12.0, 14.0, accentHex, 'front');
 
     // Uzun konferens stoli
     const tableMat = new THREE.MeshStandardMaterial({
@@ -1761,6 +1933,7 @@ class IsometricHive3D {
     group.position.set(22.0, 0, -16.0);
 
     this.buildRoomFloor(group, 12.0, 12.0, accentHex);
+    this.buildRoomEnclosure(group, 12.0, 12.0, accentHex, 'front');
 
     // Uchta ish stoli (yarim doira bo'ylab)
     const deskMat = new THREE.MeshStandardMaterial({
@@ -1836,6 +2009,7 @@ class IsometricHive3D {
     group.position.set(-22.0, 0, 0.0);
 
     this.buildRoomFloor(group, 10.0, 11.0, accentHex);
+    this.buildRoomEnclosure(group, 10.0, 11.0, accentHex, 'right');
 
     const woodMat = new THREE.MeshStandardMaterial({
       color: isLight ? 0xf5f5f4 : 0x292524,
@@ -3491,8 +3665,22 @@ class IsometricHive3D {
 
     this.updateAgents(delta);
     this.updateVisuals(delta);
+    this.updateDoors(nowMs);
 
     this.renderer.render(this.scene, this.camera);
+  }
+
+  // Eshiklarning "avtoeshik" pulsatsiyasi — har xonaning glow'i sekin nafas oladi.
+  updateDoors(nowMs) {
+    const t = nowMs * 0.001;
+    const groups = [this.conferenceGroup, this.marketingGroup, this.legalGroup];
+    for (const g of groups) {
+      if (!g || !g.userData) continue;
+      const door = g.userData.entranceDoor;
+      if (!door || !door.userData || !door.userData.doorPulse) continue;
+      const base = this.isLight ? 0.35 : 0.85;
+      door.userData.doorPulse.intensity = base + Math.sin(t * 1.6) * 0.18;
+    }
   }
 
   // =============================================================

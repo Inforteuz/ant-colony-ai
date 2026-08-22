@@ -1225,6 +1225,360 @@ def get_memory(key: str) -> Dict[str, Any]:
     return {"success": True, "key": key, "value": AGENT_MEMORY.get(key)}
 
 
+# ============================================================
+# BROWSER & HTTP TOOLS — agentlar tashqi web bilan erkin ishlashi uchun
+# ============================================================
+
+_BROWSER_TIMEOUT_MS = 20000
+_BROWSER_SINGLETON: Dict[str, Any] = {"pw": None, "browser": None}
+_BROWSER_LOCK = threading.Lock() if False else __import__("threading").Lock()
+
+_URL_PATTERN = re.compile(r"^https?://", re.IGNORECASE)
+
+
+def _validate_url(url: str) -> Optional[str]:
+    """URL xavfsizligini tekshiradi. Xato bo'lsa sabab qaytadi."""
+    if not url or not isinstance(url, str):
+        return "URL bo'sh"
+    url = url.strip()
+    if not _URL_PATTERN.match(url):
+        return "URL http:// yoki https:// bilan boshlanishi shart"
+    # Ichki tarmoq / metadata endpointlarni bloklaymiz (SSRF himoyasi)
+    banned_hosts = [
+        "169.254.169.254",  # AWS metadata
+        "metadata.google", "metadata.internal",
+        "localhost:22", "127.0.0.1:22",
+    ]
+    low = url.lower()
+    for b in banned_hosts:
+        if b in low:
+            return f"Bloklandi: '{b}' — ichki metadata/SSH endpointiga murojaat taqiqlangan"
+    if len(url) > 4000:
+        return "URL juda uzun"
+    return None
+
+
+def http_get(url: str, timeout: int = 15, headers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+    """
+    HTTP GET so'rov yuboradi (JSON API, HTML sahifa). Javob matni MAX_OUTPUT_CHARS
+    ga kesiladi. Statik veb resurslar, REST API, RSS uchun ishlatiladi.
+    """
+    err = _validate_url(url)
+    if err:
+        return {"success": False, "error": err, "url": url}
+    try:
+        import httpx
+    except ImportError:
+        return {"success": False, "error": "`httpx` kutubxonasi o'rnatilmagan (`pip install httpx`)"}
+    t0 = time.time()
+    try:
+        req_headers = {"User-Agent": "AntColony-Agent/1.0 (+localhost)"}
+        if headers and isinstance(headers, dict):
+            req_headers.update({str(k): str(v) for k, v in headers.items() if k})
+        with httpx.Client(timeout=max(3, min(int(timeout), 60)), follow_redirects=True) as cli:
+            resp = cli.get(url, headers=req_headers)
+        ctype = resp.headers.get("content-type", "").lower()
+        body = resp.text if "text" in ctype or "json" in ctype or "xml" in ctype or "html" in ctype else f"[binary {len(resp.content)} bytes]"
+        _emit({
+            "type": "http_request", "method": "GET", "url": url,
+            "status": resp.status_code, "duration_ms": round((time.time() - t0) * 1000),
+            "timestamp": time.time(),
+        })
+        return {
+            "success": 200 <= resp.status_code < 400,
+            "status": resp.status_code, "url": str(resp.url),
+            "content_type": ctype,
+            "body": _clip(_redact_secrets(body), 8000),
+            "duration_ms": round((time.time() - t0) * 1000),
+        }
+    except Exception as e:
+        return {"success": False, "error": f"HTTP GET xatosi: {type(e).__name__}: {e}", "url": url,
+                "duration_ms": round((time.time() - t0) * 1000)}
+
+
+def http_post(url: str, json_body: Optional[Dict[str, Any]] = None,
+              form_body: Optional[Dict[str, Any]] = None, timeout: int = 20,
+              headers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+    """HTTP POST — JSON yoki form data yuboradi."""
+    err = _validate_url(url)
+    if err:
+        return {"success": False, "error": err, "url": url}
+    try:
+        import httpx
+    except ImportError:
+        return {"success": False, "error": "`httpx` kutubxonasi o'rnatilmagan"}
+    t0 = time.time()
+    try:
+        req_headers = {"User-Agent": "AntColony-Agent/1.0"}
+        if headers:
+            req_headers.update({str(k): str(v) for k, v in headers.items() if k})
+        with httpx.Client(timeout=max(3, min(int(timeout), 60)), follow_redirects=True) as cli:
+            if json_body is not None:
+                resp = cli.post(url, json=json_body, headers=req_headers)
+            elif form_body is not None:
+                resp = cli.post(url, data=form_body, headers=req_headers)
+            else:
+                resp = cli.post(url, headers=req_headers)
+        ctype = resp.headers.get("content-type", "").lower()
+        body = resp.text if "text" in ctype or "json" in ctype or "html" in ctype else f"[binary {len(resp.content)} bytes]"
+        _emit({"type": "http_request", "method": "POST", "url": url,
+               "status": resp.status_code, "duration_ms": round((time.time() - t0) * 1000),
+               "timestamp": time.time()})
+        return {
+            "success": 200 <= resp.status_code < 400,
+            "status": resp.status_code, "url": str(resp.url),
+            "content_type": ctype,
+            "body": _clip(_redact_secrets(body), 8000),
+            "duration_ms": round((time.time() - t0) * 1000),
+        }
+    except Exception as e:
+        return {"success": False, "error": f"HTTP POST xatosi: {type(e).__name__}: {e}", "url": url}
+
+
+def _get_browser():
+    """Playwright brauzer singletonini qaytaradi. Ilk chaqiruvda yuklaydi."""
+    with _BROWSER_LOCK:
+        if _BROWSER_SINGLETON.get("browser") is not None:
+            b = _BROWSER_SINGLETON["browser"]
+            try:
+                if b.is_connected():
+                    return _BROWSER_SINGLETON["pw"], b
+            except Exception:
+                pass
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError:
+            raise RuntimeError("`playwright` o'rnatilmagan. `pip install playwright && playwright install chromium`")
+        pw = sync_playwright().start()
+        try:
+            browser = pw.chromium.launch(headless=True, args=["--disable-dev-shm-usage", "--no-sandbox"])
+        except Exception as e:
+            try:
+                pw.stop()
+            except Exception:
+                pass
+            raise RuntimeError(f"Chromium ishga tushmadi: {e}")
+        _BROWSER_SINGLETON["pw"] = pw
+        _BROWSER_SINGLETON["browser"] = browser
+        return pw, browser
+
+
+def browser_navigate(url: str, wait_for_selector: Optional[str] = None,
+                     timeout: int = 20) -> Dict[str, Any]:
+    """
+    Headless Chromium'da URL ochib, sarlavha, DOM matni va console
+    xabarlarini qaytaradi. JS-render qiluvchi SPA sahifalar uchun.
+    """
+    err = _validate_url(url)
+    if err:
+        return {"success": False, "error": err, "url": url}
+    t0 = time.time()
+    console_log: List[str] = []
+    try:
+        pw, browser = _get_browser()
+        ctx = browser.new_context(user_agent="AntColony-Agent/1.0", viewport={"width": 1280, "height": 800})
+        page = ctx.new_page()
+        page.on("console", lambda m: console_log.append(f"[{m.type}] {m.text}"[:400]))
+        try:
+            page.goto(url, timeout=max(3000, min(int(timeout) * 1000, 60000)), wait_until="domcontentloaded")
+            if wait_for_selector:
+                try:
+                    page.wait_for_selector(wait_for_selector, timeout=8000)
+                except Exception:
+                    pass
+            title = page.title() or ""
+            text = page.inner_text("body") if page.query_selector("body") else ""
+            final_url = page.url
+            _emit({"type": "browser_action", "action": "navigate", "url": url,
+                   "duration_ms": round((time.time() - t0) * 1000), "timestamp": time.time()})
+            return {
+                "success": True,
+                "url": final_url, "title": title,
+                "text": _clip(_redact_secrets(text), 6000),
+                "console": console_log[-40:],
+                "duration_ms": round((time.time() - t0) * 1000),
+            }
+        finally:
+            try:
+                ctx.close()
+            except Exception:
+                pass
+    except Exception as e:
+        return {"success": False, "error": f"Brauzer xatosi: {type(e).__name__}: {e}", "url": url,
+                "console": console_log[-20:]}
+
+
+def browser_execute_js(url: str, script: str, timeout: int = 20) -> Dict[str, Any]:
+    """
+    Sahifani yuklab, JavaScript kodini page.evaluate() bilan bajaradi va natijasini
+    qaytaradi. Console xabarlari ham tortiladi.
+    Misol: `document.querySelectorAll('h1').length`.
+    """
+    err = _validate_url(url)
+    if err:
+        return {"success": False, "error": err, "url": url}
+    if not script or not isinstance(script, str):
+        return {"success": False, "error": "`script` bo'sh"}
+    if len(script) > 20000:
+        return {"success": False, "error": "Script juda uzun (>20000)"}
+    t0 = time.time()
+    console_log: List[str] = []
+    try:
+        pw, browser = _get_browser()
+        ctx = browser.new_context(user_agent="AntColony-Agent/1.0", viewport={"width": 1280, "height": 800})
+        page = ctx.new_page()
+        page.on("console", lambda m: console_log.append(f"[{m.type}] {m.text}"[:400]))
+        try:
+            page.goto(url, timeout=max(3000, min(int(timeout) * 1000, 60000)), wait_until="domcontentloaded")
+            # `page.evaluate` avtomatik `return` qo'shmaydi — foydalanuvchi arrow yozmagan
+            # bo'lsa, biz IIFE ichiga o'raymiz.
+            wrapped = script.strip()
+            if not wrapped.startswith("(") and "return" not in wrapped.split("\n")[0]:
+                wrapped = f"(() => {{ return ({wrapped}); }})()"
+            elif "return" in wrapped and not wrapped.startswith("("):
+                wrapped = f"(() => {{ {wrapped} }})()"
+            result = page.evaluate(wrapped)
+            try:
+                import json as _json
+                serialized = _json.dumps(result, ensure_ascii=False, default=str)
+            except Exception:
+                serialized = str(result)
+            _emit({"type": "browser_action", "action": "execute_js", "url": url,
+                   "duration_ms": round((time.time() - t0) * 1000), "timestamp": time.time()})
+            return {
+                "success": True,
+                "url": page.url,
+                "result": _clip(serialized, 6000),
+                "console": console_log[-40:],
+                "duration_ms": round((time.time() - t0) * 1000),
+            }
+        finally:
+            try:
+                ctx.close()
+            except Exception:
+                pass
+    except Exception as e:
+        return {"success": False, "error": f"JS bajarish xatosi: {type(e).__name__}: {e}", "url": url,
+                "console": console_log[-20:]}
+
+
+def browser_screenshot(url: str, full_page: bool = True, timeout: int = 20) -> Dict[str, Any]:
+    """
+    URL ni ochib, sahifa skrinshotini PNG faylga yozadi (loyiha papkasiga).
+    Fayl yo'lini qaytaradi. Foydalanuvchi UI test qilishi uchun.
+    """
+    err = _validate_url(url)
+    if err:
+        return {"success": False, "error": err, "url": url}
+    t0 = time.time()
+    try:
+        pw, browser = _get_browser()
+        ctx = browser.new_context(viewport={"width": 1280, "height": 800})
+        page = ctx.new_page()
+        try:
+            page.goto(url, timeout=max(3000, min(int(timeout) * 1000, 60000)), wait_until="networkidle")
+            out_dir = CURRENT_PROJECT_DIR / ".ant_colony_shots"
+            out_dir.mkdir(parents=True, exist_ok=True)
+            fname = f"shot_{int(time.time() * 1000)}.png"
+            out_path = out_dir / fname
+            page.screenshot(path=str(out_path), full_page=bool(full_page))
+            size = out_path.stat().st_size if out_path.exists() else 0
+            _emit({"type": "browser_action", "action": "screenshot", "url": url,
+                   "path": str(out_path), "timestamp": time.time()})
+            return {
+                "success": True, "url": page.url, "path": str(out_path),
+                "size_bytes": size,
+                "duration_ms": round((time.time() - t0) * 1000),
+            }
+        finally:
+            try:
+                ctx.close()
+            except Exception:
+                pass
+    except Exception as e:
+        return {"success": False, "error": f"Screenshot xatosi: {type(e).__name__}: {e}", "url": url}
+
+
+# ============================================================
+# BACKGROUND SHELL — uzun ishlaydigan jarayonlar (dev server) uchun
+# ============================================================
+
+_BG_PROCS: Dict[str, Dict[str, Any]] = {}
+_BG_LOCK = __import__("threading").Lock()
+
+
+def run_shell_command_background(command: str, cwd: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Buyruqni fonda ishga tushiradi (dev server, watcher, uzun test). PID va tag
+    qaytaradi; agent keyin `bg_status(tag)` yoki `bg_stop(tag)` bilan boshqaradi.
+    """
+    blocked = _check_command_safety(command)
+    if blocked:
+        return {"success": False, "error": blocked, "blocked": True}
+    work_dir = Path(cwd) if cwd else CURRENT_PROJECT_DIR
+    try:
+        work_dir.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        work_dir = WORKSPACE_DIR
+    tag = f"bg_{int(time.time() * 1000)}"
+    log_dir = work_dir / ".ant_colony_bg"
+    try:
+        log_dir.mkdir(exist_ok=True)
+    except Exception:
+        pass
+    log_file = log_dir / f"{tag}.log"
+    try:
+        proc = subprocess.Popen(
+            command, shell=True, cwd=str(work_dir),
+            stdout=log_file.open("wb"), stderr=subprocess.STDOUT,
+            preexec_fn=_apply_sandbox_limits if os.name == "posix" else None,
+        )
+    except Exception as e:
+        return {"success": False, "error": f"Ishga tushirib bo'lmadi: {e}"}
+    with _BG_LOCK:
+        _BG_PROCS[tag] = {"proc": proc, "cmd": command, "cwd": str(work_dir),
+                          "log": str(log_file), "started_at": time.time()}
+    return {"success": True, "tag": tag, "pid": proc.pid, "log": str(log_file),
+            "message": f"Buyruq fonda ishga tushdi. Holatini `bg_status('{tag}')` bilan tekshiring."}
+
+
+def bg_status(tag: str, tail_lines: int = 40) -> Dict[str, Any]:
+    """Fonda ishlayotgan buyruq holati va log oxirini qaytaradi."""
+    with _BG_LOCK:
+        entry = _BG_PROCS.get(tag)
+    if not entry:
+        return {"success": False, "error": f"Tag topilmadi: {tag}"}
+    proc = entry["proc"]
+    alive = proc.poll() is None
+    tail = ""
+    try:
+        content = Path(entry["log"]).read_text(encoding="utf-8", errors="ignore")
+        tail = "\n".join(content.splitlines()[-max(5, min(int(tail_lines), 200)):])
+    except Exception:
+        pass
+    return {
+        "success": True, "tag": tag, "alive": alive,
+        "returncode": proc.returncode, "pid": proc.pid,
+        "uptime_s": round(time.time() - entry["started_at"], 1),
+        "log_tail": _clip(_redact_secrets(tail), 3000),
+        "cmd": entry["cmd"],
+    }
+
+
+def bg_stop(tag: str) -> Dict[str, Any]:
+    """Fondagi jarayonni to'xtatadi."""
+    with _BG_LOCK:
+        entry = _BG_PROCS.get(tag)
+    if not entry:
+        return {"success": False, "error": f"Tag topilmadi: {tag}"}
+    proc = entry["proc"]
+    if proc.poll() is None:
+        _kill_process_tree(proc)
+    with _BG_LOCK:
+        _BG_PROCS.pop(tag, None)
+    return {"success": True, "tag": tag, "message": "To'xtatildi"}
+
+
 # --- Asboblar reyestri: har birida LLM function-calling uchun JSON Schema ---
 
 AVAILABLE_TOOLS: Dict[str, Dict[str, Any]] = {
@@ -1366,6 +1720,128 @@ AVAILABLE_TOOLS: Dict[str, Dict[str, Any]] = {
         "description": "Barcha loyihalar va ishchi muhitdagi fayllar ro'yxatini qaytaradi.",
         "func": list_files,
         "parameters": {"type": "object", "properties": {}, "required": []}
+    },
+    "http_get": {
+        "name": "http_get",
+        "description": (
+            "Berilgan URL'ga HTTP GET yuboradi va matnli javobni qaytaradi. "
+            "JSON API, RSS, HTML sahifa uchun. JS render qilmaydi — SPA uchun `browser_navigate` ishlating."
+        ),
+        "func": http_get,
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "url": {"type": "string", "description": "To'liq URL (http:// yoki https://)"},
+                "timeout": {"type": "integer", "description": "Sekundda (default 15, max 60)"},
+                "headers": {"type": "object", "description": "Ixtiyoriy header'lar (masalan Authorization)"}
+            },
+            "required": ["url"]
+        }
+    },
+    "http_post": {
+        "name": "http_post",
+        "description": "URL'ga HTTP POST yuboradi (JSON yoki form). Auth va webhook uchun.",
+        "func": http_post,
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "url": {"type": "string"},
+                "json_body": {"type": "object", "description": "JSON payload"},
+                "form_body": {"type": "object", "description": "URL-encoded form payload"},
+                "timeout": {"type": "integer"},
+                "headers": {"type": "object"}
+            },
+            "required": ["url"]
+        }
+    },
+    "browser_navigate": {
+        "name": "browser_navigate",
+        "description": (
+            "Headless Chromium'da URL'ni ochib DOM matnini, sarlavhani va console log'larni qaytaradi. "
+            "JS render qiluvchi SPA (React/Vue/Next.js) sahifalar uchun to'g'ri tanlov. "
+            "Foydalanuvchi qilgan loyihasini tekshirish yoki tashqi sayt ma'lumotini olish uchun."
+        ),
+        "func": browser_navigate,
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "url": {"type": "string"},
+                "wait_for_selector": {"type": "string", "description": "Ixtiyoriy CSS selektor — ko'rinishini kutadi"},
+                "timeout": {"type": "integer", "description": "Sekundda (default 20)"}
+            },
+            "required": ["url"]
+        }
+    },
+    "browser_execute_js": {
+        "name": "browser_execute_js",
+        "description": (
+            "Sahifani yuklab, uning konsolida JavaScript bajaradi va natijasini qaytaradi. "
+            "Misol: `document.title` yoki `Array.from(document.querySelectorAll('h2')).map(h => h.textContent)`. "
+            "UI test qilish, foydalanuvchining o'zgargan loyihasi natijasini tekshirish uchun."
+        ),
+        "func": browser_execute_js,
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "url": {"type": "string"},
+                "script": {"type": "string", "description": "Bajarilishi kerak bo'lgan JS ifoda yoki blok"},
+                "timeout": {"type": "integer"}
+            },
+            "required": ["url", "script"]
+        }
+    },
+    "browser_screenshot": {
+        "name": "browser_screenshot",
+        "description": "URL'ning PNG skrinshotini yozib, fayl yo'lini qaytaradi. Vizual reglamentga foydali.",
+        "func": browser_screenshot,
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "url": {"type": "string"},
+                "full_page": {"type": "boolean", "description": "To'liq sahifa yoki faqat viewport"},
+                "timeout": {"type": "integer"}
+            },
+            "required": ["url"]
+        }
+    },
+    "run_shell_command_background": {
+        "name": "run_shell_command_background",
+        "description": (
+            "Buyruqni fonda ishga tushiradi va TAG qaytaradi. Dev server, watcher yoki uzun test uchun. "
+            "Keyingi qadamda `bg_status(tag)` va `bg_stop(tag)` bilan boshqaring."
+        ),
+        "func": run_shell_command_background,
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "command": {"type": "string"},
+                "cwd": {"type": "string", "description": "Ish katalogi (ixtiyoriy)"}
+            },
+            "required": ["command"]
+        }
+    },
+    "bg_status": {
+        "name": "bg_status",
+        "description": "Fonda ishlayotgan buyruq holati va log oxirini qaytaradi.",
+        "func": bg_status,
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "tag": {"type": "string"},
+                "tail_lines": {"type": "integer", "description": "Log'ning oxirgi necha qatorini olsin (default 40)"}
+            },
+            "required": ["tag"]
+        }
+    },
+    "bg_stop": {
+        "name": "bg_stop",
+        "description": "Fondagi jarayonni to'xtatadi.",
+        "func": bg_stop,
+        "parameters": {
+            "type": "object",
+            "properties": {"tag": {"type": "string"}},
+            "required": ["tag"]
+        }
     }
 }
 
