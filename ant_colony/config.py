@@ -381,6 +381,18 @@ MODELS_CATALOG = [
         "default_role": "Micro-Agent & Rapid Triager",
         "is_free": True
     },
+    {
+        "id": "liquid/lfm-2.5-embedding-350m:free",
+        "provider": "openrouter",
+        "name": "Liquid LFM 2.5 Embedding 350M",
+        "context_window": 32768,
+        "max_output": 8192,
+        "features": ["Embedding", "Liquid Foundation Model", "Ultra Fast", "Free"],
+        "supports_reasoning": False,
+        "recommended_for": "embeddings",
+        "default_role": "Vector Search & Retrieval Specialist",
+        "is_free": True
+    },
     # GitHub Models (Free with GitHub Personal Access Token)
     {
         "id": "gpt-4o",
