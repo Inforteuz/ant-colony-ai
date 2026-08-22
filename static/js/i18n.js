@@ -824,7 +824,11 @@
       scene_agent_analyst: "Analyst",
       scene_agent_pm: "PM",
       scene_ping_pong_default_a: "Developer",
-      scene_ping_pong_default_b: "QA Engineer"
+      scene_ping_pong_default_b: "QA Engineer",
+      cookie_title: "Cookies & preferences",
+      cookie_desc: "We use cookies and local storage to save your workspace preferences, selected AI models, and ensure a seamless platform experience.",
+      cookie_accept: "Accept all",
+      cookie_decline: "Essential only"
     },
 
     /* ============================================================
@@ -1595,7 +1599,11 @@
       scene_agent_analyst: "Tahlilchi",
       scene_agent_pm: "PM",
       scene_ping_pong_default_a: "Dasturchi",
-      scene_ping_pong_default_b: "QA muhandis"
+      scene_ping_pong_default_b: "QA muhandis",
+      cookie_title: "Cookie fayllari va sozlamalar",
+      cookie_desc: "Biz interfeys sozlamalari, tanlangan AI modellari va platformaning xavfsiz ishlashini saqlash uchun cookie va lokal xotiradan foydalanamiz.",
+      cookie_accept: "Barchasini qabul qilish",
+      cookie_decline: "Faqat zaruriylari"
     }
   };
 
@@ -2366,7 +2374,11 @@
     scene_agent_analyst: "Аналитик",
     scene_agent_pm: "PM",
     scene_ping_pong_default_a: "Разработчик",
-    scene_ping_pong_default_b: "QA Инженер"
+    scene_ping_pong_default_b: "QA Инженер",
+    cookie_title: "Файлы cookie и настройки",
+    cookie_desc: "Мы используем cookie и локальное хранилище для сохранения настроек интерфейса, выбранных AI моделей и безопасной работы платформы.",
+    cookie_accept: "Принять все",
+    cookie_decline: "Только необходимые"
   };
 
   /* ============================================================
