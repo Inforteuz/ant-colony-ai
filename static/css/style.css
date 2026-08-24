@@ -6932,6 +6932,13 @@ html, body {
 
   /* --- KPI paneli va amal tugmalari guruhi: pastdan chiquvchi panel.
      Ikkalasi bir xil qoidalarga bo'ysunadi, faqat ochilish klassi boshqa. */
+  /* DIQQAT — bu yerdagi `!important` lar MAJBURIY, injiqlik emas:
+       * `@media (max-width: 900px) .hud-kpi-bar { display: none !important }`
+         (yuqorida, ~4387-qator) telefonda panelni butunlay yashirardi;
+       * global `.hud-kpi-bar { display/align-items/gap/flex-wrap !important }`
+         (~4791) uni gorizontal qatorlikda ushlab turardi.
+     `!important` ni faqat `!important` yengadi — blokning fayl oxirida
+     turishi yetarli emas edi. */
   .hud-kpi-bar,
   .hud-actions-group {
     position: fixed;
@@ -6940,10 +6947,11 @@ html, body {
     bottom: 0;
     top: auto;
     z-index: 60;
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    flex-wrap: nowrap !important;
+    gap: 8px !important;
     margin: 0;
     padding: 14px 14px calc(14px + env(safe-area-inset-bottom));
     max-height: 70dvh;
@@ -6965,10 +6973,12 @@ html, body {
   .hud-actions-group > .lang-dropdown-wrap,
   .hud-actions-group > .lang-dropdown-wrap > .lang-btn,
   .hud-actions-group > .topbar-theme-toggle {
-    width: 100%;
+    width: 100% !important;      /* global .hud-kpi-pill max-width/padding !important */
+    max-width: none !important;
     min-height: 48px;
     justify-content: flex-start;
-    gap: 12px;
+    gap: 12px !important;
+    padding: 10px 14px !important;
   }
   /* Kichik ekranda yashiringan KPI matnlarini panelda QAYTA ko'rsatamiz —
      panelda joy bor va raqamning nimani anglatishi ko'rinishi kerak. */
@@ -7006,7 +7016,7 @@ html, body {
     max-width: 100vw !important;
     height: var(--vvh, 100dvh);
     max-height: var(--vvh, 100dvh);
-    border-left: none;
+    border-left: none !important;   /* ~5789 da `border-left ... !important` */
     border-top: 1px solid var(--border-subtle);
     border-radius: 14px 14px 0 0;
     box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.5);
@@ -7103,7 +7113,7 @@ html, body {
     left: 0;
     right: 0;
     bottom: 0;
-    max-width: 100vw;
+    max-width: 100vw !important;   /* ~4417/4432/4451/4460 da !important bor */
     justify-content: center;
     gap: 6px;
     padding: 6px 10px calc(6px + env(safe-area-inset-bottom));
@@ -7119,16 +7129,21 @@ html, body {
 
   /* --- Kamera presetlari: workflow ustida, butun kenglikda suriladigan lenta.
      Matnlar <=720px da allaqachon yashirilgan (faqat ikonkalar qoladi). */
+  /* Global `.hud-camera-bar { gap/flex-wrap/overflow/width/max-width !important }`
+     (~5339) gorizontal surishni o'ldirardi — shu xususiyatlar qaytariladi. */
   .hud-camera-bar {
     top: auto;
     left: 0;
     right: 0;
     bottom: calc(40px + env(safe-area-inset-bottom));
-    max-width: 100vw;
+    width: auto !important;
+    max-width: 100vw !important;
     border-radius: 0;
     padding: 5px 8px;
-    gap: 6px;
-    overflow-x: auto;
+    gap: 6px !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
     scroll-snap-type: x proximity;
     -webkit-overflow-scrolling: touch;
   }
@@ -7140,37 +7155,12 @@ html, body {
     scroll-snap-align: start;
   }
 
-  /* --- Live HUD: yig'ilgan holatda faqat agent chipi ko'rinadi (bir qator).
-     Bosilganda oqim matni va progress ochiladi. 360px kenglik telefonda
-     ekranning butun enini egallardi. */
-  .hud-live-hud {
-    top: 58px;
-    bottom: auto;
-    right: 8px;
-    left: auto;
-    width: auto;
-    max-width: calc(100vw - 16px);
-    padding: 7px 10px;
-    gap: 5px;
-    cursor: pointer;
-  }
-  .hud-live-hud .hud-agent-label,
-  .hud-live-hud .hud-model-tag {
-    max-width: 34vw;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .hud-live-hud .hud-action-stream,
-  .hud-live-hud .hud-progress-meter { display: none; }
-  body.live-hud-open .hud-live-hud {
-    left: 8px;
-    max-width: none;
-  }
-  body.live-hud-open .hud-live-hud .hud-action-stream,
-  body.live-hud-open .hud-live-hud .hud-progress-meter { display: block; }
-  body.live-hud-open .hud-live-hud .hud-agent-label,
-  body.live-hud-open .hud-live-hud .hud-model-tag { max-width: none; }
+  /* --- Live HUD telefonda KO'RSATILMAYDI. Loyihada oldindan
+     `@media (max-width: 800px) { .hud-live-hud { display: none !important } }`
+     bor (~4457) va bu ataylab qilingan. Uni majburan qaytarmaymiz: jonli
+     agent faoliyati PM konsolining lentasida allaqachon ko'rinadi, telefonda
+     esa har bir piksel qimmat. Shu sababli avvalgi "bosilganda ochiladigan
+     yig'ilgan panel" g'oyasi va uning JS toggle'i olib tashlandi. */
 }
 
 
@@ -7414,5 +7404,24 @@ html, body {
     flex: 1;
     text-align: center;
     padding: 9px 12px;
+  }
+}
+
+
+/* ==========================================================================
+   MOBILE — upstream cookie banner'ini telefonga moslash
+   `.cookie-banner` `bottom/right: 24px` + `max-width: 520px` bilan yozilgan;
+   375px da u chetidan chiqib, pastdagi kamera/workflow panellarini qoplardi.
+   Telefonda uni to'liq kenglikdagi pastki panelga aylantiramiz.
+   ========================================================================== */
+@media (max-width: 480px) {
+  .cookie-banner {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 14px 14px 0 0;
+    padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
   }
 }

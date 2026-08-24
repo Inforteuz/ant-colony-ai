@@ -1024,10 +1024,37 @@ class AntColonyApp {
   // chegaradan (480px) foydalanishi kerak, aks holda layout va mantiq bir-biriga
   // mos kelmay qoladi. `resize` emas, `matchMedia` — qurilma aylantirilganda ham
   // ishlaydi va ortiqcha hisoblash qilmaydi.
+  // Telefonda pastdan chiquvchi panellar `.hud-topbar` ichida tura olmaydi:
+  // topbar `.glass-card` (`backdrop-filter: blur(18px)`) bo'lgani uchun u
+  // `position: fixed` avlodlar uchun containing block yaratadi va ustiga
+  // `overflow: hidden !important` bilan ularni qirqadi. Elementni KO'CHIRAMIZ
+  // (nusxa olmaymiz) — shuning uchun tugmalar, hodisalar va qiymatlar o'sha-o'sha
+  // qoladi, sinxronlash kerak emas. Katta ekranda avvalgi joyiga qaytariladi.
+  _relocateForPhone(el, toBody) {
+    if (!el) return;
+    if (!this._elHomes) this._elHomes = new Map();
+    if (toBody) {
+      if (!this._elHomes.has(el)) {
+        this._elHomes.set(el, { parent: el.parentNode, next: el.nextSibling });
+      }
+      if (el.parentNode !== document.body) document.body.appendChild(el);
+    } else {
+      const home = this._elHomes.get(el);
+      if (home && home.parent && el.parentNode !== home.parent) {
+        home.parent.insertBefore(el, home.next);
+      }
+    }
+  }
+
   setupPhoneMode() {
     if (!window.matchMedia) return;
     const phoneMQ = window.matchMedia('(max-width: 480px)');
-    const apply = () => document.body.classList.toggle('is-phone', phoneMQ.matches);
+    const apply = () => {
+      const phone = phoneMQ.matches;
+      document.body.classList.toggle('is-phone', phone);
+      this._relocateForPhone(document.querySelector('.hud-kpi-bar'), phone);
+      this._relocateForPhone(document.querySelector('.hud-actions-group'), phone);
+    };
     apply();
     if (phoneMQ.addEventListener) phoneMQ.addEventListener('change', apply);
     else if (phoneMQ.addListener) phoneMQ.addListener(apply);   // eski Safari
@@ -1051,7 +1078,6 @@ class AntColonyApp {
         document.body.classList.remove(cls);
         document.getElementById(btn)?.setAttribute('aria-expanded', 'false');
       });
-      document.body.classList.remove('live-hud-open');
       if (backdrop) backdrop.hidden = true;
     };
     this.closePhoneSheets = closeAll;
@@ -1069,18 +1095,6 @@ class AntColonyApp {
         }
       });
     });
-
-    // Live HUD telefonda yig'ilgan holatda turadi (faqat agent chipi) — bosilganda
-    // oqim matni va progress ochiladi. Katta ekranda u doim to'liq ko'rinadi,
-    // shuning uchun klass faqat telefonda ma'noga ega (CSS media query ichida).
-    const liveHud = document.getElementById('hive-live-hud');
-    if (liveHud) {
-      liveHud.addEventListener('click', () => {
-        if (this.isPhone && this.isPhone()) {
-          document.body.classList.toggle('live-hud-open');
-        }
-      });
-    }
 
     if (backdrop) backdrop.addEventListener('click', closeAll);
     document.addEventListener('keydown', (e) => {
