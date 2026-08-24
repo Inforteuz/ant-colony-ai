@@ -355,6 +355,59 @@ sessiyalarda** bajarilishi mumkin.
 Qolgan yagona qadam — **Faza 5: real qurilmada sinov** (agent brauzer ishga tushira
 olmaydi, shuning uchun buni foydalanuvchi bajaradi; ro'yxat yuqorida).
 
+## ⚠️ 2026-08-22: layout umuman qo'llanmayotgan edi — ikki ildiz sabab (`89e30d3`)
+
+Faza 0–4 tugagandan keyin foydalanuvchi "mobile view umuman moslashmagan" dedi.
+CSS bloklari joyida, JS joyida, sintaksis butun edi — lekin qoidalar **amalda
+ishlamagan**. Xuddi shu tuzoqqa qayta tushmaslik uchun:
+
+**1. `backdrop-filter` `position: fixed` uchun containing block yaratadi.**
+Pastdan chiquvchi panellar (`.hud-kpi-bar`, `.hud-actions-group`)
+`.hud-topbar` ichida edi. Topbar — `.glass-card`, ya'ni `backdrop-filter:
+blur(18px)`. Shu sababli `bottom: 0` **viewport'ga emas, topbarga** nisbatan
+hisoblangan; ustiga topbarda `overflow: hidden !important` bor, demak panel
+qirqilgan ham.
+
+→ Yechim: `app.js` -> `_relocateForPhone(el, toBody)` telefonda elementni
+`body` ga **ko'chiradi** (nusxa olmaydi, shuning uchun tugmalar/hodisalar
+o'sha-o'sha), katta ekranda `_elHomes` xotirasidan avvalgi joyiga qaytaradi.
+Telefonda `position: fixed` panel qo'shsangiz — ota-onasida `backdrop-filter`,
+`filter` yoki `transform` yo'qligini TEKSHIRING, aks holda shu tuzoq qaytadi.
+
+**2. `!important` ni faqat `!important` yengadi — tartib yetarli emas.**
+Mobil bloklarim fayl OXIRIDA turgani bilan ish bitmaydi: fayl boshida shu
+elementlarga `!important` bilan qoidalar bor edi va ular yengib turgan.
+Eng zararlilari:
+
+| Qoida | Ta'siri |
+|---|---|
+| `@media (max-width:900px) .hud-kpi-bar { display: none !important }` | KPI panelini telefonda BUTUNLAY yashirardi |
+| global `.hud-kpi-bar { display/align-items/gap/flex-wrap !important }` | panelni gorizontal qatorlikda ushlab turardi |
+| global `.hud-camera-bar { gap/flex-wrap/overflow/width/max-width !important }` | gorizontal surishni o'ldirardi |
+| `.hud-workflow-bar { max-width !important }` | kenglik cheklanardi |
+| `.pm-console-drawer { border-left !important }` | ramka qolardi |
+| `.hud-kpi-pill { max-width/gap/padding !important }` | panel ichidagi elementlar torayib qolardi |
+
+→ Yangi mobil qoida yozishdan OLDIN shu tekshiruvni bajaring:
+
+```bash
+grep -n "\.<element-klassi>" static/css/style.css | head -20
+```
+
+`!important` topilsa — o'z qoidangizda ham `!important` yozing va **nega**
+kerakligini izohda ko'rsating (aks holda keyingi kishi uni "ortiqcha" deb
+olib tashlaydi).
+
+**3. Live HUD telefonda ataylab ko'rsatilmaydi.** Loyihada oldindan
+`@media (max-width: 800px) { .hud-live-hud { display: none !important } }`
+bor. Faza 2 dagi "bosilganda ochiladigan yig'ilgan panel" g'oyasi olib
+tashlandi: jonli faoliyat PM konsoli lentasida allaqachon ko'rinadi.
+
+**4. Upstream `.cookie-banner`** (`bottom/right: 24px`, `max-width: 520px`,
+`z-index: 99999`) 375px da chetidan chiqib, pastdagi panellarni qoplardi —
+telefonda to'liq kenglikdagi pastki panelga aylantirildi. Upstream yangi
+`position: fixed` komponent qo'shsa, shu ro'yxatga qo'shib tekshiring.
+
 Kelajakda mobil UI ga tegadigan agent uchun muhim eslatmalar:
 - Sheet mexanizmi Faza 1 da yozilgan — `#hud-sheet-backdrop`, `body.kpi-sheet-open` /
   `body.hud-menu-open`, `app.js` -> `setupPhoneSheets()`. Faza 2 shundan foydalandi
@@ -367,6 +420,11 @@ Kelajakda mobil UI ga tegadigan agent uchun muhim eslatmalar:
 - Barcha mobil CSS `style.css` OXIRIDA, beshta izohli blokda
   (FAZA 0 / 1 / 2 / 3 / 4). Yangi ish ham shu yerga, o'z blokida qo'shilsin.
 - Breakpointlar faqat 900 / 720 / 480 — yangi qiymat kiritilmasin.
+- **Qoida yozgandan keyin `!important` to'qnashuvini tekshirmasangiz, qoida
+  jimgina ishlamaydi** — yuqoridagi 2026-08-22 bo'limiga qarang.
+- `static/` ni o'zgartirgandan keyin `index.html` dagi `?t=` cache-bust
+  yangilanmasa, brauzer eski CSS/JS ni beradi va "tuzatish ishlamadi" deb
+  ko'rinadi.
 - **Har o'zgarishdan keyin `index.html` dagi `?t=` cache-bust tokenini yangilang** —
   aks holda brauzer eski CSS/JS ni ushlab qoladi va ish qilinmagandek ko'rinadi. Faza 2 — Faza 1 dan keyin (sheet komponenti o'sha
 yerda yoziladi va 2 da qayta ishlatiladi).
