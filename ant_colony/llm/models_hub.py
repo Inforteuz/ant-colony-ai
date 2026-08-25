@@ -148,6 +148,8 @@ class ModelsHub:
             status, msg = "degraded", f"Server band ({status_code})"
         elif status_code == 408:
             status, msg = "timeout", "Vaqt tugadi"
+        elif status_code == 402:
+            status, msg = "error", "Hisobda mablag'/token qolmagan (402)"
         elif status_code in (401, 403):
             status, msg = "error", f"Auth xato ({status_code})"
         else:
@@ -164,8 +166,12 @@ class ModelsHub:
         if not prov:
             return
         now = time.time()
-        if status_code in (401, 403):
-            # Kalit noto'g'ri yoki cheklangan — butun provayder foydasiz.
+        if status_code in (401, 402, 403):
+            # Kalit noto'g'ri/cheklangan yoki hisobda token tugagan (402) —
+            # butun provayder foydasiz. 402 ilgari umumiy `else` ga tushib,
+            # provayder cooldown'iga SABAB BO'LMASDI: natijada zaxira zanjiri
+            # o'sha provayderning boshqa modellarini ham birma-bir sinab,
+            # har chaqiruvda bir necha ortiqcha borish-kelish sarflardi.
             self.provider_cooldowns[prov] = now + self.PROVIDER_COOLDOWN_AUTH
             self.provider_last_failure[prov] = f"auth {status_code}"
         elif status_code == 429:
@@ -192,6 +198,12 @@ class ModelsHub:
         vaqt va urinishlar bekorga sarflanardi. Endi kalitsiz provayder umuman
         tanlanmaydi.
         """
+        # Xizmat sifatida YOPILGAN provayder (masalan GitHub Models, 2026-08)
+        # hech qanday kalit bilan ham ishlamaydi. Uni shu yerda kesamiz —
+        # `build_fallback_chain` va `configured_providers` ikkalasi ham shu
+        # funksiyaga tayanadi, demak bitta joyda to'xtatish yetarli.
+        if (PROVIDERS.get(provider_id) or {}).get("retired"):
+            return False
         if custom_keys and custom_keys.get(provider_id):
             return True
         if (PROVIDERS.get(provider_id) or {}).get("default_key", "").strip():
@@ -388,10 +400,47 @@ class ModelsHub:
         return (creds or {}).get("base_url", "")
 
     def invalidate_byok_cache(self) -> None:
-        """Ulanish o'zgargach chaqiriladi — keyingi so'rov yangi kalitni oladi."""
+        """Ulanish o'zgargach chaqiriladi - keyingi so'rov yangi kalitni oladi."""
         self._byok_cache.clear()
+        self._byok_models_synced = False
+
+    def _sync_byok_models_if_needed(self):
+        if getattr(self, "_byok_models_synced", False):
+            return
+        
+        try:
+            from ant_colony.providers.service import connected_models
+            for m in connected_models():
+                m_id = m["model_id"]
+                prov_id = m["provider"]
+                if m_id not in self.stats:
+                    model_entry = {
+                        "id": m_id,
+                        "name": m.get("display_name") or m_id,
+                        "provider": prov_id,
+                        "context_window": 32768,
+                        "max_output": 8192,
+                        "features": ["BYOK"],
+                        "supports_reasoning": False
+                    }
+                    MODELS_CATALOG.append(model_entry)
+                    self.stats[m_id] = {
+                        **model_entry,
+                        "status": "not_configured" if not self.is_provider_configured(prov_id) else "unknown",
+                        "latency_ms": 0,
+                        "uptime_pct": 0.0,
+                        "total_checks": 0,
+                        "success_checks": 0,
+                        "last_checked": None,
+                        "last_error": None,
+                        "history": []
+                    }
+            self._byok_models_synced = True
+        except Exception as e:
+            pass
 
     async def ping_model(self, model_id: str, custom_keys: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+        self._sync_byok_models_if_needed()
         meta = next((m for m in MODELS_CATALOG if m["id"] == model_id), None)
         if not meta:
             return {"error": "Model topilmadi", "model_id": model_id}
@@ -400,7 +449,7 @@ class ModelsHub:
         provider_info = PROVIDERS.get(provider_id, {})
         api_key = self.get_api_key(provider_id, custom_keys)
 
-        # Kalit yo'q bo'lsa — so'rov yubormaymiz. Ilgari kalitsiz provayderlar ham
+        # Kalit yo'q bo'lsa - so'rov yubormaymiz. Ilgari kalitsiz provayderlar ham
         # ping qilinib, UI'da "Ошибка" deb ko'rinardi va foydalanuvchi tizim buzuq
         # deb o'ylardi. To'g'ri holat: "не настроен".
         if not api_key or not api_key.strip():
@@ -442,9 +491,11 @@ class ModelsHub:
                             status = "error"
                             error_msg = f"Gemini xato {resp.status}"
 
-                # 2. OpenAI-compatible (17.wtf & OpenRouter)
+                # 2. OpenAI-compatible (17.wtf, OpenRouter, BYOK, custom)
                 else:
-                    url = f"{provider_info.get('base_url', '')}{provider_info.get('chat_endpoint', '/chat/completions')}"
+                    # check if it's a BYOK custom provider with base_url override
+                    base_url = self.byok_base_url(provider_id) or provider_info.get('base_url', '')
+                    url = f"{base_url}{provider_info.get('chat_endpoint', '/chat/completions')}"
                     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
                     payload = {"model": model_id, "messages": [{"role": "user", "content": "ping"}], "max_tokens": 5}
                     async with session.post(url, headers=headers, json=payload) as resp:
@@ -477,6 +528,7 @@ class ModelsHub:
 
     async def ping_all_models(self, custom_keys: Optional[Dict[str, str]] = None,
                              model_ids: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+        self._sync_byok_models_if_needed()
         sem = asyncio.Semaphore(3)
         async def bounded_ping(m_id):
             async with sem:
@@ -488,6 +540,7 @@ class ModelsHub:
         return list(self.stats.values())
 
     def get_all_stats(self) -> List[Dict[str, Any]]:
+        self._sync_byok_models_if_needed()
         return list(self.stats.values())
 
     async def background_monitor_loop(self):

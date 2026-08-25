@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
-  <link rel="stylesheet" href="/static/css/style.css?t=1787555627">
+  <link rel="stylesheet" href="/static/css/style.css?t=1787678933">
 </head>
 <body class="dark-theme full-3d-body">
 
@@ -879,6 +879,7 @@
                 <option value="gemini">Google Gemini (Gemini 2.5 Flash / Pro)</option>
                 <option value="openai">OpenAI (GPT-4o, GPT-4o-mini)</option>
                 <option value="groq">Groq (Llama 3.3 70B, DeepSeek R1 Distill)</option>
+                <option value="b_ai">b.ai services (OpenAI-совместимый — Claude, GPT-5, Gemini, DeepSeek, Hy3)</option>
                 <option value="17_wtf">17.wtf (OpenAI-совместимый прокси — DeepSeek, GPT, Claude, Llama)</option>
               </select></div>
               <div>
@@ -927,6 +928,14 @@
                   <button class="btn-key-test" type="button" data-test-provider="openai">Проверить</button>
                 </div>
                 <div class="key-test-result" id="key-test-openai"></div>
+              </div>
+              <div>
+                <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">b.ai services API ключ:</label>
+                <div class="key-test-row">
+                  <input type="password" id="setup-multi-b_ai" class="search-input key-test-input" placeholder="sk-...">
+                  <button class="btn-key-test" type="button" data-test-provider="b_ai">Проверить</button>
+                </div>
+                <div class="key-test-result" id="key-test-b_ai"></div>
               </div>
               <div>
                 <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">17.wtf API ключ:</label>
@@ -1201,8 +1210,8 @@
   <!-- SCRIPTS -->
   <script src="/static/vendor/three.min.js"></script>
   <script src="/static/vendor/OrbitControls.js"></script>
-  <script src="/static/js/hive3d.js?t=1787555627"></script>
-  <script src="/static/js/i18n.js?t=1787555627"></script>
-  <script src="/static/js/app.js?t=1787555627"></script>
+  <script src="/static/js/hive3d.js?t=1787678933"></script>
+  <script src="/static/js/i18n.js?t=1787678933"></script>
+  <script src="/static/js/app.js?t=1787678933"></script>
 </body>
 </html>

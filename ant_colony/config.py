@@ -126,6 +126,14 @@ PROVIDERS = {
         "chat_endpoint": "/models",
         "supports_native_tools": True
     },
+    "b_ai": {
+        "id": "b_ai",
+        "name": "b.ai services",
+        "base_url": "https://api.b.ai/v1",
+        "default_key": os.getenv("BAI_API_KEY", ""),
+        "chat_endpoint": "/chat/completions",
+        "supports_native_tools": True
+    },
     "17_wtf": {
         "id": "17_wtf",
         "name": "17.wtf API",
@@ -144,6 +152,13 @@ PROVIDERS = {
         "supports_native_tools": True
     },
     "github": {
+        # 2026-08-25: GitHub Models xizmati YOPILGAN. Endpoint
+        # `models.inference.ai.azure.com` DNS'da yo'q, yangi
+        # `models.github.ai` esa HTTP 410 `github_models_retirement_brownout`
+        # qaytaradi. Provayder o'chirilmadi (kelajakda qaytsa oson yoqiladi),
+        # lekin `retired: True` uni model tanlovidan chetlatadi.
+        "retired": True,
+        "retired_reason": "GitHub Models xizmati yopilgan (retirement brownout, 2026-08).",
         "id": "github",
         "name": "GitHub Models",
         "base_url": "https://models.inference.ai.azure.com",
@@ -164,6 +179,14 @@ PROVIDERS = {
         "name": "OpenAI",
         "base_url": "https://api.openai.com/v1",
         "default_key": os.getenv("OPENAI_API_KEY", ""),
+        "chat_endpoint": "/chat/completions",
+        "supports_native_tools": True
+    },
+    "custom": {
+        "id": "custom",
+        "name": "Custom Provider / Ollama",
+        "base_url": os.getenv("CUSTOM_BASE_URL", ""),
+        "default_key": os.getenv("CUSTOM_API_KEY", ""),
         "chat_endpoint": "/chat/completions",
         "supports_native_tools": True
     }
@@ -246,6 +269,106 @@ MODELS_CATALOG = [
         "recommended_for": "general",
         "default_role": "Full-Stack Generalist",
         "is_free": True
+    },
+    # --- b.ai services (OpenAI-mos, https://api.b.ai/v1) ---
+    # 2026-08-25 o'lchovi: hy3 2.2s (17.wtf'da 17.0s), deepseek-v4-flash 1.4s
+    # (17.wtf'da HTTP 402). Shu sababli bir xil modellar uchun b.ai birinchi
+    # tanlov. To'liq ro'yxat /v1/models dan sinxronlanadi — bu faqat urug'.
+    {
+        "id": "hy3",
+        "provider": "b_ai",
+        "name": "Hy3 (b.ai)",
+        "context_window": 262144,
+        "max_output": 65536,
+        "features": ["Tools", "Reasoning", "Coding", "Fast"],
+        "supports_reasoning": True,
+        "recommended_for": "coding",
+        "default_role": "Code Architect & Full-Stack Developer",
+        "is_free": False
+    },
+    {
+        "id": "deepseek-v4-flash",
+        "provider": "b_ai",
+        "name": "DeepSeek V4 Flash (b.ai)",
+        "context_window": 262144,
+        "max_output": 65536,
+        "features": ["Tools", "Functions", "Reasoning", "Coding", "Fast"],
+        "supports_reasoning": True,
+        "recommended_for": "coding",
+        "default_role": "Code Architect & Full-Stack Developer",
+        "is_free": False
+    },
+    {
+        "id": "deepseek-v4-pro",
+        "provider": "b_ai",
+        "name": "DeepSeek V4 Pro (b.ai)",
+        "context_window": 262144,
+        "max_output": 65536,
+        "features": ["Tools", "Reasoning", "Coding", "Deep Analysis"],
+        "supports_reasoning": True,
+        "recommended_for": "architecture",
+        "default_role": "System Architect",
+        "is_free": False
+    },
+    {
+        "id": "claude-sonnet-5",
+        "provider": "b_ai",
+        "name": "Claude Sonnet 5 (b.ai)",
+        "context_window": 200000,
+        "max_output": 65536,
+        "features": ["Tools", "Reasoning", "Coding", "Long Context"],
+        "supports_reasoning": True,
+        "recommended_for": "coding",
+        "default_role": "Senior Engineer",
+        "is_free": False
+    },
+    {
+        "id": "claude-haiku-4.5",
+        "provider": "b_ai",
+        "name": "Claude Haiku 4.5 (b.ai)",
+        "context_window": 200000,
+        "max_output": 32768,
+        "features": ["Tools", "Fast", "Cheap"],
+        "supports_reasoning": False,
+        "recommended_for": "general",
+        "default_role": "Full-Stack Generalist",
+        "is_free": False
+    },
+    {
+        "id": "gemini-3.5-flash",
+        "provider": "b_ai",
+        "name": "Gemini 3.5 Flash (b.ai)",
+        "context_window": 1048576,
+        "max_output": 65536,
+        "features": ["1M Context", "Tools", "Fast"],
+        "supports_reasoning": False,
+        "recommended_for": "general",
+        "default_role": "Full-Stack Generalist",
+        "is_free": False
+    },
+    {
+        "id": "gpt-5.4-mini",
+        "provider": "b_ai",
+        "name": "GPT-5.4 Mini (b.ai)",
+        "context_window": 400000,
+        "max_output": 65536,
+        "features": ["Tools", "Functions", "Fast"],
+        "supports_reasoning": False,
+        "recommended_for": "general",
+        "default_role": "Full-Stack Generalist",
+        "is_free": False
+    },
+    {
+        "id": "qwen3.8-max",
+        "provider": "b_ai",
+        "name": "Qwen 3.8 Max (b.ai)",
+        "context_window": 262144,
+        "max_output": 65536,
+        "features": ["Tools", "Coding", "Multilingual"],
+        "supports_reasoning": False,
+        "recommended_for": "coding",
+        "default_role": "Backend Engineer",
+        "is_free": False
     },
     # 17.wtf Models
     {

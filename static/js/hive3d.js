@@ -142,6 +142,18 @@ class IsometricHive3D {
       frameIndex: 0,
       manuallySet: false,
     };
+    // Kichik ekran yoki kam yadroli qurilma — FPS o'lchashni kutmasdan
+    // 'medium' dan boshlaymiz. Sahna keyin o'zi 'high' ga ko'tarila oladi.
+    try {
+      const weak = window.matchMedia('(max-width: 820px)').matches ||
+                   (navigator.hardwareConcurrency || 8) <= 4;
+      // `mode` maydonini shunchaki yozib qo'yish YETARLI EMAS: renderer
+      // sozlamalari (pixelRatio, soya, skip-frame) va eshik sifati faqat
+      // `_applyQualityMode` ichida qo'llanadi, u esa rejim O'ZGARGANDA
+      // chaqiriladi — 'medium' allaqachon yozib qo'yilgan bo'lsa hech qachon
+      // ishlamay qolardi. Shu bosqichda renderer ham, eshiklar ham tayyor.
+      if (weak) this._applyQualityMode('medium');
+    } catch (e) { /* matchMedia yo'q — standart 'high' qoladi */ }
 
     if (window.THREE && window.THREE.OrbitControls) {
       this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
@@ -1646,6 +1658,9 @@ class IsometricHive3D {
     const glass = new THREE.Mesh(new THREE.BoxGeometry(width, height, 0.04), glassMat);
     glass.position.y = height / 2;
     door.add(glass);
+    // Sifat rejimi shu materialni o'chira olishi uchun ro'yxatga olamiz
+    // (`transmission` butun sahnani QAYTA render qilishga majbur qiladi).
+    (this._glassMats || (this._glassMats = [])).push(glassMat);
 
     // Vertikal accent chiziq (Pixel Agents motive)
     const stripe = new THREE.Mesh(
@@ -1665,6 +1680,9 @@ class IsometricHive3D {
     const glow = new THREE.PointLight(accentHex, isLight ? 0.35 : 0.85, 4.5);
     glow.position.set(0, 0.6, 0.4);
     door.add(glow);
+    // Har bir dinamik nur SAHNADAGI BARCHA yoritilgan materiallarning
+    // fragment narxini oshiradi — past rejimda o'chiriladi.
+    (this._doorLights || (this._doorLights = [])).push(glow);
     door.userData = { doorPulse: glow, accentHex };
     return door;
   }
@@ -3597,9 +3615,32 @@ class IsometricHive3D {
     if (newMode !== q.mode) this._applyQualityMode(newMode);
   }
 
+  // Shisha eshiklar (upstream, 2026-08-22) sahnaga ikkita qimmat narsa qo'shdi
+  // va ularning ikkalasi ham sifat tizimi nazoratidan TASHQARIDA edi:
+  //   * `MeshPhysicalMaterial` + `transmission: 0.65` — Three.js buni ko'rsa
+  //     butun sahnani alohida transmission render target'ga QAYTA chizadi,
+  //     ya'ni har kadrda +1 to'liq render pass;
+  //   * har eshikda bitta `PointLight` (3 ta) — dinamik nur sahnadagi BARCHA
+  //     yoritilgan materiallarning shader narxini oshiradi.
+  // Endi ikkalasi ham rejimga bo'ysunadi. `transmission: 0` bo'lganda material
+  // oddiy yarim-shaffofga aylanadi — uzoqdan deyarli bir xil ko'rinadi.
+  _applyDoorQuality(mode) {
+    const glassOn = mode === 'high';
+    for (const m of this._glassMats || []) {
+      const want = glassOn ? 0.65 : 0.0;
+      if (m.transmission !== want) {
+        m.transmission = want;
+        m.needsUpdate = true;
+      }
+    }
+    const lightsOn = mode !== 'low';
+    for (const l of this._doorLights || []) l.visible = lightsOn;
+  }
+
   _applyQualityMode(mode) {
     const q = this.quality;
     q.mode = mode;
+    this._applyDoorQuality(mode);
     if (mode === 'high') {
       this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       this.renderer.shadowMap.enabled = true;
@@ -3672,6 +3713,8 @@ class IsometricHive3D {
 
   // Eshiklarning "avtoeshik" pulsatsiyasi — har xonaning glow'i sekin nafas oladi.
   updateDoors(nowMs) {
+    // Past rejimda eshik chiroqlari o'chiq — intensivlikni yangilash behuda.
+    if (this.quality && this.quality.mode === 'low') return;
     const t = nowMs * 0.001;
     const groups = [this.conferenceGroup, this.marketingGroup, this.legalGroup];
     for (const g of groups) {

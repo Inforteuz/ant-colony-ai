@@ -89,6 +89,25 @@ PROVIDER_DEFINITIONS: Dict[str, Dict[str, Any]] = {
         "docs_url": "https://console.groq.com/docs/openai",
         "notes": "OpenAI-mos; Responses endpointi beta — barqarorlik uchun Chat Completions.",
     },
+    "b_ai": {
+        "label": "b.ai services",
+        "driver": DRIVER_OPENAI_CHAT,
+        "base_url": "https://api.b.ai/v1",
+        "models_path": "/models",
+        "generate_path": "/chat/completions",
+        "test_path": "/models",
+        "auth": AUTH_BEARER,
+        "key_required": True,
+        "key_hint": "sk-... (b.ai dan olingan)",
+        "console_url": "https://b.ai",
+        "docs_url": "https://b.ai",
+        "notes": (
+            "OpenAI-mos API. 42 ta model: claude-*, gpt-5.*, gemini-3.*, "
+            "deepseek-v4-*, hy3, qwen3.8-*, glm-5.*, kimi-k*, minimax-m*. "
+            "17.wtf dagi bir xil modellarga qaraganda sezilarli tez "
+            "(o'lchov 2026-08-25: hy3 2.2s vs 17.0s)."
+        ),
+    },
     "17_wtf": {
         "label": "17.wtf API",
         "driver": DRIVER_OPENAI_CHAT,
@@ -252,7 +271,7 @@ PROVIDER_DEFINITIONS: Dict[str, Dict[str, Any]] = {
 
 # UI ro'yxatida ko'rsatiladigan tartib (mashhurlik/qulaylik bo'yicha).
 PROVIDER_ORDER: List[str] = [
-    "openai", "anthropic", "gemini", "groq", "openrouter", "17_wtf", "mistral",
+    "openai", "anthropic", "gemini", "groq", "openrouter", "b_ai", "17_wtf", "mistral",
     "deepseek", "xai", "cerebras", "cohere", "together", "ollama",
     CUSTOM_PROVIDER_ID,
 ]

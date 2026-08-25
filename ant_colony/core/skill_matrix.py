@@ -362,9 +362,24 @@ class SkillMatrixEngine:
         except Exception:
             pass
 
+        # Sog'liq holatidan tashqari, provayderning O'ZI ishlatsa bo'ladiganmi
+        # ham tekshiriladi: kaliti yo'q yoki xizmat sifatida yopilgan
+        # provayderning modeli ELO bo'yicha yuqori tursa ham, unga topshiriq
+        # berish har safar zaxira zanjiriga tushish demakdir.
+        def _provider_usable(m_id: str) -> bool:
+            meta = next((m for m in MODELS_CATALOG if m["id"] == m_id), None)
+            if not meta:
+                return True   # katalogdan tashqari (BYOK) model — to'smaymiz
+            try:
+                from ant_colony.llm.models_hub import models_hub
+                return models_hub.is_provider_configured(meta["provider"])
+            except Exception:
+                return True
+
         usable = {
             m_id: m_data for m_id, m_data in models.items()
             if health.get(m_id, "unknown") not in UNUSABLE_STATUSES
+            and _provider_usable(m_id)
         }
         if not usable:
             usable = models  # hammasi tushib qolgan — hech bo'lmasa urinib ko'ramiz

@@ -823,6 +823,7 @@ async def get_keys():
     return {
         "gemini": CUSTOM_KEYS["gemini"][:8] + "..." if CUSTOM_KEYS.get("gemini") else "",
         "17_wtf": CUSTOM_KEYS["17_wtf"][:8] + "..." if CUSTOM_KEYS.get("17_wtf") else "",
+        "b_ai": CUSTOM_KEYS["b_ai"][:8] + "..." if CUSTOM_KEYS.get("b_ai") else "",
         "openrouter": CUSTOM_KEYS["openrouter"][:8] + "..." if CUSTOM_KEYS.get("openrouter") else "",
         "openai": CUSTOM_KEYS.get("openai", "")[:8] + "..." if CUSTOM_KEYS.get("openai") else "",
         "groq": CUSTOM_KEYS.get("groq", "")[:8] + "..." if CUSTOM_KEYS.get("groq") else ""
@@ -837,6 +838,7 @@ class SetupConfigRequest(BaseModel):
     openai_key: Optional[str] = None
     groq_key: Optional[str] = None
     wtf_key: Optional[str] = None
+    bai_key: Optional[str] = None
     custom_base_url: Optional[str] = None
     custom_key: Optional[str] = None
     projects_dir: Optional[str] = None
@@ -851,6 +853,8 @@ async def save_setup_configuration(req: SetupConfigRequest):
         CUSTOM_KEYS["openrouter"] = req.openrouter_key.strip()
     if req.wtf_key:
         CUSTOM_KEYS["17_wtf"] = req.wtf_key.strip()
+    if req.bai_key:
+        CUSTOM_KEYS["b_ai"] = req.bai_key.strip()
     if req.openai_key:
         CUSTOM_KEYS["openai"] = req.openai_key.strip()
     if req.groq_key:
@@ -869,6 +873,7 @@ async def save_setup_configuration(req: SetupConfigRequest):
         "OPENROUTER_API_KEY": req.openrouter_key or "",
         "GEMINI_API_KEY": req.gemini_key or "",
         "WTF_API_KEY": req.wtf_key or "",
+        "BAI_API_KEY": req.bai_key or "",
         "OPENAI_API_KEY": req.openai_key or "",
         "GROQ_API_KEY": req.groq_key or "",
         "CUSTOM_BASE_URL": req.custom_base_url or "",
@@ -944,7 +949,13 @@ async def test_api_key(req: TestKeyRequest):
         url = "https://models.inference.ai.azure.com/models"
         headers = {"Authorization": f"Bearer {key}", "api-version": "2024-08-01-preview"}
     elif prov == "17_wtf":
-        url = "https://api.17.wtf/api/v1/models"
+        # `/api/v1/models` HTTP 404 qaytaradi — to'g'ri yo'l base_url bilan bir xil
+        # (`https://api.17.wtf/v1`). Shu sababli ishlayotgan provayder UI'da
+        # doim "yaroqsiz kalit" bo'lib ko'rinardi.
+        url = "https://api.17.wtf/v1/models"
+        headers = {"Authorization": f"Bearer {key}"}
+    elif prov == "b_ai":
+        url = "https://api.b.ai/v1/models"
         headers = {"Authorization": f"Bearer {key}"}
     elif prov == "custom" and req.base_url:
         url = req.base_url.rstrip("/") + "/models"
