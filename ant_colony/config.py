@@ -217,7 +217,13 @@ AGENT_CONFIG = {
     # Vision (rasm/video) qo'llab-quvvatlash — global feature flag.
     "enable_vision": os.getenv("AGENT_ENABLE_VISION", "true").lower() in ("true", "1", "yes"),
     # Faqat bepul modellar bilan ishlash rejimi (paid modellar chetlanadi).
-    "free_models_only": os.getenv("AGENT_FREE_ONLY", "false").lower() in ("true", "1", "yes"),
+    # `.env` va `.env.example` da nom AGENT_FREE_MODELS_ONLY. Ilgari bu yerda
+    # faqat AGENT_FREE_ONLY o'qilardi — ya'ni `.env` dagi sozlama HECH QACHON
+    # ishlamagan. Ikkalasini ham qabul qilamiz (yangi nom ustun).
+    "free_models_only": (
+        os.getenv("AGENT_FREE_MODELS_ONLY")
+        or os.getenv("AGENT_FREE_ONLY", "false")
+    ).lower() in ("true", "1", "yes"),
 }
 
 MODELS_CATALOG = [
@@ -271,20 +277,28 @@ MODELS_CATALOG = [
         "is_free": True
     },
     # --- b.ai services (OpenAI-mos, https://api.b.ai/v1) ---
-    # 2026-08-25 o'lchovi: hy3 2.2s (17.wtf'da 17.0s), deepseek-v4-flash 1.4s
-    # (17.wtf'da HTTP 402). Shu sababli bir xil modellar uchun b.ai birinchi
-    # tanlov. To'liq ro'yxat /v1/models dan sinxronlanadi — bu faqat urug'.
+    # 2026-08-25 da 42 ta modelning HAMMASI sinaldi. Uch xil javob bor:
+    #   200                                   -> bepul tarifda ishlaydi
+    #   403 "Deposit required to unlock..."   -> premium, depozit talab qiladi
+    #   400 "credit insufficient balance=0"   -> kredit asosida, balans nol
+    # Loyihaning maqsadi bepul modellar bilan ishlash, shuning uchun katalogda
+    # FAQAT 200 qaytargan 4 ta model turadi. Pullik modellar ataylab
+    # qo'shilmagan: ular zaxira zanjirini to'ldirib, har chaqiruvda 403/400
+    # bilan qaytardi. Depozit qo'yilsa — shu izohga qarab qo'shish mumkin.
+    #
+    # DIQQAT: b.ai da qattiq rate-limit bor (parallel so'rovlarda 429).
+    # Diagnostikani ketma-ket, pauza bilan yugurtiring.
     {
         "id": "hy3",
         "provider": "b_ai",
         "name": "Hy3 (b.ai)",
         "context_window": 262144,
         "max_output": 65536,
-        "features": ["Tools", "Reasoning", "Coding", "Fast"],
+        "features": ["Tools", "Reasoning", "Coding", "Free"],
         "supports_reasoning": True,
         "recommended_for": "coding",
         "default_role": "Code Architect & Full-Stack Developer",
-        "is_free": False
+        "is_free": True
     },
     {
         "id": "deepseek-v4-flash",
@@ -292,95 +306,47 @@ MODELS_CATALOG = [
         "name": "DeepSeek V4 Flash (b.ai)",
         "context_window": 262144,
         "max_output": 65536,
-        "features": ["Tools", "Functions", "Reasoning", "Coding", "Fast"],
+        "features": ["Tools", "Functions", "Reasoning", "Coding", "Free"],
         "supports_reasoning": True,
         "recommended_for": "coding",
         "default_role": "Code Architect & Full-Stack Developer",
-        "is_free": False
+        "is_free": True
     },
     {
-        "id": "deepseek-v4-pro",
+        "id": "deepseek-v4-flash-vision-exp",
         "provider": "b_ai",
-        "name": "DeepSeek V4 Pro (b.ai)",
+        "name": "DeepSeek V4 Flash Vision (b.ai)",
         "context_window": 262144,
         "max_output": 65536,
-        "features": ["Tools", "Reasoning", "Coding", "Deep Analysis"],
+        "features": ["Tools", "Vision", "Reasoning", "Free"],
         "supports_reasoning": True,
-        "recommended_for": "architecture",
-        "default_role": "System Architect",
-        "is_free": False
+        "recommended_for": "general",
+        "default_role": "Full-Stack Generalist",
+        "is_free": True
     },
     {
-        "id": "claude-sonnet-5",
+        "id": "mimo-v2.5",
         "provider": "b_ai",
-        "name": "Claude Sonnet 5 (b.ai)",
-        "context_window": 200000,
-        "max_output": 65536,
-        "features": ["Tools", "Reasoning", "Coding", "Long Context"],
-        "supports_reasoning": True,
-        "recommended_for": "coding",
-        "default_role": "Senior Engineer",
-        "is_free": False
-    },
-    {
-        "id": "claude-haiku-4.5",
-        "provider": "b_ai",
-        "name": "Claude Haiku 4.5 (b.ai)",
-        "context_window": 200000,
+        "name": "MiMo v2.5 (b.ai)",
+        "context_window": 131072,
         "max_output": 32768,
-        "features": ["Tools", "Fast", "Cheap"],
+        "features": ["Tools", "General", "Free"],
         "supports_reasoning": False,
         "recommended_for": "general",
         "default_role": "Full-Stack Generalist",
-        "is_free": False
-    },
-    {
-        "id": "gemini-3.5-flash",
-        "provider": "b_ai",
-        "name": "Gemini 3.5 Flash (b.ai)",
-        "context_window": 1048576,
-        "max_output": 65536,
-        "features": ["1M Context", "Tools", "Fast"],
-        "supports_reasoning": False,
-        "recommended_for": "general",
-        "default_role": "Full-Stack Generalist",
-        "is_free": False
-    },
-    {
-        "id": "gpt-5.4-mini",
-        "provider": "b_ai",
-        "name": "GPT-5.4 Mini (b.ai)",
-        "context_window": 400000,
-        "max_output": 65536,
-        "features": ["Tools", "Functions", "Fast"],
-        "supports_reasoning": False,
-        "recommended_for": "general",
-        "default_role": "Full-Stack Generalist",
-        "is_free": False
-    },
-    {
-        "id": "qwen3.8-max",
-        "provider": "b_ai",
-        "name": "Qwen 3.8 Max (b.ai)",
-        "context_window": 262144,
-        "max_output": 65536,
-        "features": ["Tools", "Coding", "Multilingual"],
-        "supports_reasoning": False,
-        "recommended_for": "coding",
-        "default_role": "Backend Engineer",
-        "is_free": False
+        "is_free": True
     },
     # 17.wtf Models
     {
-        "id": "posiden/deepseek-v4-flash",
+        "id": "posiden/ox-alpha",
         "provider": "17_wtf",
-        "name": "DeepSeek V4 Flash",
-        "context_window": 262144,
-        "max_output": 262144,
-        "features": ["Tools", "Functions", "Reasoning", "Coding"],
+        "name": "Ox Alpha (17.wtf)",
+        "context_window": 131072,
+        "max_output": 32768,
+        "features": ["Tools", "Reasoning", "Free"],
         "supports_reasoning": True,
-        "recommended_for": "coding",
-        "default_role": "Code Architect & Full-Stack Developer",
+        "recommended_for": "general",
+        "default_role": "Full-Stack Generalist",
         "is_free": True
     },
     {

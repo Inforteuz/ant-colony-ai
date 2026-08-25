@@ -85,6 +85,12 @@ def build_fallback_chain(primary: str, exclude: Optional[List[str]] = None) -> L
         # bir necha marta urinib, sekinlashib ketardi.
         if not models_hub.is_provider_configured(m["provider"]):
             continue
+        # "Faqat bepul modellar" rejimi. Ilgari bu sozlama saqlanardi, lekin
+        # model tanlashga UMUMAN ta'sir qilmasdi — ya'ni yoqilgan bo'lsa ham
+        # pullik modellar zanjirga tushaverardi. Loyihaning asosiy maqsadi
+        # bepul modellar bilan ishlash bo'lgani uchun bu jiddiy nuqson edi.
+        if AGENT_CONFIG.get("free_models_only") and not m.get("is_free"):
+            continue
         stat = models_hub.stats.get(mid, {})
         status = stat.get("status", "unknown")
         prov = m["provider"]

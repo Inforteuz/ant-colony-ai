@@ -215,10 +215,31 @@ def test_message_conversion():
     check("Gemini: ketma-ket bir xil rollar birlashadi", len(contents) == 1 and len(contents[0]["parts"]) == 2)
 
 
+def _a_free_model() -> str:
+    """
+    Sinovlar uchun mavjud bepul model id si.
+
+    Katalog o'zgaruvchan (provayderlar qo'shiladi, yopiladi), shuning uchun
+    testlarda model id sini qattiq yozib qo'yish mo'rt bo'ladi — 2026-08-25 da
+    aynan shu sabab ikkita test yiqilgan edi.
+    """
+    return next(
+        m["id"] for m in MODELS_CATALOG
+        if m.get("is_free") and models_hub.is_provider_configured(m["provider"])
+    )
+
+
 def test_fallback_chain():
     print("\n=== 5. Sog'liqqa asoslangan zaxira zanjiri ===")
-    primary = "posiden/deepseek-v4-flash"
-    dead = "gemini-3.7-flash"
+    primary = _a_free_model()
+    # "O'lik" model primary'dan BOSHQA bo'lishi shart — aks holda test
+    # o'zining asosiy modelini o'chirib, o'zi yiqiladi.
+    dead = next(
+        m["id"] for m in MODELS_CATALOG
+        if m["id"] != primary
+        and m.get("is_free")
+        and models_hub.is_provider_configured(m["provider"])
+    )
     saved = dict(models_hub.stats[dead])
     try:
         models_hub.stats[dead]["status"] = "error"
@@ -240,14 +261,15 @@ def test_model_selection():
           skill_matrix.matrix["role_assignments"][role] == chosen)
 
     # Ishlamayotgan modellar chetlatilishi kerak
+    healthy = _a_free_model()
     originals = {k: dict(v) for k, v in models_hub.stats.items()}
     try:
         for m_id in models_hub.stats:
-            if m_id != "posiden/hy3":
+            if m_id != healthy:
                 models_hub.stats[m_id]["status"] = "rate_limited"
-        models_hub.stats["posiden/hy3"]["status"] = "online"
+        models_hub.stats[healthy]["status"] = "online"
         picked = skill_matrix.get_best_model_for_role(role, explore=False)
-        check("faqat sog'lom model tanlanadi", picked == "posiden/hy3", picked)
+        check("faqat sog'lom model tanlanadi", picked == healthy, picked)
     finally:
         for k, v in originals.items():
             models_hub.stats[k].update(v)

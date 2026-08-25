@@ -369,7 +369,19 @@ class SkillMatrixEngine:
         def _provider_usable(m_id: str) -> bool:
             meta = next((m for m in MODELS_CATALOG if m["id"] == m_id), None)
             if not meta:
-                return True   # katalogdan tashqari (BYOK) model — to'smaymiz
+                # Katalogda yo'q. Ikki holat farqlanadi:
+                #  * models_hub biladi -> tirik BYOK modeli, to'smaymiz;
+                #  * hech kim bilmaydi -> katalogdan OLIB TASHLANGAN model,
+                #    lekin `data/model_skill_matrix.json` da ELO yozuvi
+                #    qolib ketgan. Bunday "arvoh" yozuv tanlansa, agent
+                #    mavjud bo'lmagan modelga topshiriq berardi.
+                try:
+                    from ant_colony.llm.models_hub import models_hub
+                    return m_id in models_hub.stats
+                except Exception:
+                    return True
+            if AGENT_CONFIG.get("free_models_only") and not meta.get("is_free"):
+                return False
             try:
                 from ant_colony.llm.models_hub import models_hub
                 return models_hub.is_provider_configured(meta["provider"])
