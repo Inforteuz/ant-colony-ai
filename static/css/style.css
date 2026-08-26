@@ -6816,6 +6816,76 @@ body.light-theme .btn-exec-launch.launched {
 .role-model-hint.is-pinned { color: var(--color-purple); font-weight: 700; }
 
 
+/* --- Models Hub modali: status hisoboti + qidiruv/filtr/saralash --- */
+.models-hub-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.models-hub-summary-tile {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-card-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-size: 11.5px;
+}
+.models-hub-summary-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.models-hub-summary-n { font-weight: 800; font-size: 13px; color: var(--text-main); }
+.models-hub-summary-l { color: var(--text-muted); }
+.models-hub-summary-total { border-color: var(--color-purple); }
+.models-hub-summary-total .models-hub-summary-n { color: var(--color-purple); }
+
+.models-hub-toolbar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.models-hub-search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 6px 12px;
+  flex: 1 1 220px;
+  min-width: 180px;
+}
+#models-hub-sort {
+  flex: 0 1 220px;
+  min-width: 160px;
+  background: var(--bg-input);
+  color: var(--text-main);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 6px 10px;
+  font-size: 12px;
+}
+#models-hub-sort option { background: var(--bg-input); color: var(--text-main); }
+
+.models-hub-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.models-hub-filter-count {
+  opacity: 0.75;
+  font-weight: 800;
+  margin-left: 2px;
+}
+
+
 /* ==========================================================================
    MOBILE — FAZA 0: poydevor va touch  ·  docs/MOBILE_UI_PLAN.md
    Bu blokdagi hamma narsa QO'SHIMCHA: mavjud desktop qoidalari o'chirilmagan

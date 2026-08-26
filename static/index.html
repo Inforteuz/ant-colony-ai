@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
-  <link rel="stylesheet" href="/static/css/style.css?t=1787694960">
+  <link rel="stylesheet" href="/static/css/style.css?t=1787700200">
 </head>
 <body class="dark-theme full-3d-body">
 
@@ -493,12 +493,27 @@
 
   <!-- MODELS MODAL -->
   <div class="modal-backdrop hidden" id="modal-models-hub">
-    <div class="colony-modal-card">
+    <div class="colony-modal-card modal-large">
       <div class="modal-top">
         <div><h3>Каталог моделей и автомониторинг</h3><small class="text-secondary-sub">Автоматически обновляется каждые 4 секунды</small></div>
         <button class="btn-modal-x" id="btn-close-models-modal">✕</button>
       </div>
       <div class="modal-scroll-body">
+        <div class="models-hub-summary" id="models-hub-summary"></div>
+        <div class="models-hub-toolbar">
+          <div class="models-hub-search-box">
+            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="text" id="models-hub-search" class="search-input" placeholder="Qidirish: nom, ID, provider...">
+          </div>
+          <select id="models-hub-sort" class="search-input">
+            <option value="name">Saralash: Nom (A-Z)</option>
+            <option value="provider">Saralash: Provider</option>
+            <option value="latency">Saralash: Latency (tez birinchi)</option>
+            <option value="uptime">Saralash: Uptime (yuqori birinchi)</option>
+            <option value="status">Saralash: Status</option>
+          </select>
+        </div>
+        <div class="models-hub-filters" id="models-hub-filters"></div>
         <div class="modal-models-table-wrap">
           <table class="colony-table">
             <thead><tr><th>Модель</th><th>Провайдер</th><th>Статус (Авто)</th><th>Задержка (Latency)</th><th>Uptime</th><th>Контекст</th><th>Действие</th></tr></thead>
@@ -1212,6 +1227,6 @@
   <script src="/static/vendor/OrbitControls.js"></script>
   <script src="/static/js/hive3d.js?t=1787678933"></script>
   <script src="/static/js/i18n.js?t=1787678933"></script>
-  <script src="/static/js/app.js?t=1787678933"></script>
+  <script src="/static/js/app.js?t=1787700200"></script>
 </body>
 </html>

@@ -32,6 +32,7 @@ Companion to root `CLAUDE.md`. Last updated 2026-08-21._
 | Mobile UI — Faza 4 (modallar) | ✅ done | `8a07b47` |
 | Mobile UI — Faza 5 (qurilmada sinov) | ❌ open (foydalanuvchi) | — |
 | PM intent-detection (oddiy salom/qisqa xabar) | ❌ open — keyingi sessiya | — |
+| Models Hub — status hisoboti + qidiruv/filtr/saralash | ✅ done | working tree |
 
 ---
 
@@ -214,6 +215,34 @@ so'rovlarga 200 OK qaytargan — bu server nosozligi emas, PM pipeline dizayni m
 - Tekshiruv: "Salom", "Rahmat", "Qanday ishlaysan?" kabi qisqa xabarlar bir necha soniyada
   (to'liq pipeline'siz) javob olishi kerak; haqiqiy vazifalar ("FastAPI REST API yarat")
   hali ham to'liq pipeline orqali ishlashi kerak — regressiya yo'q.
+
+### T13 — Models Hub: status hisoboti + qidiruv/filtr/saralash (bajarildi, 2026-08-26)
+`modal-models-hub` (topbar "N modellar" pill) ilgari faqat xom jadval edi —
+93 ta model orasidan qaysi biri ishlayapti, qaysi biri o'lik, qanchasi
+rate-limit'da ekanini bilish uchun qo'lda sanash kerak edi. Backend'da
+haqiqiy tarixga asoslangan holat allaqachon bor edi
+(`models_hub.py::_update_health` — `total_checks`/`success_checks`/
+`uptime_pct`/`history[-15]`), shunchaki frontend'da ko'rsatilmagan edi.
+
+Yechim (faqat frontend, backend o'zgarmadi — `/api/models` allaqachon
+yetarli ma'lumot qaytaradi):
+- `app.js::_classifyModelStatus()` — backend'ning 7 xil status qiymatini
+  (`online`, `rate_limited`, `error`, `timeout`, `degraded`,
+  `not_configured`, `unknown`) 5 ta tushunarli guruhga jamlaydi
+  (`online`/`down`/`rate_limited`/`not_configured`/`unchecked`).
+- `_renderModelsHubUI()` — har guruh uchun son bilan xulosa panjarasi
+  (`models-hub-summary`) + bosiladigan filtr chiplari
+  (`models-hub-filters`, `.lb-filter-btn` patternidan foydalanadi) +
+  qidiruv (nom/ID/provider) + saralash (nom/provider/latency/uptime/status).
+- `renderModelsTable()` endi faqat fetch qiladi; render/filtr/qidiruv
+  alohida `_renderModelsHubUI()`da — shu ajratish tufayli 4 soniyalik
+  avto-yangilanish (`server.py`dagi emas, `app.js:822` dagi `setInterval`)
+  foydalanuvchi tanlagan filtr/qidiruv/saralashni HAR SAFAR qayta
+  tashlab yubormaydi (holat `this.modelsHubFilter/-Search/-Sort`da saqlanadi).
+- Tekshirildi (brauzerda, real 93 modelli ma'lumot bilan): 15 ishlayapti,
+  46 down, 6 rate-limit, 6 kalit yo'q, 20 sinalmagan — yig'indisi 93ga
+  teng; qidiruv, filtr chiplari va saralash ishlayapti; 4s avto-yangilanish
+  filtr holatini buzmaydi; konsolda xato yo'q.
 
 ### i18n BOSQICH 1-2 — hardcoded rus matnlari (OCHIQ)
 `docs/I18N_TASK.md` (Bosqich 1 — `app.js` toast/confirm/alert, 56 ta) va

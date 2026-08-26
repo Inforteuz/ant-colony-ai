@@ -814,6 +814,9 @@ class AntColonyApp {
     this.checkFirstRunSetup();
     this.setupIdleSwarmMonitor();
     this.activeLbCategory = 'all';
+    this.modelsHubFilter = 'all';
+    this.modelsHubSearch = '';
+    this.modelsHubSort = 'name';
     
     // Auto-refresh real stats every 3 seconds
     setInterval(() => this.fetchRealStats(), 3000);
@@ -4377,7 +4380,51 @@ class AntColonyApp {
   // --- Auto Monitoring Models Table ---
   async openModelsModal() {
     document.getElementById('modal-models-hub').classList.remove('hidden');
+    this._bindModelsHubControls();
     this.renderModelsTable();
+  }
+
+  // Backend statusi (`ant_colony/llm/models_hub.py`) 7 xil qiymat qaytaradi —
+  // shularni foydalanuvchiga tushunarli 5 ta guruhga jamlaymiz. `error`,
+  // `timeout`, `degraded` — barchasi amalda "model javob bermayapti" degani,
+  // shuning uchun bitta "Down" guruhiga qo'shiladi.
+  _classifyModelStatus(status) {
+    if (status === 'online') return 'online';
+    if (status === 'rate_limited') return 'rate_limited';
+    if (status === 'not_configured') return 'not_configured';
+    if (status === 'error' || status === 'timeout' || status === 'degraded') return 'down';
+    return 'unchecked'; // "unknown" — hali birorta ham chaqiruv/ping bo'lmagan
+  }
+
+  _modelsHubBucketMeta() {
+    return {
+      all: { label: 'Barchasi', color: 'var(--text-main)' },
+      online: { label: 'Ishlayapti', color: '#10b981' },
+      down: { label: 'Down (xato)', color: '#ef4444' },
+      rate_limited: { label: 'Rate-limit', color: '#f59e0b' },
+      not_configured: { label: 'Kalit yo’q', color: '#94a3b8' },
+      unchecked: { label: 'Sinalmagan', color: '#64748b' },
+    };
+  }
+
+  _bindModelsHubControls() {
+    if (this._modelsHubBound) return;
+    this._modelsHubBound = true;
+    const search = document.getElementById('models-hub-search');
+    const sort = document.getElementById('models-hub-sort');
+    if (search) {
+      search.addEventListener('input', () => {
+        this.modelsHubSearch = search.value.trim().toLowerCase();
+        this._renderModelsHubUI();
+      });
+    }
+    if (sort) {
+      sort.value = this.modelsHubSort;
+      sort.addEventListener('change', () => {
+        this.modelsHubSort = sort.value;
+        this._renderModelsHubUI();
+      });
+    }
   }
 
   async renderModelsTable() {
@@ -4386,35 +4433,113 @@ class AntColonyApp {
       const res = await fetch('/api/models');
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      tbody.innerHTML = '';
+      this._modelsHubData = data.models || [];
+      this._renderModelsHubUI();
+    } catch (e) {
+      if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="color:#ef4444; padding:10px">Ошибка: ${this.esc(e.message)}</td></tr>`;
+    }
+  }
 
-      if (!data.models || data.models.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:12px; color:#64748b">Список моделей пуст</td></tr>';
-        return;
-      }
+  // `renderModelsTable` faqat serverdan yangi ma'lumot keltiradi; qidiruv/filtr/
+  // saralash esa shu funksiyada — allaqachon yuklangan `this._modelsHubData`
+  // ustida ishlaydi. Shu bo'linish tufayli 4 soniyalik avto-yangilanish
+  // foydalanuvchi tanlagan filtr/qidiruvni har safar qayta sozlab qo'ymaydi.
+  _renderModelsHubUI() {
+    const tbody = document.getElementById('colony-models-tbody');
+    const summaryEl = document.getElementById('models-hub-summary');
+    const filtersEl = document.getElementById('models-hub-filters');
+    if (!tbody) return;
+    const all = this._modelsHubData || [];
 
-      data.models.forEach(m => {
-        const isOnline = m.status === 'online';
-        const badgeColor = isOnline ? '#10b981' : (m.status === 'rate_limited' ? '#f59e0b' : '#ef4444');
-        const statusLabel = isOnline ? 'Online (200 OK)' : (m.status === 'rate_limited' ? '429 Rate limit' : m.status);
+    if (all.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:12px; color:#64748b">Список моделей пуст</td></tr>';
+      if (summaryEl) summaryEl.innerHTML = '';
+      if (filtersEl) filtersEl.innerHTML = '';
+      return;
+    }
 
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td><strong>${m.name}</strong><br><small style="color:#64748b">${m.id}</small></td>
-          <td><span style="font-size:11px; background:rgba(139,92,246,0.1); padding:2px 6px; border-radius:4px">${m.provider}</span></td>
+    // --- Guruh bo'yicha son (real vaqtdagi holat, backend tarixiga asoslangan) ---
+    const counts = { all: all.length, online: 0, down: 0, rate_limited: 0, not_configured: 0, unchecked: 0 };
+    all.forEach(m => { counts[this._classifyModelStatus(m.status)]++; });
+
+    const meta = this._modelsHubBucketMeta();
+    if (summaryEl) {
+      summaryEl.innerHTML = Object.keys(meta).filter(k => k !== 'all').map(k => `
+        <div class="models-hub-summary-tile">
+          <span class="models-hub-summary-dot" style="background:${meta[k].color}"></span>
+          <span class="models-hub-summary-n">${counts[k]}</span>
+          <span class="models-hub-summary-l">${meta[k].label}</span>
+        </div>
+      `).join('') + `
+        <div class="models-hub-summary-tile models-hub-summary-total">
+          <span class="models-hub-summary-n">${counts.all}</span>
+          <span class="models-hub-summary-l">Jami model</span>
+        </div>
+      `;
+    }
+    if (filtersEl) {
+      filtersEl.innerHTML = Object.keys(meta).map(k => `
+        <button class="lb-filter-btn models-hub-filter-btn${this.modelsHubFilter === k ? ' active' : ''}" data-bucket="${k}">
+          ${meta[k].label} <span class="models-hub-filter-count">${counts[k]}</span>
+        </button>
+      `).join('');
+      filtersEl.querySelectorAll('.models-hub-filter-btn').forEach(btn => {
+        btn.onclick = () => {
+          this.modelsHubFilter = btn.dataset.bucket;
+          this._renderModelsHubUI();
+        };
+      });
+    }
+
+    // --- Filtr + qidiruv ---
+    let rows = all.filter(m => this.modelsHubFilter === 'all' || this._classifyModelStatus(m.status) === this.modelsHubFilter);
+    if (this.modelsHubSearch) {
+      const q = this.modelsHubSearch;
+      rows = rows.filter(m =>
+        (m.name || '').toLowerCase().includes(q) ||
+        (m.id || '').toLowerCase().includes(q) ||
+        (m.provider || '').toLowerCase().includes(q)
+      );
+    }
+
+    // --- Saralash ---
+    const sortFns = {
+      name: (a, b) => (a.name || '').localeCompare(b.name || ''),
+      provider: (a, b) => (a.provider || '').localeCompare(b.provider || '') || (a.name || '').localeCompare(b.name || ''),
+      latency: (a, b) => (a.latency_ms || 999999) - (b.latency_ms || 999999),
+      uptime: (a, b) => (b.uptime_pct || 0) - (a.uptime_pct || 0),
+      status: (a, b) => this._classifyModelStatus(a.status).localeCompare(this._classifyModelStatus(b.status)),
+    };
+    rows = rows.slice().sort(sortFns[this.modelsHubSort] || sortFns.name);
+
+    if (rows.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:12px; color:#64748b">Filtrga mos model topilmadi</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = rows.map(m => {
+      const bucket = this._classifyModelStatus(m.status);
+      const badgeColor = meta[bucket].color;
+      const statusLabelMap = {
+        online: 'Online (200 OK)', rate_limited: '429 Rate limit',
+        not_configured: 'Kalit yo’q', down: this.esc(m.status || 'error'),
+        unchecked: 'Sinalmagan',
+      };
+      const statusLabel = statusLabelMap[bucket];
+      return `
+        <tr>
+          <td><strong>${this.esc(m.name)}</strong><br><small style="color:#64748b">${this.esc(m.id)}</small></td>
+          <td><span style="font-size:11px; background:rgba(139,92,246,0.1); padding:2px 6px; border-radius:4px">${this.esc(m.provider)}</span></td>
           <td><span style="color:${badgeColor}; font-weight:700">● ${statusLabel}</span></td>
           <td>${m.latency_ms ? m.latency_ms + ' ms' : '-'}</td>
-          <td>${m.uptime_pct}%</td>
+          <td>${m.uptime_pct}% <small style="color:#64748b">(${m.total_checks || 0} tekshiruv)</small></td>
           <td>${(m.context_window / 1024).toFixed(0)}K</td>
           <td>
-            <button class="btn-hive-action" style="padding:3px 8px; font-size:11px" onclick="window.antApp.pingSingleModel('${m.id}')">Ping</button>
+            <button class="btn-hive-action" style="padding:3px 8px; font-size:11px" onclick="window.antApp.pingSingleModel('${this.esc(m.id)}')">Ping</button>
           </td>
-        `;
-        tbody.appendChild(tr);
-      });
-    } catch (e) {
-      tbody.innerHTML = `<tr><td colspan="7" style="color:#ef4444; padding:10px">Ошибка: ${e.message}</td></tr>`;
-    }
+        </tr>
+      `;
+    }).join('');
   }
 
   closeModelsModal() {
