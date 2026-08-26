@@ -215,6 +215,13 @@ so'rovlarga 200 OK qaytargan — bu server nosozligi emas, PM pipeline dizayni m
   (to'liq pipeline'siz) javob olishi kerak; haqiqiy vazifalar ("FastAPI REST API yarat")
   hali ham to'liq pipeline orqali ishlashi kerak — regressiya yo'q.
 
+### i18n BOSQICH 1-2 — hardcoded rus matnlari (OCHIQ)
+`docs/I18N_TASK.md` (Bosqich 1 — `app.js` toast/confirm/alert, 56 ta) va
+`docs/I18N_TASK_PHASE2.md` (Bosqich 2 — Setup Wizard, `index.html`, 88 ta,
+shundan 84 tasi UCHUN KALIT ALLAQACHON BOR, faqat 4 tasi yangi) yozib
+qo'yilgan — har ikkalasi ham mustaqil bajarilishi mumkin bo'lgan
+o'z-o'zicha yetarli brief. Hali bajarilmagan (2026-08-26 holatiga ko'ra).
+
 ### T2 — (optional) localise transient toasts
 A few `this.toast(...)` / `pmFeedError(...)` calls in `app.js` still pass hardcoded Russian
 (e.g. the orchestrator error toast). Wrap them in `I18N.t(...)`. Lower priority — they are
