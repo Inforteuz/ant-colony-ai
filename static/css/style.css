@@ -497,6 +497,10 @@ body.light-theme .tools-dropdown-menu {
    ========================================================================== */
 
 :root {
+  /* Native form control'lar (select dropdown, scrollbar) ham dark rejimda
+     chizilsin — aks holda `<select>` ochilganda brauzer oq fon + deyarli
+     oq matn ("garbled" ko'rinish, docs/HANDOFF.md T12) bilan chizadi. */
+  color-scheme: dark;
   /* Dark Theme Default */
   --bg-dark: #080c14;
   --bg-sidebar: #0b111e;
@@ -540,6 +544,7 @@ body.light-theme .tools-dropdown-menu {
 
 /* Light Theme Variables */
 body.light-theme {
+  color-scheme: light;
   --bg-dark: #f8fafc;
   --bg-sidebar: #ffffff;
   --bg-card: #ffffff;
@@ -6790,6 +6795,19 @@ body.light-theme .btn-exec-launch.launched {
   max-width: 420px;
   font-size: 11.5px;
   padding: 5px 8px;
+  /* `.search-input` fon-rangini shaffof qoldiradi — bu YOPIQ quti uchun OK
+     (ota-element fondan ko'rinadi), lekin OCHIQ dropdown ro'yxati brauzer
+     tomonidan alohida sirt sifatida chiziladi va shaffoflikni meros
+     olmaydi. Aniq fon/rang bermasak, `color-scheme` yordam bermagan
+     brauzerlarda ro'yxat oq fon + deyarli oq matn bilan chiqadi. */
+  background: var(--bg-input);
+  color: var(--text-main);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+}
+.role-model-bar select option {
+  background: var(--bg-input);
+  color: var(--text-main);
 }
 .role-model-hint {
   font-size: 10.5px;

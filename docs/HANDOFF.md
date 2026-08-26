@@ -31,6 +31,7 @@ Companion to root `CLAUDE.md`. Last updated 2026-08-21._
 | Mobile UI — Faza 2 (HUD panellari) | ✅ done | `60f532c` |
 | Mobile UI — Faza 4 (modallar) | ✅ done | `8a07b47` |
 | Mobile UI — Faza 5 (qurilmada sinov) | ❌ open (foydalanuvchi) | — |
+| PM intent-detection (oddiy salom/qisqa xabar) | ❌ open — keyingi sessiya | — |
 
 ---
 
@@ -182,6 +183,37 @@ PM lentasida ko'rsatiladi. `roles/pm_orchestrator.md` qayta yozildi.
 `style.css` da eng past breakpoint — 720px. 3D canvas, PM konsoli va Live Workspace
 drawer'lari kichik ekran uchun alohida layout talab qiladi. Foydalanuvchi buni
 ataylab oxirgi, alohida ish sifatida qoldirdi.
+
+### T12 — PM intent-detection qatlami (OCHIQ, keyingi sessiya)
+**Muammo (2026-08-26, foydalanuvchi skrinshoti):** PM konsoliga oddiy `"Salom"` yozilganda
+orkestrator buni to'liq vazifa deb qabul qildi va "Sбор и анализ требований" bosqichidan
+boshladi; tanlangan model (`qwen/qwen3.6-27b`, reasoning model) "Размышление..." holatida
+uzoq osilib qoldi (738+ token sarflanib javob chiqmadi). Backend/server terminali barcha
+so'rovlarga 200 OK qaytargan — bu server nosozligi emas, PM pipeline dizayni muammosi.
+
+**Sabab (ikkita qatlam):**
+1. PM orkestratorda "qisqa suhbat" rejimi yo'q — har qanday kirish matni (uzunligidan
+   qat'i nazar) to'g'ridan-to'g'ri to'liq ish-tashkil qilish pipeline'iga (talab yig'ish →
+   dekompozitsiya → rol tayinlash → ...) yuboriladi.
+2. Reasoning model (`qwen3.6-27b`) hatto ahamiyatsiz kirish uchun ham to'liq "thinking"
+   zanjirini bajaradi — sekin va token isrofgar.
+
+**Reja (keyingi sessiyada bajariladi):**
+- Orkestratorga kirish nuqtasida yengil intent-detection qatlami qo'shish: foydalanuvchi
+  xabari salomlashuv/qisqa savol/kichik so'rov bo'lsa, PM to'liq pipeline'ni chetlab o'tib,
+  tez va arzon (reasoning'siz) model bilan bevosita javob beradi.
+- Ehtimoliy joylashuv: `ant_colony/server.py` dagi orkestrator dispatch nuqtasi yoki
+  `roles/pm_orchestrator.md` promptiga oldindan filtr, yoxud alohida
+  `ant_colony/core/intent_router.py` (yangi, kichik module — regex/uzunlik evristikasi,
+  keyin xohlasa LLM-based tasniflovchi).
+  - Full pipeline'ga tushirish shartlari aniq belgilanishi kerak (masalan: xabar uzunligi,
+    kalit so'zlar — "yarat", "qo'sh", "tuzat", fayl/loyiha havolasi va h.k.).
+- Tez javob uchun model tanlovi: reasoning'siz, arzon/tez modeldan foydalanish (masalan
+  b.ai dagi `mimo-v2.5` yoki shunga o'xshash bepul, reasoning'siz model — `MODELS_CATALOG`
+  dan `supports_reasoning: False` bo'lganlar orasidan tanlash).
+- Tekshiruv: "Salom", "Rahmat", "Qanday ishlaysan?" kabi qisqa xabarlar bir necha soniyada
+  (to'liq pipeline'siz) javob olishi kerak; haqiqiy vazifalar ("FastAPI REST API yarat")
+  hali ham to'liq pipeline orqali ishlashi kerak — regressiya yo'q.
 
 ### T2 — (optional) localise transient toasts
 A few `this.toast(...)` / `pmFeedError(...)` calls in `app.js` still pass hardcoded Russian
