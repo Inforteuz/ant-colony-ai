@@ -33,6 +33,8 @@ Companion to root `CLAUDE.md`. Last updated 2026-08-21._
 | Mobile UI — Faza 5 (qurilmada sinov) | ❌ open (foydalanuvchi) | — |
 | PM intent-detection (oddiy salom/qisqa xabar) | ❌ open — keyingi sessiya | — |
 | Models Hub — status hisoboti + qidiruv/filtr/saralash | ✅ done | working tree |
+| AI Leaderboard — qidiruv + saralash (kategoriya filtri allaqachon bor edi) | ✅ done | working tree |
+| "Model yozolmayapti" muammosi — tashxis (stale-key + katalog buglar) | ✅ tashxis qo'yildi, restart kerak | working tree |
 
 ---
 
@@ -243,6 +245,80 @@ yetarli ma'lumot qaytaradi):
   46 down, 6 rate-limit, 6 kalit yo'q, 20 sinalmagan — yig'indisi 93ga
   teng; qidiruv, filtr chiplari va saralash ishlayapti; 4s avto-yangilanish
   filtr holatini buzmaydi; konsolda xato yo'q.
+
+Xuddi shu ish davomida **AI Leaderboard modaliga** (`modal-ai-leaderboard`)
+ham qidiruv (`#lb-search`, nom/ID/provider) va saralash (`#lb-sort`: ELO
+default/nom/provider/latency/status) qo'shildi — mavjud kategoriya filtri
+(`lb-filters-bar`) o'zgarmadi, ular ustiga qo'shildi. `renderLeaderboardTable()`
+endi: kategoriya bo'yicha tartib → qidiruv filtri → (agar "elo" dan boshqa
+tanlangan bo'lsa) qo'shimcha saralash ketma-ketligida ishlaydi. Brauzerda
+tekshirildi: "gemini" qidiruvi 22 dan 4 taga tushirdi, nom bo'yicha saralash
+alfavit tartibida ishladi, konsolda xato yo'q.
+
+### T14 — "Model deyarli hech nima yoza olmayapti" — TASHXIS (2026-08-26)
+Foydalanuvchi shikoyati: bir necha commit oldin oddiy vazifalarni bemalol
+bajarardi, hozir oddiy ishni ham qila olmayapti. Real tekshiruv (`.env`dagi
+JORIY kalitlar bilan Google/Groq API'ga TO'G'RIDAN-TO'G'RI so'rov yuborib)
+shuni ko'rsatdi:
+
+**Asosiy sabab — juda ehtimolli: server jarayoni ESKI (stale) kalitlar bilan
+xotirada ishlamoqda.** `ant_colony/config.py`da har provayder kaliti
+`os.getenv("...", "")` bilan MODUL YUKLANGANDA (import vaqtida) BIR MARTA
+o'qiladi — keyin `.env` o'zgarsa ham, jarayon qayta ishga tushirilmaguncha
+eski qiymat xotirada qoladi. Dalil:
+- Ilova ichidagi jonli monitoring (`/api/models`) **barcha 4 ta Gemini
+  modelini** (`gemini-3.7/3.6/3.5-flash-lite`, `gemini-2.5-flash`) va
+  `groq/compound`ni xato/404/400 deb ko'rsatmoqda.
+- Xuddi shu kalitlar bilan (joriy `.env`dan o'qib) to'g'ridan-to'g'ri
+  `curl` qilinganda **gemini-3.7-flash, gemini-3.6-flash,
+  gemini-3.5-flash-lite va groq/compound MUKAMMAL ishladi** — normal javob
+  qaytardi. Faqat `gemini-2.5-flash` haqiqatan o'lik ekan (Google: "no
+  longer available to new users... use models/gemini-3.6-flash").
+- Xulosa: process ichidagi kalit(lar) bilan `.env`dagi joriy kalit(lar)
+  MOS EMAS. Eng ehtimolli: `.env` oxirgi marta 2026-08-25 kuni
+  (b.ai/free_models_only ishi paytida) o'zgargan, server esa o'shandan
+  beri (yoki undan oldin) qayta ishga tushirilmagan.
+
+**Yechim — foydalanuvchi bajarishi kerak (men serverni o'zim qayta
+ishga tushirmayman, loyiha qoidasi):**
+```
+Ctrl+C bilan joriy `run.py` jarayonini to'xtating, so'ng qaytadan:
+python run.py
+```
+Qayta ishga tushirgach, Models Hub modalida (yangi status hisoboti bilan,
+[[T13]] ga qarang) Gemini va Groq modellarining "Down" emas "Ishlayapti"
+guruhiga o'tganini tekshiring.
+
+**Bu bilan bog'liq, alohida topilgan va TUZATILGAN ikkita katalog bugi**
+(`ant_colony/config.py`, kalit-eskiligidan mustaqil, haqiqiy xatolar edi):
+1. `gemini-2.5-flash` — Google tomonidan chindan ham o'chirilgan (yuqoriga
+   qarang), katalogdan olib tashlandi (`gemini-3.6-flash` allaqachon bor).
+2. `liquid/lfm-2.5-embedding-350m:free` (OpenRouter) — bu EMBEDDING modeli,
+   chat/completion so'rovini umuman qabul qilmaydi, har chaqiruvda 100%
+   xato berardi. Katalogdan olib tashlandi.
+
+**Tuzatib bo'lmaydigan, faqat qabul qilinadigan reallik:** OpenRouter'ning
+bepul tarifidagi 7 modeldan 6 tasi doimiy `rate_limited (429)` holatida —
+bu OpenRouter'ning umumiy hisob darajasidagi juda past kvotasi, bizning
+kodimizdagi xato emas. `free_models_only` yoqilgan holatda bu modellarga
+tayanish beqaror natija beradi; muqobil — o'z OpenRouter API keyingizga
+pul to'ldirish yoki shu 6 modelni "ishonchsiz" deb belgilab, asosan
+b.ai/17.wtf/Groq bepul modellariga (hozircha eng barqaror: `hy3`,
+`deepseek-v4-flash-vision-exp`, `posiden/nemotron-3.5-lightning`,
+`posiden/hy3`, `openai/gpt-oss-120b`) tayanish.
+
+**Eslatma — nega bu ilgari sezilmagan:** `free_models_only` sozlamasi
+avval umuman ishlamas edi (commit `43d2de1`) —
+demak eski holatda tizim yashirincha PAYDIY/kuchliroq modellarga ham
+murojaat qilardi va shu "teshiklar"ni yopib turardi. Sozlama tuzatilgach
+(hozir ishlaydi), tizim HAQIQATAN faqat bepul modellarga cheklandi — va
+o'sha bepul havzaning bir qismi (Gemini, Groq) eskirgan kalit tufayli,
+yana bir qismi (OpenRouter) rate-limit tufayli ishlamay qolgani endi
+to'g'ridan-to'g'ri sezilmoqda. Ya'ni sifat pasayishi ikkita mustaqil omil
+qo'shilishidan kelib chiqqan: (a) `free_models_only` endi haqiqatan
+cheklamoqda + (b) stale-key bug Gemini/Groq'ni o'chirib qo'ygan. (a) —
+kutilgan/to'g'ri xatti-harakat; (b) — server qayta ishga tushirilishi bilan
+hal bo'ladi.
 
 ### i18n BOSQICH 1-2 — hardcoded rus matnlari (OCHIQ)
 `docs/I18N_TASK.md` (Bosqich 1 — `app.js` toast/confirm/alert, 56 ta) va

@@ -264,18 +264,11 @@ MODELS_CATALOG = [
         "default_role": "Rapid Scripting & QA Tester",
         "is_free": True
     },
-    {
-        "id": "gemini-2.5-flash",
-        "provider": "gemini",
-        "name": "Gemini 2.5 Flash",
-        "context_window": 1048576,
-        "max_output": 65536,
-        "features": ["1M Context", "Stable", "General"],
-        "supports_reasoning": False,
-        "recommended_for": "general",
-        "default_role": "Full-Stack Generalist",
-        "is_free": True
-    },
+    # 2026-08-26: "gemini-2.5-flash" olib tashlandi. Google API to'g'ridan-to'g'ri
+    # 404 bilan javob beradi: "This model models/gemini-2.5-flash is no longer
+    # available to new users. Please update your code to use
+    # models/gemini-3.6-flash" — bu model allaqachon katalogda bor, shuning
+    # uchun shunchaki dublikat/o'lik yozuvni o'chirib tashladik.
     # --- b.ai services (OpenAI-mos, https://api.b.ai/v1) ---
     # 2026-08-25 da 42 ta modelning HAMMASI sinaldi. Uch xil javob bor:
     #   200                                   -> bepul tarifda ishlaydi
@@ -470,18 +463,15 @@ MODELS_CATALOG = [
         "default_role": "Micro-Agent & Rapid Triager",
         "is_free": True
     },
-    {
-        "id": "liquid/lfm-2.5-embedding-350m:free",
-        "provider": "openrouter",
-        "name": "Liquid LFM 2.5 Embedding 350M",
-        "context_window": 32768,
-        "max_output": 8192,
-        "features": ["Embedding", "Liquid Foundation Model", "Ultra Fast", "Free"],
-        "supports_reasoning": False,
-        "recommended_for": "embeddings",
-        "default_role": "Vector Search & Retrieval Specialist",
-        "is_free": True
-    },
+    # 2026-08-26: "liquid/lfm-2.5-embedding-350m:free" olib tashlandi. Bu —
+    # EMBEDDING modeli (matnni vektorga aylantiradi), chat/completion so'rovini
+    # UMUMAN qabul qilmaydi — har chaqiruvda OpenRouter shu xatoni qaytaradi:
+    # "is an embedding model and cannot be used with the chat/completions API".
+    # Ya'ni bu yozuv ELO/rol tanlovida ko'rinsa ham, 100% muvaffaqiyatsizlikka
+    # mahkum edi. Loyihada hozircha alohida embedding-model integratsiyasi yo'q,
+    # shuning uchun umuman olib tashlandi (agar kerak bo'lsa — kelajakda
+    # alohida "embeddings" rol/oqim sifatida qo'shiladi, umumiy chat katalogiga
+    # emas).
     # GitHub Models (Free with GitHub Personal Access Token)
     {
         "id": "gpt-4o",

@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
-  <link rel="stylesheet" href="/static/css/style.css?t=1787700200">
+  <link rel="stylesheet" href="/static/css/style.css?t=1787701800">
 </head>
 <body class="dark-theme full-3d-body">
 
@@ -681,6 +681,19 @@
           <button class="lb-filter-btn" data-cat="devops">DevOps и деплой</button>
           <button class="lb-filter-btn" data-cat="security">Безопасность</button>
         </div>
+        <div class="models-hub-toolbar">
+          <div class="models-hub-search-box">
+            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="text" id="lb-search" class="search-input" placeholder="Qidirish: nom, ID, provider...">
+          </div>
+          <select id="lb-sort" class="search-input">
+            <option value="elo">Saralash: ELO (yuqori birinchi)</option>
+            <option value="name">Saralash: Nom (A-Z)</option>
+            <option value="provider">Saralash: Provider</option>
+            <option value="latency">Saralash: Latency (tez birinchi)</option>
+            <option value="status">Saralash: Status</option>
+          </select>
+        </div>
         <div class="modal-models-table-wrap">
           <table class="colony-table lb-table">
             <thead><tr><th style="width: 50px;">Место</th><th>Модель</th><th>Провайдер</th><th>Рейтинг ELO</th><th>Задержка (Ping)</th><th>Специализация</th><th>Расход токенов</th><th>Статус</th></tr></thead>
@@ -1227,6 +1240,6 @@
   <script src="/static/vendor/OrbitControls.js"></script>
   <script src="/static/js/hive3d.js?t=1787678933"></script>
   <script src="/static/js/i18n.js?t=1787678933"></script>
-  <script src="/static/js/app.js?t=1787700200"></script>
+  <script src="/static/js/app.js?t=1787701500"></script>
 </body>
 </html>

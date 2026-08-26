@@ -817,6 +817,8 @@ class AntColonyApp {
     this.modelsHubFilter = 'all';
     this.modelsHubSearch = '';
     this.modelsHubSort = 'name';
+    this.lbSearch = '';
+    this.lbSort = 'elo';
     
     // Auto-refresh real stats every 3 seconds
     setInterval(() => this.fetchRealStats(), 3000);
@@ -982,6 +984,23 @@ class AntColonyApp {
         lbFilterContainer.querySelectorAll('.lb-filter-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         this.activeLbCategory = btn.getAttribute('data-cat') || 'all';
+        this.renderLeaderboardTable();
+      });
+    }
+
+    // Qidiruv / saralash — Leaderboard
+    const lbSearchEl = document.getElementById('lb-search');
+    const lbSortEl = document.getElementById('lb-sort');
+    if (lbSearchEl) {
+      lbSearchEl.addEventListener('input', () => {
+        this.lbSearch = lbSearchEl.value.trim().toLowerCase();
+        this.renderLeaderboardTable();
+      });
+    }
+    if (lbSortEl) {
+      lbSortEl.value = this.lbSort;
+      lbSortEl.addEventListener('change', () => {
+        this.lbSort = lbSortEl.value;
         this.renderLeaderboardTable();
       });
     }
@@ -3113,6 +3132,42 @@ class AntColonyApp {
         const sb = b.category_scores ? (b.category_scores[cat] || 0) : 0;
         return sb - sa;
       });
+    }
+
+    if (this.lbSearch) {
+      const q = this.lbSearch;
+      list = list.filter(m =>
+        (m.model_name || '').toLowerCase().includes(q) ||
+        (m.model_id || '').toLowerCase().includes(q) ||
+        (m.provider || '').toLowerCase().includes(q)
+      );
+    }
+
+    // "elo" tanlanganda yuqoridagi kategoriya bo'yicha tartib (yoki API'dan
+    // kelgan default ELO tartibi) saqlanadi — qo'shimcha qayta saralash shart
+    // emas. Boshqa variantlar shu tartibni ustidan bosib o'tadi.
+    if (this.lbSort && this.lbSort !== 'elo') {
+      const live = this._modelHealth || {};
+      const sortFns = {
+        name: (a, b) => (a.model_name || '').localeCompare(b.model_name || ''),
+        provider: (a, b) => (a.provider || '').localeCompare(b.provider || '') || (a.model_name || '').localeCompare(b.model_name || ''),
+        latency: (a, b) => {
+          const la = a.latency_ms || (live[a.model_id] || {}).latency_ms || 999999;
+          const lb = b.latency_ms || (live[b.model_id] || {}).latency_ms || 999999;
+          return la - lb;
+        },
+        status: (a, b) => {
+          const sa = a.status || (live[a.model_id] || {}).status || 'unknown';
+          const sb = b.status || (live[b.model_id] || {}).status || 'unknown';
+          return sa.localeCompare(sb);
+        },
+      };
+      if (sortFns[this.lbSort]) list = list.slice().sort(sortFns[this.lbSort]);
+    }
+
+    if (list.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:12px; color:#64748b">Filtrga mos model topilmadi</td></tr>';
+      return;
     }
 
     tbody.innerHTML = '';

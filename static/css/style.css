@@ -6861,7 +6861,7 @@ body.light-theme .btn-exec-launch.launched {
   flex: 1 1 220px;
   min-width: 180px;
 }
-#models-hub-sort {
+.models-hub-toolbar select {
   flex: 0 1 220px;
   min-width: 160px;
   background: var(--bg-input);
@@ -6871,7 +6871,7 @@ body.light-theme .btn-exec-launch.launched {
   padding: 6px 10px;
   font-size: 12px;
 }
-#models-hub-sort option { background: var(--bg-input); color: var(--text-main); }
+.models-hub-toolbar select option { background: var(--bg-input); color: var(--text-main); }
 
 .models-hub-filters {
   display: flex;
