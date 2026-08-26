@@ -1199,7 +1199,10 @@ class AgentEngine:
                             "run_shell_command", "run_shell_command_background",
                             "bg_status", "bg_stop", "execute_python",
                             "http_get", "browser_navigate", "browser_execute_js"],
-                max_steps=max(4, AGENT_CONFIG["max_tool_steps"] // 2),
+                # Ilgari floor=4 edi — repair'ga shu 14 ta asbob berilgach (2 qatorda
+                # yuqorida), 4 qadamda `write_file`/`edit_file`ga yetib borish deyarli
+                # imkonsiz edi (docs/HANDOFF.md T15). Floor 8'ga ko'tarildi.
+                max_steps=max(8, AGENT_CONFIG["max_tool_steps"] // 2),
                 temperature=0.15, max_tokens=8192, custom_keys=custom_keys,
             ):
                 if event["type"] == "agent_done":

@@ -195,7 +195,12 @@ PROVIDERS = {
 # --- Agent xatti-harakati sozlamalari ---
 AGENT_CONFIG = {
     # Bitta agent ichida ketma-ket bajarishi mumkin bo'lgan tool qadamlar soni.
-    "max_tool_steps": int(os.getenv("AGENT_MAX_TOOL_STEPS", "8")),
+    # 2026-08-22 (8ada2d9) da coder/repair/QA/security agentlariga
+    # browser+HTTP+background-shell asboblari qo'shildi (coder: 6->16 ta),
+    # lekin bu qiymat 8'da qolib ketgan edi — model o'qish/tekshirish
+    # asboblariga qadam sarflab, write_file'ga yetib bormay qolardi
+    # (docs/HANDOFF.md T15). 14 — kengaygan asbob to'plamiga mos byudjet.
+    "max_tool_steps": int(os.getenv("AGENT_MAX_TOOL_STEPS", "14")),
     # QA bahosi shu qiymatdan past bo'lsa, kod tuzatish (repair) sikli ishga tushadi.
     "repair_threshold": float(os.getenv("AGENT_REPAIR_THRESHOLD", "80")),
     # Maksimal tuzatish sikllari soni.

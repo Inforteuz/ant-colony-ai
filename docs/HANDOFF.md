@@ -320,6 +320,32 @@ cheklamoqda + (b) stale-key bug Gemini/Groq'ni o'chirib qo'ygan. (a) —
 kutilgan/to'g'ri xatti-harakat; (b) — server qayta ishga tushirilishi bilan
 hal bo'ladi.
 
+### T15 — Coder/repair agent asbob-qadam byudjeti mos kelmasligi (tuzatildi, 2026-08-26)
+Foydalanuvchi: "UI/UX yaxshilandi, lekin AI modellar bilan ishlash yomonlashdi —
+modellar nimadir qilyapti, lekin amalda ko'rinmayapti." Sabab UI'da emas edi.
+
+`8ada2d9` (22-avgust, "agentlarga browser+HTTP asboblar") coder agentga
+16 ta, repair agentga 9 ta asbob berdi (avval ikkalasida ham 6 tadan edi),
+lekin `AGENT_MAX_TOOL_STEPS` 8'da qolib ketdi — repair esa
+`max(4, 8//2)=4` qadam bilan ishlardi. Model `find_relevant_files`/
+`verify_code_syntax`/`http_get`/`browser_*` kabi tekshirish asboblariga
+qadam sarflab, `write_file`/`edit_file`ga yetib bormay qolar edi. Aynan
+shu holat foydalanuvchining oldingi skrinshotida ko'ringan edi:
+"Backend Engineer... Файлы не были записаны."
+
+Tuzatildi:
+- `ant_colony/config.py` + `.env` + `.env.example`: `AGENT_MAX_TOOL_STEPS`
+  8 → **14** (asbob soni deyarli 3 barobar oshgani uchun).
+- `ant_colony/core/agent_engine.py:1202`: repair agentning floor'i
+  `max(4, ...)` → `max(8, ...)` — endi kamida 8 qadam.
+- Tekshirildi: 115/115 test o'tdi.
+
+**Kuchaytiruvchi omil (mustaqil, lekin bog'liq):** bir kun oldin tuzatilgan
+`free_models_only` bugi (T14, yuqorida) endi tizimni haqiqatan zaifroq bepul
+modellarga cheklaydi — zaif modellar tor byudjetda asbob tanlashda
+ko'proq adashadi edi. Ikkala muammo birga "model ishlayapti, natija
+ko'rinmayapti" taassurotini kuchaytirgan.
+
 ### i18n BOSQICH 1-2 — hardcoded rus matnlari (OCHIQ)
 `docs/I18N_TASK.md` (Bosqich 1 — `app.js` toast/confirm/alert, 56 ta) va
 `docs/I18N_TASK_PHASE2.md` (Bosqich 2 — Setup Wizard, `index.html`, 88 ta,
