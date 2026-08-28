@@ -2356,36 +2356,58 @@ class IsometricHive3D {
   }
 
   _makeZonePlate(width, depth, textureKind, tint, labelText, labelColor, opts = {}) {
+    // MUHIM: zonalar tekis PLANE bo'lishi kerak (kub emas) — aks holda
+    // ustidagi workstation pedestal'lari bilan Z-fighting bo'lib polni pirillashi
+    // kelib chiqadi. polygonOffset yordamida asosiy pol ustida turadi.
     const g = new THREE.Group();
     const tex = this._makeTileTexture(textureKind, tint);
     tex.repeat.set(width / 4, depth / 4);
     const mat = new THREE.MeshStandardMaterial({
       map: tex,
-      roughness: 0.65,
-      metalness: 0.1,
+      roughness: 0.72,
+      metalness: 0.08,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
     });
-    const plate = new THREE.Mesh(new THREE.BoxGeometry(width, 0.06, depth), mat);
-    plate.position.y = 0.04;    // asosiy poldan biroz balandroq
+    const plate = new THREE.Mesh(new THREE.PlaneGeometry(width, depth), mat);
+    plate.rotation.x = -Math.PI / 2;
+    plate.position.y = 0.012;   // asosiy pol (y=0) ustida juda oz balandda
     plate.receiveShadow = true;
     g.add(plate);
 
-    // Zonaning yorug' chegara chizig'i (pixel neon perimetr)
-    const border = new THREE.Mesh(
-      new THREE.BoxGeometry(width + 0.08, 0.03, depth + 0.08),
-      new THREE.MeshBasicMaterial({ color: labelColor, transparent: true, opacity: 0.55 })
-    );
-    border.position.y = 0.055;
+    // Zonaning yorug' chegarasi — thin LineLoop (BoxGeometry emas, aks holda
+    // 3D hajm hosil bo'lib workstation pedestal bilan urishadi).
+    const halfW = width / 2, halfD = depth / 2;
+    const borderGeo = new THREE.BufferGeometry();
+    borderGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
+      -halfW, 0, -halfD,
+       halfW, 0, -halfD,
+       halfW, 0,  halfD,
+      -halfW, 0,  halfD,
+      -halfW, 0, -halfD,
+    ]), 3));
+    const borderMat = new THREE.LineBasicMaterial({
+      color: labelColor, transparent: true, opacity: 0.75, linewidth: 2,
+    });
+    const border = new THREE.Line(borderGeo, borderMat);
+    border.position.y = 0.014;
     g.add(border);
 
-    // Zone label — polning ustida, tekislangan sprite
+    // Zone label — polda tekis, workstation pedestal ustidan pastroqda turadi
+    // (pedestal y=0.06 dan boshlanadi → label 0.02 da xavfsiz)
     if (labelText) {
       const labelTex = this._makeZoneLabelTexture(labelText, labelColor);
+      const labelMat = new THREE.MeshBasicMaterial({
+        map: labelTex, transparent: true, depthWrite: false, opacity: 0.6,
+        polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3,
+      });
       const label = new THREE.Mesh(
         new THREE.PlaneGeometry(Math.min(width * 0.55, 8), Math.min(width * 0.55, 8) * 0.25),
-        new THREE.MeshBasicMaterial({ map: labelTex, transparent: true, depthWrite: false, opacity: 0.7 })
+        labelMat
       );
       label.rotation.x = -Math.PI / 2;
-      label.position.set(0, 0.08, 0);
+      label.position.set(0, 0.02, 0);
       g.add(label);
     }
     return g;
@@ -3901,26 +3923,18 @@ class IsometricHive3D {
     if (btnOut) btnOut.addEventListener('click', () => this.zoomCamera(3.5));
     if (btnReset) btnReset.addEventListener('click', () => this.focusCamera('overview'));
 
-    // Pixel Retro toggle
-    const btnPixel = document.getElementById('btn-pixel-mode');
-    const btnPixelLbl = document.getElementById('btn-pixel-mode-lbl');
-    if (btnPixel) {
-      // localStorage'da holatni saqlaymiz — foydalanuvchi tanlagan rejim reload'dan keyin qoladi.
-      try {
-        const saved = localStorage.getItem('ant.pixelMode');
-        if (saved === '1') {
-          this.togglePixelMode(true);
-          btnPixel.classList.add('active');
-          if (btnPixelLbl) btnPixelLbl.textContent = 'HD';
-        }
-      } catch (e) { /* localStorage bloklangan */ }
-      btnPixel.addEventListener('click', () => {
-        const now = this.togglePixelMode();
-        btnPixel.classList.toggle('active', now);
-        if (btnPixelLbl) btnPixelLbl.textContent = now ? 'HD' : 'PX';
-        try { localStorage.setItem('ant.pixelMode', now ? '1' : '0'); } catch (e) {}
-      });
-    }
+    // Pixel Retro rejim tugmasi olib tashlandi — foydalanuvchi bu ko'rinishni
+    // yoqtirmagan. Metod `togglePixelMode()` kodda saqlanib qoldi (dev/debug
+    // uchun localStorage.setItem('ant.pixelMode','1') orqali chaqirish mumkin),
+    // lekin UI tugmasi endi ko'rsatilmaydi.
+    try {
+      const saved = localStorage.getItem('ant.pixelMode');
+      // Ilgari saqlangan pixel rejimi bo'lsa uni majburan o'chiramiz — polni
+      // tozalash uchun.
+      if (saved === '1') {
+        localStorage.setItem('ant.pixelMode', '0');
+      }
+    } catch (e) { /* localStorage bloklangan */ }
 
     // 3. Mouse Wheel / Trackpad Pinch Zoom on Canvas
     this.canvas.addEventListener('wheel', (e) => {
