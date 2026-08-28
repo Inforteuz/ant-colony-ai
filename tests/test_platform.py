@@ -37,7 +37,7 @@ from ant_colony.core.skill_matrix import skill_matrix
 from ant_colony.llm.models_hub import models_hub
 from ant_colony.llm.prompt_cache import prompt_cache
 from ant_colony.runtime.run_history import RunHistory
-from ant_colony.providers.registry import get_provider, resolve_base_url
+from ant_colony.providers.registry import get_provider
 
 PASSED = 0
 FAILED = []
@@ -248,17 +248,15 @@ def _a_free_model() -> str:
 
 
 def test_alibaba_model_studio_provider():
-    print("\n=== 5. Alibaba Model Studio provideri ===")
-    provider = get_provider("alibaba_model_studio")
-    check("Alibaba provider registryda bor", provider is not None)
+    print("\n=== 5. Alibaba Token Plan provideri ===")
+    provider = get_provider("alibaba_token_plan")
+    check("Alibaba Token Plan registryda bor", provider is not None)
     check("Alibaba OpenAI Chat driveridan foydalanadi",
           provider and provider["driver"] == "openai_chat")
-    check("Alibaba Workspace URL talab qiladi",
-          provider and provider.get("requires_base_url") is True)
-    check("Alibaba URL foydalanuvchi qiymatidan olinadi",
-          resolve_base_url("alibaba_model_studio", "https://workspace.example/v1") == "https://workspace.example/v1")
-    check("Alibaba env provideri runtimega ulangan",
-          "alibaba_model_studio" in PROVIDERS)
+    check("Alibaba Token Plan endpointi rasmiy URLga bog'langan",
+          provider and provider["base_url"].endswith("/compatible-mode/v1"))
+    check("Alibaba Token Plan env provideri runtimega ulangan",
+          "alibaba_token_plan" in PROVIDERS)
 
     expected_models = {
         "qwen3.8-max", "qwen3.7-plus", "qwen3.7-max", "qwen3.6-flash",
@@ -266,7 +264,7 @@ def test_alibaba_model_studio_provider():
     }
     actual_models = {
         model["id"] for model in MODELS_CATALOG
-        if model["provider"] == "alibaba_model_studio"
+        if model["provider"] == "alibaba_token_plan"
     }
     check("Alibaba text/reasoning modellari katalogda", expected_models <= actual_models,
           str(expected_models - actual_models))

@@ -163,6 +163,20 @@ PROVIDER_DEFINITIONS: Dict[str, Dict[str, Any]] = {
             "coding tool'lari uchun; bu ulanishda ishlatilmaydi."
         ),
     },
+    "alibaba_token_plan": {
+        "label": "Alibaba Cloud Token Plan",
+        "driver": DRIVER_OPENAI_CHAT,
+        "base_url": "https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1",
+        "models_path": "/models",
+        "generate_path": "/chat/completions",
+        "test_path": "/models",
+        "auth": AUTH_BEARER,
+        "key_required": True,
+        "key_hint": "Token Plan API key (sk-sp-...)",
+        "console_url": "",
+        "docs_url": "https://help.aliyun.com/en/model-studio/token-plan-personal-quick-start",
+        "notes": "OpenAI-compatible Token Plan. Interaktiv agent vazifalari uchun; kalit faqat lokal credential store'da saqlanadi.",
+    },
     "mistral": {
         "label": "Mistral AI",
         "driver": DRIVER_OPENAI_CHAT,
@@ -290,7 +304,7 @@ PROVIDER_DEFINITIONS: Dict[str, Dict[str, Any]] = {
 
 # UI ro'yxatida ko'rsatiladigan tartib (mashhurlik/qulaylik bo'yicha).
 PROVIDER_ORDER: List[str] = [
-    "openai", "anthropic", "gemini", "groq", "openrouter", "alibaba_model_studio", "b_ai", "17_wtf", "mistral",
+    "openai", "anthropic", "gemini", "groq", "openrouter", "alibaba_token_plan", "alibaba_model_studio", "b_ai", "17_wtf", "mistral",
     "deepseek", "xai", "cerebras", "cohere", "together", "ollama",
     CUSTOM_PROVIDER_ID,
 ]

@@ -190,6 +190,17 @@ PROVIDERS = {
         "chat_endpoint": "/chat/completions",
         "supports_native_tools": True
     },
+    "alibaba_token_plan": {
+        "id": "alibaba_token_plan",
+        "name": "Alibaba Cloud Token Plan",
+        "base_url": os.getenv(
+            "ALIBABA_TOKEN_PLAN_BASE_URL",
+            "https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1",
+        ),
+        "default_key": os.getenv("ALIBABA_TOKEN_PLAN_API_KEY", ""),
+        "chat_endpoint": "/chat/completions",
+        "supports_native_tools": True
+    },
     "custom": {
         "id": "custom",
         "name": "Custom Provider / Ollama",
@@ -479,55 +490,55 @@ MODELS_CATALOG = [
         "default_role": "Micro-Agent & Rapid Triager",
         "is_free": True
     },
-    # Alibaba Cloud Model Studio (pay-as-you-go workspace, OpenAI-compatible).
+    # Alibaba Cloud Token Plan (OpenAI-compatible, interactive agent use).
     # Media modellari alohida pipeline talab qiladi; agent orkestratori uchun
     # faqat Chat Completions orqali ishlaydigan text/reasoning modellar kiritilgan.
     {
-        "id": "qwen3.8-max", "provider": "alibaba_model_studio",
-        "name": "Qwen 3.8 Max (Model Studio)", "context_window": 128000, "max_output": 8192,
-        "features": ["Reasoning", "Coding", "Model Studio"], "supports_reasoning": True,
+        "id": "qwen3.8-max", "provider": "alibaba_token_plan",
+        "name": "Qwen 3.8 Max (Alibaba Token Plan)", "context_window": 128000, "max_output": 8192,
+        "features": ["Reasoning", "Coding", "Alibaba Token Plan"], "supports_reasoning": True,
         "recommended_for": "complex_planning", "default_role": "Project Lead & Master Planner", "is_free": False
     },
     {
-        "id": "qwen3.7-plus", "provider": "alibaba_model_studio",
-        "name": "Qwen 3.7 Plus (Model Studio)", "context_window": 128000, "max_output": 8192,
-        "features": ["Reasoning", "Coding", "Model Studio"], "supports_reasoning": True,
+        "id": "qwen3.7-plus", "provider": "alibaba_token_plan",
+        "name": "Qwen 3.7 Plus (Alibaba Token Plan)", "context_window": 128000, "max_output": 8192,
+        "features": ["Reasoning", "Coding", "Alibaba Token Plan"], "supports_reasoning": True,
         "recommended_for": "coding", "default_role": "Code Architect & Full-Stack Developer", "is_free": False
     },
     {
-        "id": "qwen3.7-max", "provider": "alibaba_model_studio",
-        "name": "Qwen 3.7 Max (Model Studio)", "context_window": 128000, "max_output": 8192,
-        "features": ["Reasoning", "Coding", "Model Studio"], "supports_reasoning": True,
+        "id": "qwen3.7-max", "provider": "alibaba_token_plan",
+        "name": "Qwen 3.7 Max (Alibaba Token Plan)", "context_window": 128000, "max_output": 8192,
+        "features": ["Reasoning", "Coding", "Alibaba Token Plan"], "supports_reasoning": True,
         "recommended_for": "reasoning", "default_role": "Complex System Architect", "is_free": False
     },
     {
-        "id": "qwen3.6-flash", "provider": "alibaba_model_studio",
-        "name": "Qwen 3.6 Flash (Model Studio)", "context_window": 128000, "max_output": 8192,
-        "features": ["Fast", "Reasoning", "Model Studio"], "supports_reasoning": True,
+        "id": "qwen3.6-flash", "provider": "alibaba_token_plan",
+        "name": "Qwen 3.6 Flash (Alibaba Token Plan)", "context_window": 128000, "max_output": 8192,
+        "features": ["Fast", "Reasoning", "Alibaba Token Plan"], "supports_reasoning": True,
         "recommended_for": "fast_tasks", "default_role": "Rapid Scripting & QA Tester", "is_free": False
     },
     {
-        "id": "deepseek-v4-pro-0813", "provider": "alibaba_model_studio",
-        "name": "DeepSeek V4 Pro 0813 (Model Studio)", "context_window": 128000, "max_output": 8192,
-        "features": ["Reasoning", "Coding", "Model Studio"], "supports_reasoning": True,
+        "id": "deepseek-v4-pro-0813", "provider": "alibaba_token_plan",
+        "name": "DeepSeek V4 Pro 0813 (Alibaba Token Plan)", "context_window": 128000, "max_output": 8192,
+        "features": ["Reasoning", "Coding", "Alibaba Token Plan"], "supports_reasoning": True,
         "recommended_for": "coding", "default_role": "Senior Full-Stack Developer", "is_free": False
     },
     {
-        "id": "deepseek-v4-pro", "provider": "alibaba_model_studio",
-        "name": "DeepSeek V4 Pro (Model Studio)", "context_window": 128000, "max_output": 8192,
-        "features": ["Reasoning", "Coding", "Model Studio"], "supports_reasoning": True,
+        "id": "deepseek-v4-pro", "provider": "alibaba_token_plan",
+        "name": "DeepSeek V4 Pro (Alibaba Token Plan)", "context_window": 128000, "max_output": 8192,
+        "features": ["Reasoning", "Coding", "Alibaba Token Plan"], "supports_reasoning": True,
         "recommended_for": "coding", "default_role": "Senior Full-Stack Developer", "is_free": False
     },
     {
-        "id": "deepseek-v4-flash-0731", "provider": "alibaba_model_studio",
-        "name": "DeepSeek V4 Flash 0731 (Model Studio)", "context_window": 128000, "max_output": 8192,
-        "features": ["Fast", "Reasoning", "Model Studio"], "supports_reasoning": True,
+        "id": "deepseek-v4-flash-0731", "provider": "alibaba_token_plan",
+        "name": "DeepSeek V4 Flash 0731 (Alibaba Token Plan)", "context_window": 128000, "max_output": 8192,
+        "features": ["Fast", "Reasoning", "Alibaba Token Plan"], "supports_reasoning": True,
         "recommended_for": "fast_tasks", "default_role": "Rapid Scripting & Bug Triager", "is_free": False
     },
     {
-        "id": "glm-5.2", "provider": "alibaba_model_studio",
-        "name": "GLM 5.2 (Model Studio)", "context_window": 128000, "max_output": 8192,
-        "features": ["Reasoning", "General", "Model Studio"], "supports_reasoning": True,
+        "id": "glm-5.2", "provider": "alibaba_token_plan",
+        "name": "GLM 5.2 (Alibaba Token Plan)", "context_window": 128000, "max_output": 8192,
+        "features": ["Reasoning", "General", "Alibaba Token Plan"], "supports_reasoning": True,
         "recommended_for": "general", "default_role": "Full-Stack Generalist", "is_free": False
     },
     # 2026-08-26: "liquid/lfm-2.5-embedding-350m:free" olib tashlandi. Bu —
