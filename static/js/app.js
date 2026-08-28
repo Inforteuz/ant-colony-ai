@@ -2139,6 +2139,31 @@ class AntColonyApp {
   }
 
   /**
+   * Kichik konfetti burst — vazifa muvaffaqiyatli tugaganda ekran tepasidan
+   * 24 ta rangli kvadrat pastga tushadi va rota tsiya qilib yo'qoladi.
+   * DOM'ga tez qo'shiladi va 1.8s ichida tozalanadi.
+   */
+  _confettiBurst() {
+    const colors = ['#8b5cf6', '#22c55e', '#f59e0b', '#3b82f6', '#ec4899', '#06b6d4', '#f97316'];
+    const count = 24;
+    const container = document.body;
+    for (let i = 0; i < count; i++) {
+      const piece = document.createElement('div');
+      piece.className = 'confetti-burst';
+      const startX = window.innerWidth / 2 + (Math.random() - 0.5) * 240;
+      piece.style.left = `${startX}px`;
+      piece.style.top = `${window.innerHeight * 0.25}px`;
+      piece.style.background = colors[i % colors.length];
+      piece.style.setProperty('--dx', `${(Math.random() - 0.5) * 320}px`);
+      piece.style.setProperty('--dy', `${180 + Math.random() * 260}px`);
+      piece.style.setProperty('--dr', `${(Math.random() > 0.5 ? 1 : -1) * (360 + Math.random() * 720)}deg`);
+      piece.style.animationDelay = `${i * 18}ms`;
+      container.appendChild(piece);
+      setTimeout(() => piece.remove(), 2000);
+    }
+  }
+
+  /**
    * CEO Executive Briefing panelini bitta joydan boshqarish.
    * mode:
    *  * `idle`      — yangi vazifa yo'q, hamma qiymatlar bo'sh (0%).
@@ -2794,6 +2819,8 @@ class AntColonyApp {
               `${files} файл${files === 1 ? '' : (files < 5 ? 'а' : 'ов')} создано за ${Math.round(event.duration_seconds || 0)}s`,
               'ok', 5000
             );
+            // Kichik konfetti burst — foydalanuvchi ko'zi bilan ko'rsin
+            try { this._confettiBurst(); } catch (e) { /* okey — kritik emas */ }
           }
         } else {
           this.toast('Оркестрация остановлена', event.error || '', 'error', 6000);

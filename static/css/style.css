@@ -7513,3 +7513,132 @@ html, body {
     padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
   }
 }
+
+/* ============================================================
+   UI POLISH v4 — Pixel Retro toggle, KPI shimmer, warmer accents,
+   task completion confetti burst, refined hover elevations.
+   ============================================================ */
+
+/* Pixel Retro tugmasi — bosilganda badge kabi ko'rinadi */
+#btn-pixel-mode {
+  transition: all 0.22s cubic-bezier(.4, 0, .2, 1);
+  position: relative;
+  overflow: hidden;
+}
+#btn-pixel-mode:hover {
+  transform: translateY(-1px);
+  border-color: #8b5cf6 !important;
+  color: #a78bfa !important;
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.14), 0 4px 10px rgba(139, 92, 246, 0.22);
+}
+#btn-pixel-mode.active {
+  background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%) !important;
+  color: white !important;
+  border-color: transparent !important;
+  box-shadow: 0 0 18px rgba(139, 92, 246, 0.55), inset 0 0 6px rgba(255, 255, 255, 0.28);
+  animation: pixel-mode-pulse 2.6s ease-in-out infinite;
+}
+@keyframes pixel-mode-pulse {
+  0%, 100% { box-shadow: 0 0 12px rgba(139, 92, 246, 0.45), inset 0 0 4px rgba(255, 255, 255, 0.2); }
+  50%      { box-shadow: 0 0 22px rgba(139, 92, 246, 0.75), inset 0 0 8px rgba(255, 255, 255, 0.36); }
+}
+#btn-pixel-mode svg {
+  transition: transform 0.35s cubic-bezier(.4, 0, .2, 1);
+}
+#btn-pixel-mode.active svg {
+  transform: rotate(45deg);
+}
+
+/* KPI pill'ga yumshoq "shimmer" — sichqoncha yaqinlashsa nur o'tadi */
+.hud-kpi-pill {
+  position: relative;
+  overflow: hidden;
+}
+.hud-kpi-pill::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -75%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(120deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.14) 50%,
+    rgba(255, 255, 255, 0) 100%);
+  transform: skewX(-18deg);
+  transition: left 0.65s cubic-bezier(.4, 0, .2, 1);
+  pointer-events: none;
+  z-index: 1;
+}
+.hud-kpi-pill:hover::before {
+  left: 130%;
+}
+body.light-theme .hud-kpi-pill::before {
+  background: linear-gradient(120deg,
+    rgba(139, 92, 246, 0) 0%,
+    rgba(139, 92, 246, 0.10) 50%,
+    rgba(139, 92, 246, 0) 100%);
+}
+
+/* Yumshoq "elevation hop" — ustki panellar ko'rsatiladi */
+.glass-card {
+  transition: transform 0.22s cubic-bezier(.4, 0, .2, 1),
+              box-shadow 0.22s cubic-bezier(.4, 0, .2, 1),
+              border-color 0.22s ease;
+}
+
+/* Task tugallanganda konfetti-uslubidagi ko'rinishlar */
+.confetti-burst {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  opacity: 0;
+  animation: confetti-fall 1.6s cubic-bezier(.32, .5, .35, 1) forwards;
+}
+@keyframes confetti-fall {
+  0%   { opacity: 1; transform: translate(0, 0) rotate(0deg); }
+  100% { opacity: 0; transform: translate(var(--dx, 40px), var(--dy, 200px)) rotate(var(--dr, 720deg)); }
+}
+
+/* Yumshoq issiq accent variant — foydalanuvchi sozlashi mumkin (opt-in class) */
+body.theme-warm {
+  --brand-1: #f97316;
+  --brand-2: #ec4899;
+  --accent-3: #f59e0b;
+}
+body.theme-warm .glass-card:hover {
+  border-color: rgba(249, 115, 22, 0.35);
+  box-shadow: 0 8px 24px rgba(249, 115, 22, 0.18);
+}
+
+/* CEO briefing paneli — statusni kuchaytiruvchi glow (only when running) */
+.ceo-meter-fill {
+  transition: width 0.4s cubic-bezier(.4, 0, .2, 1),
+              background-color 0.3s ease,
+              box-shadow 0.3s ease;
+}
+.ceo-meter-fill:not(.is-stopped) {
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.4);
+}
+.ceo-meter-fill.is-stopped {
+  background: linear-gradient(90deg, #ef4444, #f59e0b) !important;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.42) !important;
+}
+
+/* Ish stansiyalari (canvas ostidagi HUD chip) — hover'da yorug'lik */
+.wf-step {
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+.wf-step:hover {
+  transform: translateY(-1px);
+}
+.wf-step.active {
+  animation: wf-step-pulse 1.6s ease-in-out infinite;
+}
+@keyframes wf-step-pulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(139, 92, 246, 0); }
+  50%      { box-shadow: 0 0 14px rgba(139, 92, 246, 0.4); }
+}

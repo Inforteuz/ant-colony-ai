@@ -78,6 +78,7 @@ class IsometricHive3D {
       'createConferenceRoom',
       'createMarketingAnalyticsWing',
       'createLegalDocsOffice',
+      'createOfficeAmbience',
       'createDataStreamSystem',
       'setupInteractions',
       'setupCameraControlsUI'
@@ -2119,6 +2120,422 @@ class IsometricHive3D {
   }
 
   // ============================================================
+  // REAL OFIS ATRIBUTLARI — Pixel Agents uslubidagi to'ldiruvchilar
+  // Xonalar orasidagi bo'sh joyni haqiqiy ish muhitiga aylantiradi:
+  // gullar, kofe mashinasi, printer, oq doska, arxiv, devor soati,
+  // "chiqish" belgisi, chiqindi qutisi va kitob javon.
+  // ============================================================
+
+  buildPottedPlant(color = 0x22c55e) {
+    const g = new THREE.Group();
+    const potMat = new THREE.MeshStandardMaterial({ color: 0x92400e, roughness: 0.85, metalness: 0.1 });
+    const rimMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.7, metalness: 0.15 });
+    const leafMat = new THREE.MeshStandardMaterial({
+      color, roughness: 0.55, metalness: 0.05,
+      emissive: new THREE.Color(color), emissiveIntensity: this.isLight ? 0.02 : 0.08,
+    });
+    const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.24, 0.42, 12), potMat);
+    pot.position.y = 0.21;
+    pot.castShadow = true;
+    g.add(pot);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.04, 8, 20), rimMat);
+    rim.position.y = 0.42;
+    rim.rotation.x = Math.PI / 2;
+    g.add(rim);
+    // Uch qatlamli barglar (cone stack) — pixel-plant estetikasi
+    const leafSizes = [
+      { r: 0.55, h: 0.7, y: 0.78 },
+      { r: 0.42, h: 0.55, y: 1.05 },
+      { r: 0.28, h: 0.38, y: 1.28 },
+    ];
+    leafSizes.forEach(({ r, h, y }) => {
+      const cone = new THREE.Mesh(new THREE.ConeGeometry(r, h, 8), leafMat);
+      cone.position.y = y;
+      cone.castShadow = true;
+      g.add(cone);
+    });
+    return g;
+  }
+
+  buildCoffeeMachine() {
+    const g = new THREE.Group();
+    const isLight = this.isLight;
+    const bodyMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.4, metalness: 0.7 });
+    const chromeMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.2, metalness: 0.95 });
+    const glowMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b });
+
+    // Kounter (counter)
+    const counter = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.8, 0.9), new THREE.MeshStandardMaterial({
+      color: isLight ? 0xf1f5f9 : 0x334155, roughness: 0.5, metalness: 0.3,
+    }));
+    counter.position.y = 0.4;
+    counter.castShadow = true;
+    counter.receiveShadow = true;
+    g.add(counter);
+    // Counter top stripe
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(2.24, 0.05, 0.94),
+      new THREE.MeshStandardMaterial({ color: 0x0891b2, roughness: 0.3, metalness: 0.6 }));
+    stripe.position.y = 0.82;
+    g.add(stripe);
+
+    // Kofe mashinasi
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.85, 0.55), bodyMat);
+    body.position.set(-0.55, 1.24, 0);
+    body.castShadow = true;
+    g.add(body);
+    // Chiqish nozzle
+    const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.18, 10), chromeMat);
+    nozzle.position.set(-0.55, 0.96, 0.24);
+    g.add(nozzle);
+    // Kran LED
+    const led = new THREE.Mesh(new THREE.CircleGeometry(0.04, 12), glowMat);
+    led.position.set(-0.35, 1.32, 0.281);
+    led.rotation.x = 0;
+    g.add(led);
+    // Espresso chashkasi
+    const cupMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.4, metalness: 0.15 });
+    const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.07, 0.14, 12), cupMat);
+    cup.position.set(-0.55, 0.87, 0.28);
+    g.add(cup);
+    // Ikkinchi qism — sut qutisi va idishlar
+    const jug = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.13, 0.32, 10), chromeMat);
+    jug.position.set(0.1, 0.98, 0.15);
+    g.add(jug);
+    const carafe = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.16, 0.42, 12),
+      new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.35, metalness: 0.2, transparent: true, opacity: 0.9 }));
+    carafe.position.set(0.55, 1.03, 0.15);
+    g.add(carafe);
+
+    // Yumshoq issiq nur
+    const warm = new THREE.PointLight(0xf59e0b, isLight ? 0.25 : 0.65, 3.5);
+    warm.position.set(-0.55, 1.5, 0.4);
+    g.add(warm);
+
+    return g;
+  }
+
+  buildWaterCooler() {
+    const g = new THREE.Group();
+    const isLight = this.isLight;
+    const bodyMat = new THREE.MeshStandardMaterial({ color: isLight ? 0xe0f2fe : 0x0e7490, roughness: 0.4, metalness: 0.5 });
+    const bottleMat = new THREE.MeshPhysicalMaterial({
+      color: 0x60a5fa, transparent: true, opacity: 0.55,
+      transmission: 0.7, roughness: 0.05, metalness: 0.1,
+    });
+
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.4, 0.55), bodyMat);
+    body.position.y = 0.7;
+    body.castShadow = true;
+    g.add(body);
+
+    // Suv butilkasi (yuqorida)
+    const bottle = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.55, 16), bottleMat);
+    bottle.position.y = 1.68;
+    g.add(bottle);
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.14, 0.14, 10), bottleMat);
+    neck.position.y = 1.36;
+    g.add(neck);
+
+    // Ikki kran (sovuq / issiq)
+    const tapMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.3, metalness: 0.8 });
+    const blue = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.15, 0.08),
+      new THREE.MeshStandardMaterial({ color: 0x3b82f6, roughness: 0.4, metalness: 0.4 }));
+    blue.position.set(-0.13, 0.85, 0.3);
+    g.add(blue);
+    const red = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.15, 0.08),
+      new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.4, metalness: 0.4 }));
+    red.position.set(0.13, 0.85, 0.3);
+    g.add(red);
+    const drip = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.03, 0.15), tapMat);
+    drip.position.set(0, 0.72, 0.3);
+    g.add(drip);
+    return g;
+  }
+
+  buildPrinter() {
+    const g = new THREE.Group();
+    const isLight = this.isLight;
+    const bodyMat = new THREE.MeshStandardMaterial({
+      color: isLight ? 0xf1f5f9 : 0x1e293b, roughness: 0.55, metalness: 0.3,
+    });
+    const base = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.5, 0.9), bodyMat);
+    base.position.y = 0.25;
+    base.castShadow = true;
+    g.add(base);
+    const top = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.42, 0.9),
+      new THREE.MeshStandardMaterial({ color: isLight ? 0xcbd5e1 : 0x0f172a, roughness: 0.5, metalness: 0.5 }));
+    top.position.y = 0.71;
+    g.add(top);
+    // Qog'oz tepasidan chiqib turadi
+    const paper = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.02, 0.32),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 }));
+    paper.position.set(0.1, 0.94, 0);
+    paper.rotation.x = -0.2;
+    g.add(paper);
+    // Yashil status LED
+    const led = new THREE.Mesh(new THREE.CircleGeometry(0.03, 10),
+      new THREE.MeshBasicMaterial({ color: 0x22c55e }));
+    led.position.set(0.55, 0.75, 0.451);
+    g.add(led);
+    // Boshqaruv paneli
+    const panel = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.14, 0.02),
+      new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.4, metalness: 0.6,
+        emissive: 0x38bdf8, emissiveIntensity: 0.25 }));
+    panel.position.set(-0.35, 0.75, 0.451);
+    g.add(panel);
+    return g;
+  }
+
+  buildWhiteboard() {
+    const g = new THREE.Group();
+    // Rama
+    const frame = new THREE.Mesh(new THREE.BoxGeometry(3.2, 1.8, 0.06),
+      new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.5, metalness: 0.7 }));
+    frame.position.y = 1.7;
+    g.add(frame);
+    // Oq yuza
+    const board = new THREE.Mesh(new THREE.BoxGeometry(3.0, 1.6, 0.07),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.35, metalness: 0.05 }));
+    board.position.set(0, 1.7, 0.01);
+    g.add(board);
+    // Stiker qog'ozlar (yopishtiruvchi)
+    const stickers = [
+      { c: 0xfef3c7, x: -1.15, y: 2.15 },
+      { c: 0xfda4af, x: -0.85, y: 2.05 },
+      { c: 0xbae6fd, x: 0.9, y: 2.1 },
+      { c: 0xd9f99d, x: 1.15, y: 1.85 },
+      { c: 0xfef08a, x: -1.0, y: 1.55 },
+    ];
+    stickers.forEach(({ c, x, y }) => {
+      const s = new THREE.Mesh(new THREE.PlaneGeometry(0.28, 0.28),
+        new THREE.MeshBasicMaterial({ color: c, side: THREE.DoubleSide }));
+      s.position.set(x, y, 0.055);
+      s.rotation.z = (Math.random() - 0.5) * 0.2;
+      g.add(s);
+    });
+    // Marker javoni
+    const shelf = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.05, 0.15),
+      new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.4, metalness: 0.7 }));
+    shelf.position.set(0, 0.85, 0.09);
+    g.add(shelf);
+    // Uchta marker
+    ['#ef4444', '#3b82f6', '#22c55e'].forEach((col, i) => {
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.28, 8),
+        new THREE.MeshStandardMaterial({ color: col, roughness: 0.4 }));
+      m.position.set(-0.6 + i * 0.4, 0.9, 0.14);
+      m.rotation.z = Math.PI / 2;
+      g.add(m);
+    });
+    return g;
+  }
+
+  buildFilingCabinet() {
+    const g = new THREE.Group();
+    const bodyMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.5, metalness: 0.75 });
+    const drawerMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.45, metalness: 0.8 });
+    // Body
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.5, 0.55), bodyMat);
+    body.position.y = 0.75;
+    body.castShadow = true;
+    g.add(body);
+    // 4 drawer
+    for (let i = 0; i < 4; i++) {
+      const drawer = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.3, 0.02), drawerMat);
+      drawer.position.set(0, 0.2 + i * 0.35, 0.281);
+      g.add(drawer);
+      const handle = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.03, 0.03),
+        new THREE.MeshStandardMaterial({ color: 0xd1d5db, metalness: 0.9, roughness: 0.2 }));
+      handle.position.set(0, 0.2 + i * 0.35, 0.3);
+      g.add(handle);
+    }
+    return g;
+  }
+
+  buildWallClock() {
+    const g = new THREE.Group();
+    const isLight = this.isLight;
+    const face = new THREE.Mesh(new THREE.CircleGeometry(0.5, 32),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4, metalness: 0.1 }));
+    face.position.z = 0.02;
+    g.add(face);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.52, 0.045, 8, 32),
+      new THREE.MeshStandardMaterial({ color: isLight ? 0x1e293b : 0x0f172a, roughness: 0.35, metalness: 0.75 }));
+    g.add(rim);
+    // 12 va 6 markerlari
+    for (let i = 0; i < 12; i++) {
+      const ang = (i / 12) * Math.PI * 2;
+      const tick = new THREE.Mesh(new THREE.BoxGeometry(0.03, i % 3 === 0 ? 0.11 : 0.06, 0.02),
+        new THREE.MeshBasicMaterial({ color: 0x0f172a }));
+      tick.position.set(Math.sin(ang) * 0.4, Math.cos(ang) * 0.4, 0.03);
+      tick.rotation.z = -ang;
+      g.add(tick);
+    }
+    // Millar (soat / daqiqa / soniya)
+    const hourHand = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.24, 0.02),
+      new THREE.MeshBasicMaterial({ color: 0x0f172a }));
+    hourHand.position.set(0, 0.12, 0.04);
+    g.add(hourHand);
+    const minHand = new THREE.Mesh(new THREE.BoxGeometry(0.028, 0.36, 0.02),
+      new THREE.MeshBasicMaterial({ color: 0x1e293b }));
+    minHand.position.set(0, 0.18, 0.045);
+    g.add(minHand);
+    const secHand = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.42, 0.015),
+      new THREE.MeshBasicMaterial({ color: 0xef4444 }));
+    secHand.position.set(0, 0.21, 0.05);
+    g.add(secHand);
+    g.userData.hourHand = hourHand;
+    g.userData.minHand = minHand;
+    g.userData.secHand = secHand;
+    return g;
+  }
+
+  buildExitSign() {
+    const g = new THREE.Group();
+    const back = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.32, 0.05),
+      new THREE.MeshStandardMaterial({ color: 0x14532d, roughness: 0.3, metalness: 0.5 }));
+    g.add(back);
+    // "EXIT" belgisi
+    const cvs = document.createElement('canvas');
+    cvs.width = 256; cvs.height = 96;
+    const ctx = cvs.getContext('2d');
+    ctx.fillStyle = '#052e16';
+    ctx.fillRect(0, 0, 256, 96);
+    ctx.fillStyle = '#22c55e';
+    ctx.font = 'bold 62px "JetBrains Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('EXIT', 128, 70);
+    // Strelka
+    ctx.beginPath();
+    ctx.moveTo(220, 48); ctx.lineTo(240, 38); ctx.lineTo(240, 58); ctx.closePath();
+    ctx.fill();
+    const tex = new THREE.CanvasTexture(cvs);
+    const face = new THREE.Mesh(new THREE.PlaneGeometry(0.85, 0.28),
+      new THREE.MeshBasicMaterial({ map: tex }));
+    face.position.z = 0.03;
+    g.add(face);
+    // Yashil glow
+    const glow = new THREE.PointLight(0x22c55e, 0.7, 2.8);
+    glow.position.set(0, 0, 0.4);
+    g.add(glow);
+    return g;
+  }
+
+  buildBookshelf() {
+    const g = new THREE.Group();
+    const woodMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.7, metalness: 0.15 });
+    const w = 1.6, h = 2.0, d = 0.35;
+    const case_ = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), woodMat);
+    case_.position.y = h / 2;
+    case_.castShadow = true;
+    g.add(case_);
+    // 3 polka + kitoblar (rangli boxes)
+    for (let s = 0; s < 3; s++) {
+      const shelfY = 0.55 + s * 0.55;
+      const shelf = new THREE.Mesh(new THREE.BoxGeometry(w - 0.06, 0.03, d - 0.02),
+        new THREE.MeshStandardMaterial({ color: 0x92400e, roughness: 0.6 }));
+      shelf.position.y = shelfY;
+      g.add(shelf);
+      // Kitoblar (rangli)
+      const colors = [0xef4444, 0x0891b2, 0xf59e0b, 0x22c55e, 0x8b5cf6, 0xec4899, 0x64748b, 0xea580c];
+      let x = -w / 2 + 0.08;
+      while (x < w / 2 - 0.12) {
+        const bw = 0.07 + Math.random() * 0.06;
+        const bh = 0.4 + Math.random() * 0.1;
+        const book = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, 0.24),
+          new THREE.MeshStandardMaterial({ color: colors[Math.floor(Math.random() * colors.length)], roughness: 0.7 }));
+        book.position.set(x + bw / 2, shelfY + bh / 2 + 0.02, 0);
+        g.add(book);
+        x += bw + 0.005;
+      }
+    }
+    return g;
+  }
+
+  buildTrashBin() {
+    const g = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.2, 0.5, 12),
+      new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.4, metalness: 0.7 }));
+    body.position.y = 0.25;
+    body.castShadow = true;
+    g.add(body);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.028, 8, 20),
+      new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.9, roughness: 0.2 }));
+    rim.position.y = 0.5;
+    rim.rotation.x = Math.PI / 2;
+    g.add(rim);
+    // "RECYCLE" belgisi
+    const label = new THREE.Mesh(new THREE.CircleGeometry(0.09, 12),
+      new THREE.MeshBasicMaterial({ color: 0x22c55e }));
+    label.position.set(0, 0.28, 0.201);
+    g.add(label);
+    return g;
+  }
+
+  // Butun asosiy platoga ofis atributlarini joylashtiradi.
+  createOfficeAmbience() {
+    // Devor bo'ylab (asosiy ish stansiyalari atrofidan tashqarida) atributlar.
+    const props = [
+      // Gullar (4 burchakda + platoda)
+      { build: () => this.buildPottedPlant(0x22c55e), x: -14, z: -13 },
+      { build: () => this.buildPottedPlant(0x059669), x: 14, z: -13 },
+      { build: () => this.buildPottedPlant(0x84cc16), x: -14, z: 13 },
+      { build: () => this.buildPottedPlant(0x10b981), x: 14, z: 13 },
+      { build: () => this.buildPottedPlant(0x22c55e), x: -6, z: -8 },
+      { build: () => this.buildPottedPlant(0x059669), x: 6, z: 8 },
+      // Kofe + suv kounter (yigilish zali yaqinida)
+      { build: () => this.buildCoffeeMachine(), x: -8, z: -14, rot: 0 },
+      { build: () => this.buildWaterCooler(), x: -6.3, z: -14, rot: 0 },
+      // Printer + arxiv (yuridik bo'lim yaqinida)
+      { build: () => this.buildPrinter(), x: -14, z: -6, rot: -Math.PI / 2 },
+      { build: () => this.buildFilingCabinet(), x: -14, z: -4.4, rot: -Math.PI / 2 },
+      { build: () => this.buildFilingCabinet(), x: -14, z: -3.2, rot: -Math.PI / 2 },
+      // Kitoblar javon (marketing yaqinida)
+      { build: () => this.buildBookshelf(), x: 14, z: -8, rot: Math.PI / 2 },
+      // Oq doska (asosiy zaldan chetda)
+      { build: () => this.buildWhiteboard(), x: 8, z: -14.5, rot: 0 },
+      // Chiqindi qutisi (bir necha joyda)
+      { build: () => this.buildTrashBin(), x: -3.5, z: -8 },
+      { build: () => this.buildTrashBin(), x: 3.5, z: 8 },
+    ];
+    for (const p of props) {
+      try {
+        const m = p.build();
+        m.position.set(p.x, 0, p.z);
+        if (p.rot) m.rotation.y = p.rot;
+        this.scene.add(m);
+      } catch (e) {
+        console.warn('[Hive3D] Ofis atributi qurilmadi:', e);
+      }
+    }
+
+    // Devor soati va EXIT belgi (yuqorida, virtual devorlar tepasida)
+    try {
+      const clock = this.buildWallClock();
+      clock.position.set(0, 4.6, -18.5);
+      this.scene.add(clock);
+      this.wallClock = clock;
+    } catch (e) { /* soatga arzimaydigan xato */ }
+    try {
+      const exitSign = this.buildExitSign();
+      exitSign.position.set(15, 3.4, -17.5);
+      this.scene.add(exitSign);
+    } catch (e) { /* exit signga arzimaydigan xato */ }
+  }
+
+  // Devor soati millarni real vaqtga sinxronlashtiradi.
+  updateWallClock() {
+    if (!this.wallClock) return;
+    const d = new Date();
+    const hh = d.getHours() % 12;
+    const mm = d.getMinutes();
+    const ss = d.getSeconds();
+    const { hourHand, minHand, secHand } = this.wallClock.userData;
+    if (hourHand) hourHand.rotation.z = -((hh + mm / 60) / 12) * Math.PI * 2;
+    if (minHand) minHand.rotation.z = -((mm + ss / 60) / 60) * Math.PI * 2;
+    if (secHand) secHand.rotation.z = -(ss / 60) * Math.PI * 2;
+  }
+
+  // ============================================================
   // XONALARDAN FOYDALANISH — yig'ilishlar va bo'lim ish joylari
   // ============================================================
 
@@ -3163,6 +3580,27 @@ class IsometricHive3D {
     if (btnOut) btnOut.addEventListener('click', () => this.zoomCamera(3.5));
     if (btnReset) btnReset.addEventListener('click', () => this.focusCamera('overview'));
 
+    // Pixel Retro toggle
+    const btnPixel = document.getElementById('btn-pixel-mode');
+    const btnPixelLbl = document.getElementById('btn-pixel-mode-lbl');
+    if (btnPixel) {
+      // localStorage'da holatni saqlaymiz — foydalanuvchi tanlagan rejim reload'dan keyin qoladi.
+      try {
+        const saved = localStorage.getItem('ant.pixelMode');
+        if (saved === '1') {
+          this.togglePixelMode(true);
+          btnPixel.classList.add('active');
+          if (btnPixelLbl) btnPixelLbl.textContent = 'HD';
+        }
+      } catch (e) { /* localStorage bloklangan */ }
+      btnPixel.addEventListener('click', () => {
+        const now = this.togglePixelMode();
+        btnPixel.classList.toggle('active', now);
+        if (btnPixelLbl) btnPixelLbl.textContent = now ? 'HD' : 'PX';
+        try { localStorage.setItem('ant.pixelMode', now ? '1' : '0'); } catch (e) {}
+      });
+    }
+
     // 3. Mouse Wheel / Trackpad Pinch Zoom on Canvas
     this.canvas.addEventListener('wheel', (e) => {
       e.preventDefault();
@@ -3707,8 +4145,58 @@ class IsometricHive3D {
     this.updateAgents(delta);
     this.updateVisuals(delta);
     this.updateDoors(nowMs);
+    // Devor soati — millarni real vaqtga sinxronlashtiradi (har 4-frame yetadi).
+    if ((this.quality.frameIndex & 3) === 0) this.updateWallClock();
 
     this.renderer.render(this.scene, this.camera);
+  }
+
+  // ============================================================
+  // PIXEL RETRO MODE — chunky pixel-art estetikasi (Pixel Agents uslubi)
+  // Real vaqtda toggle qilinadi: renderer pixelRatio pastga, canvas'ga
+  // CSS `image-rendering: pixelated` qo'llanadi. Shader kerak emas.
+  // ============================================================
+  togglePixelMode(force) {
+    const want = typeof force === 'boolean' ? force : !this._pixelModeOn;
+    if (!this.renderer) return want;
+    if (want) {
+      if (this._pixelModeOn) return true;
+      this._pixelSavedRatio = this.renderer.getPixelRatio();
+      this.renderer.setPixelRatio(0.4);
+      try {
+        this.renderer.domElement.style.imageRendering = 'pixelated';
+        this.renderer.domElement.style.imageRendering = '-moz-crisp-edges';
+        this.renderer.domElement.style.imageRendering = 'crisp-edges';
+        // Cross-browser: `image-rendering: pixelated` faqat oxirgi qo'yilgan
+        // qiymatni saqlaydi — brauzer birinchi tanigan qiymatni ishlatadi.
+        this.renderer.domElement.style.setProperty('image-rendering', 'pixelated');
+      } catch (e) { /* ba'zi brauzerlarda ushlanmaydi */ }
+      // Toon-like: fog'ni kuchaytiramiz (chunky flat look)
+      if (this.scene && this.scene.fog) {
+        this._savedFogDensity = this.scene.fog.density;
+        this.scene.fog.density = (this.scene.fog.density || 0.02) * 0.7;
+      }
+      this._pixelModeOn = true;
+      // Toast (agar app bo'lsa)
+      if (window.antApp && typeof window.antApp.toast === 'function') {
+        window.antApp.toast('🎮 Pixel Retro rejimi', 'Chunky pixel-art ko\'rinishi yoqildi', 'info', 3000);
+      }
+      return true;
+    } else {
+      if (!this._pixelModeOn) return false;
+      this.renderer.setPixelRatio(this._pixelSavedRatio || Math.min(window.devicePixelRatio, 2));
+      try {
+        this.renderer.domElement.style.imageRendering = '';
+      } catch (e) { /* pass */ }
+      if (this.scene && this.scene.fog && this._savedFogDensity != null) {
+        this.scene.fog.density = this._savedFogDensity;
+      }
+      this._pixelModeOn = false;
+      if (window.antApp && typeof window.antApp.toast === 'function') {
+        window.antApp.toast('HD rejimi', 'Yuqori aniqlikdagi renderga qaytdi', 'ok', 2500);
+      }
+      return false;
+    }
   }
 
   // Eshiklarning "avtoeshik" pulsatsiyasi — har xonaning glow'i sekin nafas oladi.
