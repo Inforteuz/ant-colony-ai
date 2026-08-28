@@ -186,21 +186,27 @@ class IsometricHive3D {
   createEnvironment() {
     const isLight = this.isLight;
 
-    // 1. Grid Floor
+    // 1. Grid Floor — asosiy pol (endi zonalar ustidan ko'rinmasin uchun
+    //    quyuqroq rang tanladik va grid helper zonalar tepasidan chiziladi)
     const floorGeo = new THREE.PlaneGeometry(90, 90, 40, 40);
     this.floorMat = new THREE.MeshStandardMaterial({
-      color: isLight ? 0xf1f5f9 : 0x0c1322,
-      roughness: isLight ? 0.35 : 0.25,
-      metalness: isLight ? 0.15 : 0.75
+      color: isLight ? 0xe2e8f0 : 0x080d17,
+      roughness: isLight ? 0.55 : 0.4,
+      metalness: isLight ? 0.05 : 0.35
     });
     const floor = new THREE.Mesh(floorGeo, this.floorMat);
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
     this.scene.add(floor);
 
-    // 2. Grid Overlay
-    this.gridHelper = new THREE.GridHelper(70, 35, isLight ? 0x6366f1 : 0x3b82f6, isLight ? 0xd1d5db : 0x1e293b);
-    this.gridHelper.position.y = 0.01;
+    // 1.b Pixel-style ZONAL FLOOR — Xitoy pixel-ofisi uslubida
+    this.createFloorZones();
+
+    // 2. Grid Overlay — zonalar ustidan sof texnik grid
+    this.gridHelper = new THREE.GridHelper(70, 35, isLight ? 0x6366f1 : 0x3b82f6, isLight ? 0xa5b4fc : 0x1e293b);
+    this.gridHelper.material.transparent = true;
+    this.gridHelper.material.opacity = isLight ? 0.28 : 0.35;
+    this.gridHelper.position.y = 0.09;   // zonalar ustidan
     this.scene.add(this.gridHelper);
 
     // 3. Central PM Command Platform (Raised Hexagon Core)
@@ -907,9 +913,128 @@ class IsometricHive3D {
       const tagSprite = this.createAgentNametag(shortRole, st.colorHex);
       mesh.add(tagSprite);
 
+      // PM manager alohida ajratiladi — oltin halo ring + katta PM badge +
+      // toj (crown) qo'yiladi. Bu ta'lim uslubi Xitoy pixel-ofisidan olingan:
+      // "leader" figurasi vizual jihatdan aniq ajralishi kerak.
+      if (st.id === 'pm') {
+        this._enhancePMLeader(mesh, st.colorHex);
+        agentData.isLeader = true;
+      }
+
       this.scene.add(mesh);
       this.agents[st.id] = agentData;
     });
+  }
+
+  // PM ga "leader" ko'rinishini beradi: oltin halo, toj, katta badge.
+  _enhancePMLeader(mesh, accentHex) {
+    // 1. Golden crown (uch shpil) — bosh tepasida
+    const crownMat = new THREE.MeshStandardMaterial({
+      color: 0xfbbf24, metalness: 0.95, roughness: 0.15,
+      emissive: 0xf59e0b, emissiveIntensity: 0.4,
+    });
+    const crownBand = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.24, 0.24, 0.09, 12),
+      crownMat
+    );
+    crownBand.position.y = 2.42;
+    mesh.add(crownBand);
+    // 3 shpil
+    for (let i = 0; i < 3; i++) {
+      const ang = (i / 3) * Math.PI * 2;
+      const spike = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.16, 6), crownMat);
+      spike.position.set(Math.cos(ang) * 0.18, 2.55, Math.sin(ang) * 0.18);
+      mesh.add(spike);
+    }
+    // Markazdagi qimmatbaho tosh
+    const gem = new THREE.Mesh(
+      new THREE.OctahedronGeometry(0.06, 0),
+      new THREE.MeshStandardMaterial({
+        color: 0xef4444, roughness: 0.1, metalness: 0.9,
+        emissive: 0xef4444, emissiveIntensity: 0.55,
+      })
+    );
+    gem.position.y = 2.6;
+    mesh.add(gem);
+    mesh.userData.pmCrownGem = gem;
+
+    // 2. Oltin halo ring (bosh atrofida aylanadi)
+    const haloGeo = new THREE.TorusGeometry(0.42, 0.025, 8, 32);
+    const haloMat = new THREE.MeshBasicMaterial({
+      color: 0xfbbf24, transparent: true, opacity: 0.85,
+    });
+    const halo = new THREE.Mesh(haloGeo, haloMat);
+    halo.position.y = 2.75;
+    halo.rotation.x = Math.PI / 2;
+    mesh.add(halo);
+    mesh.userData.pmHalo = halo;
+
+    // 3. Kichik "PM" badge — bosh yonida sprite sifatida
+    const cvs = document.createElement('canvas');
+    cvs.width = 128; cvs.height = 64;
+    const ctx = cvs.getContext('2d');
+    // Kichik yorug'lik effekti — badge foni
+    const grd = ctx.createLinearGradient(0, 0, 128, 64);
+    grd.addColorStop(0, '#f59e0b');
+    grd.addColorStop(1, '#fbbf24');
+    ctx.fillStyle = grd;
+    // Rounded rect
+    const r = 12;
+    ctx.beginPath();
+    ctx.moveTo(r, 0); ctx.arcTo(128, 0, 128, 64, r);
+    ctx.arcTo(128, 64, 0, 64, r); ctx.arcTo(0, 64, 0, 0, r);
+    ctx.arcTo(0, 0, 128, 0, r); ctx.closePath();
+    ctx.fill();
+    // Text "PM"
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 36px "JetBrains Mono", ui-monospace, monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('PM', 64, 34);
+    // Kichik yulduz
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.font = 'bold 18px sans-serif';
+    ctx.fillText('★', 30, 32);
+    ctx.fillText('★', 98, 32);
+    const badgeTex = new THREE.CanvasTexture(cvs);
+    const badge = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: badgeTex, transparent: true, depthTest: true,
+    }));
+    badge.scale.set(0.7, 0.35, 1);
+    badge.position.set(0.55, 2.15, 0);
+    mesh.add(badge);
+    mesh.userData.pmBadge = badge;
+
+    // 4. Underground yorug' plyta (chairPos ostida) — leader belgisi
+    const plate = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.55, 0.6, 0.03, 24),
+      new THREE.MeshBasicMaterial({
+        color: 0xfbbf24, transparent: true, opacity: 0.55,
+      })
+    );
+    plate.position.y = 0.07;
+    mesh.add(plate);
+    // Ikkinchi yorug' aylana — sekin nafas oladi
+    const glowRing = new THREE.Mesh(
+      new THREE.RingGeometry(0.55, 0.75, 32),
+      new THREE.MeshBasicMaterial({
+        color: 0xfbbf24, transparent: true, opacity: 0.4,
+        side: THREE.DoubleSide,
+      })
+    );
+    glowRing.rotation.x = -Math.PI / 2;
+    glowRing.position.y = 0.05;
+    mesh.add(glowRing);
+    mesh.userData.pmGlowRing = glowRing;
+
+    // 5. Yumshoq oltin PointLight — PM atrofidan chiqadigan mayoq nur
+    const light = new THREE.PointLight(0xfbbf24, this.isLight ? 0.4 : 0.85, 6);
+    light.position.set(0, 2.5, 0);
+    mesh.add(light);
+    mesh.userData.pmBeacon = light;
+
+    // 6. Sal kattaroq (haqiqiy leader effekti)
+    mesh.scale.setScalar(1.08);
   }
 
 
@@ -2117,6 +2242,202 @@ class IsometricHive3D {
 
     this.scene.add(group);
     this.legalGroup = group;
+  }
+
+  // ============================================================
+  // ZONAL PIXEL POL — Xitoy pixel-ofisi uslubida (ENGINEERING, LOUNGE,
+  // RESEARCH, MEETING, WELCOME). Har zonaning o'z rangi, teksturasi va
+  // tepasida katta flat sprite belgi bor.
+  // ============================================================
+
+  _makeTileTexture(kind, tint = '#8b5cf6') {
+    const cvs = document.createElement('canvas');
+    cvs.width = 128; cvs.height = 128;
+    const ctx = cvs.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+
+    if (kind === 'plank') {
+      // Yog'och taxta — ENGINEERING zonasi
+      ctx.fillStyle = tint;
+      ctx.fillRect(0, 0, 128, 128);
+      // Uzunlamasiga taxtalar
+      for (let y = 0; y < 128; y += 32) {
+        ctx.fillStyle = 'rgba(0,0,0,0.20)';
+        ctx.fillRect(0, y + 31, 128, 1);
+        // Yog'och tolasi (nozik siziqlar)
+        for (let i = 0; i < 6; i++) {
+          ctx.fillStyle = `rgba(0,0,0,${0.04 + Math.random() * 0.06})`;
+          const yy = y + 3 + Math.random() * 25;
+          const xx = Math.random() * 128;
+          const w = 20 + Math.random() * 60;
+          ctx.fillRect(xx, yy, w, 1);
+        }
+      }
+    } else if (kind === 'carpet') {
+      // Chekker gilam — LOUNGE zonasi
+      ctx.fillStyle = tint;
+      ctx.fillRect(0, 0, 128, 128);
+      // Nuqta chizma (weave)
+      const dark = 'rgba(0,0,0,0.10)';
+      const light = 'rgba(255,255,255,0.10)';
+      for (let y = 0; y < 128; y += 4) {
+        for (let x = 0; x < 128; x += 4) {
+          ctx.fillStyle = ((x + y) / 4) % 2 === 0 ? dark : light;
+          ctx.fillRect(x, y, 2, 2);
+        }
+      }
+    } else if (kind === 'tile') {
+      // Kafel plita — RESEARCH / WC zonasi
+      ctx.fillStyle = tint;
+      ctx.fillRect(0, 0, 128, 128);
+      ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 4; i++) {
+        for (let j = 0; j < 4; j++) {
+          ctx.strokeRect(i * 32, j * 32, 32, 32);
+          // Har plitada nuqta
+          ctx.fillStyle = 'rgba(255,255,255,0.08)';
+          ctx.fillRect(i * 32 + 14, j * 32 + 14, 4, 4);
+        }
+      }
+    } else if (kind === 'marble') {
+      // Marmar — MEETING / CONFERENCE
+      ctx.fillStyle = tint;
+      ctx.fillRect(0, 0, 128, 128);
+      // Marmar rasmlari (chiziqlar)
+      for (let i = 0; i < 12; i++) {
+        ctx.strokeStyle = `rgba(255,255,255,${0.05 + Math.random() * 0.10})`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        const y = Math.random() * 128;
+        ctx.moveTo(0, y);
+        ctx.bezierCurveTo(30, y + (Math.random() - 0.5) * 20,
+                          80, y + (Math.random() - 0.5) * 20,
+                          128, y + (Math.random() - 0.5) * 10);
+        ctx.stroke();
+      }
+    } else if (kind === 'checker') {
+      // Katta chekker — CAFE / WELCOME
+      ctx.fillStyle = tint;
+      ctx.fillRect(0, 0, 128, 128);
+      ctx.fillStyle = 'rgba(0,0,0,0.18)';
+      for (let y = 0; y < 128; y += 32) {
+        for (let x = 0; x < 128; x += 32) {
+          if (((x + y) / 32) % 2 === 0) ctx.fillRect(x, y, 32, 32);
+        }
+      }
+    }
+
+    const tex = new THREE.CanvasTexture(cvs);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.magFilter = THREE.NearestFilter;   // pixel-crisp
+    tex.minFilter = THREE.LinearMipMapNearestFilter;
+    tex.needsUpdate = true;
+    return tex;
+  }
+
+  _makeZoneLabelTexture(text, color = '#8b5cf6') {
+    const cvs = document.createElement('canvas');
+    cvs.width = 512; cvs.height = 128;
+    const ctx = cvs.getContext('2d');
+    ctx.clearRect(0, 0, 512, 128);
+    ctx.font = 'bold 66px "JetBrains Mono", ui-monospace, monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    // Yumshoq soya
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.fillText(text, 256 + 2, 64 + 2);
+    ctx.fillStyle = color;
+    ctx.fillText(text, 256, 64);
+    const tex = new THREE.CanvasTexture(cvs);
+    tex.magFilter = THREE.NearestFilter;
+    tex.minFilter = THREE.LinearFilter;
+    return tex;
+  }
+
+  _makeZonePlate(width, depth, textureKind, tint, labelText, labelColor, opts = {}) {
+    const g = new THREE.Group();
+    const tex = this._makeTileTexture(textureKind, tint);
+    tex.repeat.set(width / 4, depth / 4);
+    const mat = new THREE.MeshStandardMaterial({
+      map: tex,
+      roughness: 0.65,
+      metalness: 0.1,
+    });
+    const plate = new THREE.Mesh(new THREE.BoxGeometry(width, 0.06, depth), mat);
+    plate.position.y = 0.04;    // asosiy poldan biroz balandroq
+    plate.receiveShadow = true;
+    g.add(plate);
+
+    // Zonaning yorug' chegara chizig'i (pixel neon perimetr)
+    const border = new THREE.Mesh(
+      new THREE.BoxGeometry(width + 0.08, 0.03, depth + 0.08),
+      new THREE.MeshBasicMaterial({ color: labelColor, transparent: true, opacity: 0.55 })
+    );
+    border.position.y = 0.055;
+    g.add(border);
+
+    // Zone label — polning ustida, tekislangan sprite
+    if (labelText) {
+      const labelTex = this._makeZoneLabelTexture(labelText, labelColor);
+      const label = new THREE.Mesh(
+        new THREE.PlaneGeometry(Math.min(width * 0.55, 8), Math.min(width * 0.55, 8) * 0.25),
+        new THREE.MeshBasicMaterial({ map: labelTex, transparent: true, depthWrite: false, opacity: 0.7 })
+      );
+      label.rotation.x = -Math.PI / 2;
+      label.position.set(0, 0.08, 0);
+      g.add(label);
+    }
+    return g;
+  }
+
+  // Butun ofis poliga zonalarni joylashtiradi.
+  createFloorZones() {
+    const isLight = this.isLight;
+    const zones = [
+      // ENGINEERING — asosiy ish zonasi (yog'och plank), o'rtasida
+      { w: 28, d: 22, x: 0, z: 0,
+        kind: 'plank',
+        tint: isLight ? '#d6a875' : '#8b5a2b',
+        label: 'ENGINEERING', color: '#a78bfa' },
+      // WELCOME — kirish (marmar oq)
+      { w: 14, d: 6, x: 0, z: -22,
+        kind: 'marble',
+        tint: isLight ? '#e2e8f0' : '#334155',
+        label: 'WELCOME', color: '#f8fafc' },
+      // LOUNGE — dam olish (yashil gilam)
+      { w: 14, d: 8, x: -12, z: 12,
+        kind: 'carpet',
+        tint: isLight ? '#86efac' : '#166534',
+        label: 'LOUNGE', color: '#22c55e' },
+      // RESEARCH — tadqiqot (binafsha plitka)
+      { w: 12, d: 8, x: 12, z: 12,
+        kind: 'tile',
+        tint: isLight ? '#c4b5fd' : '#4c1d95',
+        label: 'RESEARCH', color: '#a78bfa' },
+      // CAFE — kofe (choker sariq)
+      { w: 6, d: 4, x: -8, z: -15,
+        kind: 'checker',
+        tint: isLight ? '#fef3c7' : '#78350f',
+        label: 'CAFÉ', color: '#f59e0b' },
+      // GYM zonasi tomonida — kichik REC label
+      { w: 8, d: 6, x: 12, z: -12,
+        kind: 'carpet',
+        tint: isLight ? '#bae6fd' : '#0c4a6e',
+        label: 'REC', color: '#38bdf8' },
+    ];
+
+    this._floorZones = [];
+    for (const z of zones) {
+      try {
+        const plate = this._makeZonePlate(z.w, z.d, z.kind, z.tint, z.label, z.color);
+        plate.position.set(z.x, 0, z.z);
+        this.scene.add(plate);
+        this._floorZones.push(plate);
+      } catch (e) {
+        console.warn('[Hive3D] Pol zonasi yaratilmadi:', e);
+      }
+    }
   }
 
   // ============================================================
@@ -4145,10 +4466,42 @@ class IsometricHive3D {
     this.updateAgents(delta);
     this.updateVisuals(delta);
     this.updateDoors(nowMs);
+    this.updatePMLeader(nowMs, delta);
     // Devor soati — millarni real vaqtga sinxronlashtiradi (har 4-frame yetadi).
     if ((this.quality.frameIndex & 3) === 0) this.updateWallClock();
 
     this.renderer.render(this.scene, this.camera);
+  }
+
+  // PM leader vizual: halo aylanadi, gem yaltiraydi, glow ring nafas oladi,
+  // badge kamera tomon aylanadi (sprite avtomatik). Har frame'da arzon.
+  updatePMLeader(nowMs, delta) {
+    const pm = this.agents && this.agents.pm;
+    if (!pm || !pm.mesh || !pm.mesh.userData) return;
+    const ud = pm.mesh.userData;
+    const t = nowMs * 0.001;
+
+    if (ud.pmHalo) {
+      ud.pmHalo.rotation.z += delta * 0.9;
+      // Yumshoq bob-up (0.05 amplituda)
+      ud.pmHalo.position.y = 2.75 + Math.sin(t * 1.5) * 0.05;
+    }
+    if (ud.pmCrownGem) {
+      // Gem yaltirab turadi (emissiveIntensity pulsatsiya)
+      const em = 0.4 + Math.sin(t * 3.0) * 0.3;
+      ud.pmCrownGem.material.emissiveIntensity = em;
+    }
+    if (ud.pmGlowRing) {
+      // Glow ring "nafas oladi" — scale + opacity
+      const s = 1.0 + Math.sin(t * 1.8) * 0.12;
+      ud.pmGlowRing.scale.set(s, s, 1);
+      ud.pmGlowRing.material.opacity = 0.28 + Math.sin(t * 1.8) * 0.14;
+    }
+    if (ud.pmBeacon) {
+      // Mayoq nur intensitesi
+      const base = this.isLight ? 0.4 : 0.85;
+      ud.pmBeacon.intensity = base + Math.sin(t * 2.2) * 0.15;
+    }
   }
 
   // ============================================================
