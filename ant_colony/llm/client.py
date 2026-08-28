@@ -309,7 +309,7 @@ class LLMClient:
         Bitta LLM chaqiruvi. Muvaffaqiyatsizlikda sog'lom modellarga o'tadi.
         Prompt Caching deterministik va tizimli so'rovlarni avtomatik keshlaydi.
         """
-        cacheable = use_cache and (temperature <= 0.4 or not tools)
+        cacheable = use_cache and temperature <= 0.4 and not tools
 
         if cacheable:
             cached = prompt_cache.get(model_id, messages)

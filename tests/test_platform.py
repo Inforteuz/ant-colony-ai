@@ -28,7 +28,7 @@ from ant_colony.runtime.tools import (
     calculate, run_shell_command, execute_tool, get_tool_schemas,
     render_tool_guide, set_active_project_dir, AVAILABLE_TOOLS,
 )
-from ant_colony.core.agent_loop import parse_text_tool_calls, split_reasoning
+from ant_colony.core.agent_loop import parse_text_tool_calls, split_reasoning, _compact_message_history, _project_snapshot
 from ant_colony.llm.client import _to_openai_messages, _to_gemini_payload, build_fallback_chain
 from ant_colony.core.agent_engine import (
     sanitize_slug, select_specialist_role, extract_json_block, extract_score, plan_quality_issues,
@@ -180,6 +180,20 @@ def test_tool_call_parsing():
 
     reasoning, clean = split_reasoning("<think>ichki fikr</think>Yakuniy javob")
     check("<think> bloki ajratiladi", reasoning == "ichki fikr" and clean == "Yakuniy javob")
+
+    history = [{"role": "system", "content": "qoidalar"}, {"role": "user", "content": "vazifa"}]
+    history.extend({"role": "tool", "content": "x" * 2000, "tool_call_id": str(i)} for i in range(8))
+    saved = _compact_message_history(history, 1000)
+    check("eski tool natijalari token uchun ixchamlanadi",
+          saved > 0 and len(history[2]["content"]) < 800, str(saved))
+
+    with tempfile.TemporaryDirectory() as tmp:
+        Path(tmp, "package.json").write_text("{}", encoding="utf-8")
+        Path(tmp, "src").mkdir()
+        Path(tmp, "src", "main.py").write_text("print('ok')", encoding="utf-8")
+        snapshot = _project_snapshot(Path(tmp))
+        check("agent loyiha snapshotini ish boshlashdan oldin oladi",
+              "package.json" in snapshot and "src/main.py" in snapshot, snapshot)
 
 
 def test_message_conversion():

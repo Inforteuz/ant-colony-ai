@@ -219,6 +219,9 @@ AGENT_CONFIG = {
     # LLM generation defaults — Setup wizard'dan o'zgartirilishi mumkin.
     "default_temperature": float(os.getenv("AGENT_DEFAULT_TEMPERATURE", "0.2")),
     "default_max_tokens": int(os.getenv("AGENT_DEFAULT_MAX_TOKENS", "8192")),
+    # Tool-agent tarixining promptga yuboriladigan maksimal hajmi. Eski tool
+    # natijalari qisqartiriladi, lekin oxirgi qadamlar to'liq qoladi.
+    "context_max_chars": int(os.getenv("AGENT_CONTEXT_MAX_CHARS", "26000")),
     # Vision (rasm/video) qo'llab-quvvatlash — global feature flag.
     "enable_vision": os.getenv("AGENT_ENABLE_VISION", "true").lower() in ("true", "1", "yes"),
     # Faqat bepul modellar bilan ishlash rejimi (paid modellar chetlanadi).

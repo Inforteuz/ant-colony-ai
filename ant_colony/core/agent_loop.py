@@ -16,12 +16,13 @@ Qo'shimcha himoya choralari:
 import re
 import json
 import time
+from pathlib import Path
 from typing import Dict, Any, List, AsyncGenerator, Optional
 
 from ant_colony.config import AGENT_CONFIG
 from ant_colony.runtime.tools import (
     AVAILABLE_TOOLS, execute_tool, get_tool_schemas, render_tool_guide,
-    get_active_project_dir,
+    get_active_project_dir, walk_project_files,
 )
 from ant_colony.llm.client import llm_client
 from ant_colony.llm.usage_ledger import usage_ledger
@@ -141,6 +142,44 @@ def _summarize_for_model(name: str, output: Dict[str, Any]) -> str:
         return str(trimmed)[:9000]
 
 
+def _compact_message_history(messages: List[Dict[str, Any]], max_chars: int) -> int:
+    """Trim old tool output while preserving recent tool-call relationships."""
+    total = sum(len(str(message.get("content") or "")) for message in messages)
+    if total <= max_chars or len(messages) <= 8:
+        return 0
+
+    saved = 0
+    protected_start = 2
+    protected_end = max(protected_start, len(messages) - 6)
+    for message in messages[protected_start:protected_end]:
+        content = message.get("content")
+        if not isinstance(content, str) or len(content) <= 700:
+            continue
+        if message.get("role") == "tool":
+            limit = 700
+        elif message.get("role") == "assistant":
+            limit = 400
+        else:
+            limit = 800
+        if len(content) > limit:
+            message["content"] = content[:limit] + "\n...[oldingi natija qisqartirildi]"
+            saved += len(content) - len(message["content"])
+    return saved
+
+
+def _project_snapshot(project_dir: Path) -> str:
+    """Give an agent a small map of an existing project before it chooses tools."""
+    files, truncated = walk_project_files(project_dir, limit=80, max_depth=4)
+    paths = [relative for _path, relative in files]
+    if not paths:
+        return ""
+    important_names = {"README.md", "package.json", "pyproject.toml", "requirements.txt", "docker-compose.yml", "Makefile"}
+    important = [path for path in paths if Path(path).name in important_names]
+    listed = (important + [path for path in paths if path not in important])[:45]
+    suffix = "\nFayllar ro'yxati cheklangan; kerak bo'lsa `list_dir` bilan kengaytiring." if truncated else ""
+    return "Mavjud loyiha fayllari:\n" + "\n".join(f"- {path}" for path in listed) + suffix
+
+
 class AgentRunResult:
     """Bitta agent yugurishining natijasi va o'lchanadigan signallari."""
 
@@ -157,6 +196,7 @@ class AgentRunResult:
         self.error: Optional[str] = None
         self.hit_step_limit: bool = False
         self.duration_s: float = 0.0
+        self.context_chars_saved: int = 0
 
     @property
     def produced_artifacts(self) -> bool:
@@ -180,6 +220,7 @@ class AgentRunResult:
             "usage": self.usage,
             "hit_step_limit": self.hit_step_limit,
             "duration_s": round(self.duration_s, 2),
+            "context_chars_saved": self.context_chars_saved,
             "error": self.error,
         }
 
@@ -211,6 +252,7 @@ async def run_agent(
     result = AgentRunResult()
 
     project_dir = get_active_project_dir()
+    project_snapshot = _project_snapshot(project_dir)
     system_prompt = (
         f"{role_md}\n\n"
         f"{render_tool_guide(tool_names)}\n\n"
@@ -227,6 +269,8 @@ async def run_agent(
     user_content = f"## Topshiriq\n{task}"
     if context:
         user_content += f"\n\n## Kontekst\n{context}"
+    if project_snapshot:
+        user_content += f"\n\n## Loyiha snapshot\n{project_snapshot}"
 
     messages: List[Dict[str, Any]] = [
         {"role": "system", "content": system_prompt},
@@ -238,6 +282,9 @@ async def run_agent(
 
     for step in range(max_steps):
         result.steps = step + 1
+        result.context_chars_saved += _compact_message_history(
+            messages, AGENT_CONFIG.get("context_max_chars", 26000)
+        )
 
         # Har bir chaqiruv token daftariga AYNAN shu agent nomi bilan tushadi —
         # shunda "qaysi agent qancha token yedi" savoliga aniq javob bo'ladi.
