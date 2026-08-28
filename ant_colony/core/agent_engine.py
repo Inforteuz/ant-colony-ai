@@ -179,30 +179,80 @@ def is_code_creation_intent(text: str) -> bool:
         "what", "how", "why", "when", "who", "which", "explain", "tell me", "difference", "advice"
     ]
 
-    # 2. Kod va loyiha yaratish/yozish buyruqlari
+    # 2. Kod va loyiha yaratish/yozish buyruqlari (UZ / UZ_CYR / RU / EN)
     creation_verbs = [
+        # O'zbek (Lotin)
         "yarat", "yoz", "tuz", "yasa", "qur", "ishlab chiq", "dasturla", "kodini yoz", "generatsiya qil",
         "ochib ber", "tayyorla", "tayyorlab", "tayyorlab ber", "ishga tushir", "run qil", "link ber",
         "loyihasini tuz", "script yoz", "sayt yarat", "bot yoz", "api yoz",
+        "sayt qil", "sayt yasab", "ilova yasab", "ilova qil", "ilova yarat", "web sayt",
+        "loyiha ochib", "loyiha yaratib", "loyiha tuz", "deploy qil", "publish qil",
+        "test yoz", "avtomatlashtir", "integratsiya qil", "installatsiya qil",
+        # O'zbek (Kirill)
+        "ярат", "ёз", "туз", "яса", "қур", "ишлаб чиқ", "дастурла", "тайёрла", "тайёрлаб",
+        "тайёрлаб бер", "ишга тушир", "линк бер", "ойлаб бер", "лойиҳа туз",
+        "сайт ярат", "бот ёз", "апи ёз", "илова яса", "лойиҳа очиб",
+        # Русский — infinitive va imperative
         "создай", "напиши", "разработай", "сделай", "построй", "запрограммируй", "собери", "сгенерируй",
         "подготовь", "создать", "написать", "разработать", "сделать", "построить", "собрать",
-        "create", "build", "write", "develop", "make", "code", "generate", "implement", "scaffold"
+        "запусти", "запустить", "разверни", "развернуть", "опубликуй", "опубликовать",
+        "оформи", "оформить", "нарисуй", "нарисовать", "свёрстай", "свёрстать", "сверстай",
+        "имплементируй", "имплементировать", "реализуй", "реализовать", "смоделируй",
+        "напиши код", "сделай проект", "сделай приложение", "сделай сайт", "сделай страницу",
+        "нужен код", "нужна страница", "нужен сайт", "нужен проект", "нужно приложение",
+        "хочу проект", "хочу сайт", "хочу приложение", "хочу страницу",
+        # English — imperative + noun-phrase intent
+        "create", "build", "write", "develop", "make", "code", "generate", "implement", "scaffold",
+        "run it", "deploy", "publish", "launch", "host", "spin up", "give me a link",
+        "i want", "i need", "please build", "please make", "please create",
     ]
 
     has_creation_verb = any(_keyword_matches(v, t) for v in creation_verbs)
     has_question_word = any(q in t for q in question_indicators) or t.endswith("?")
+
+    # Kod artefakti indikatorlari — texnologiya, format, muhit
     code_artifact_indicators = [
-        "html", "css", "javascript", "typescript", "react", "vue", "python", "fastapi", "django",
-        "api", "sql", "sqlite", "website", "web sahifa", "localhost", "frontend", "backend",
+        # Til va format
+        "html", "css", "javascript", "typescript", "python", "golang", "java ", "kotlin",
+        "swift", "rust", "php", "ruby", "csharp", "dart",
+        # Freymvorklar
+        "react", "vue", "angular", "svelte", "next.js", "nextjs", "nuxt", "solidjs",
+        "fastapi", "django", "flask", "express", "nestjs", "spring", "laravel", "rails",
+        # Ma'lumot va API
+        "api", "rest", "graphql", "websocket", "sse ",
+        "sql", "sqlite", "postgres", "mongodb", "redis",
+        # Ish muhiti va deploy
+        "localhost", "docker", "compose", "kubernetes", "netlify", "vercel", "heroku",
+        # Artefakt turi
+        "website", "web sayt", "web sahifa", "веб-сайт", "веб сайт", "веб-страница", "веб страница",
+        "landing page", "лендинг", "лендинг-страница",
+        "приложение", "мобильное приложение", "web app", "webapp", "spa ",
+        "chrome extension", "extension", "плагин", "модуль", "виджет",
+        "компонент", "component", "виджет",
+        "dashboard", "dashboard", "админка", "admin panel",
+        "animatsiya", "animation", "анимация", "анимации",
+        "svetafor", "traffic light", "светофор",
+        "canvas", "svg", "webgl", "three.js", "threejs",
+        # Bot / avtomatika
+        "telegram bot", "discord bot", "slack bot", "chat bot", "чат-бот",
+        # Frontend / backend
+        "frontend", "backend", "фронтенд", "бэкенд", "бекенд",
     ]
     has_code_artifact = any(_keyword_matches(indicator, t) for indicator in code_artifact_indicators)
 
-    # Agar savol so'zi bo'lsa va to'g'ridan-to'g'ri yaratish buyrug'i bo'lmasa -> 100% suhbat/savol
+    # KUCHLI SIGNAL: creation_verb + code_artifact birga → savol so'zi bo'lsa ham
+    # bu kod loyihasi. "Как сделай мне сайт" ham CODE bo'lishi kerak, chunki foydalanuvchi
+    # savol emas, buyruq bermoqda. Bu qoida question-first qoidasidan oldin tekshiriladi.
+    if has_creation_verb and has_code_artifact:
+        return True
+
+    # Agar sof savol so'zi bo'lsa va yaratish buyrug'i bo'lmasa → suhbat/savol
     if has_question_word and not has_creation_verb:
         return False
 
-    # Kod artefakti bilan birga bajarish talabi ham bo'lsa bu suhbat emas.
-    if has_creation_verb or has_code_artifact:
+    # Yolg'iz kod artefakti (masalan "sayt", "extension", "landing") + hech qanday
+    # savol so'zi yo'q → foydalanuvchi buyurmoqda.
+    if has_creation_verb or (has_code_artifact and not has_question_word):
         return True
 
     return False

@@ -2138,6 +2138,54 @@ class AntColonyApp {
     if (el) { el.textContent = text || '—'; el.title = ''; }
   }
 
+  /**
+   * CEO Executive Briefing panelini bitta joydan boshqarish.
+   * mode:
+   *  * `idle`      — yangi vazifa yo'q, hamma qiymatlar bo'sh (0%).
+   *  * `completed` — vazifa muvaffaqiyatli tugadi (100%, "Готово").
+   *  * `failed`    — vazifa xato bilan tugadi (o'sha joyda, "Ошибка").
+   * Ilgari bu funksiya yo'q edi va panel eski % da qotib qolardi (masalan 10%),
+   * shuning uchun foydalanuvchi hech qanday ish yo'q bo'lsa ham progress bar ni
+   * ko'rardi.
+   */
+  _resetCeoBriefing(mode = 'idle', event = null) {
+    const fill = document.getElementById('ceo-meter-fill');
+    const pTitle = document.getElementById('ceo-phase-title');
+    const sMsg = document.getElementById('ceo-status-msg');
+    const eta = document.getElementById('ceo-eta-badge');
+    const bEl = document.getElementById('ceo-kpi-bottleneck');
+    const dirEl = document.getElementById('ceo-kpi-dir');
+
+    if (mode === 'completed') {
+      if (fill) { fill.style.width = '100%'; fill.classList.remove('is-stopped'); }
+      const dur = event && event.duration_seconds
+        ? ` · ${Math.round(event.duration_seconds)}s`
+        : '';
+      const score = event && event.final_score != null ? ` · балл ${event.final_score}` : '';
+      if (pTitle) pTitle.textContent = `100% — Готово${score}`;
+      if (sMsg) sMsg.textContent = `Задача выполнена${dur}. Панель готова к следующей задаче.`;
+      if (eta) eta.textContent = 'ETA: —';
+      if (bEl) { bEl.textContent = 'Узких мест нет (Оптимально)'; bEl.className = 'ceo-kpi-val text-emerald'; }
+      this.resetCeoActiveAgent('—');
+    } else if (mode === 'failed') {
+      if (fill) fill.classList.add('is-stopped');
+      if (pTitle) pTitle.textContent = 'Ошибка выполнения';
+      if (sMsg) sMsg.textContent = (event && event.error) ? String(event.error).slice(0, 200) : 'Задача не завершена.';
+      if (eta) eta.textContent = 'ETA: —';
+      if (bEl) { bEl.textContent = 'Требуется вмешательство'; bEl.className = 'ceo-kpi-val text-amber'; }
+      this.resetCeoActiveAgent('—');
+    } else {
+      // idle — hech qanday vazifa yo'q, panel toza
+      if (fill) { fill.style.width = '0%'; fill.classList.remove('is-stopped'); }
+      if (pTitle) pTitle.textContent = 'Ожидание задачи';
+      if (sMsg) sMsg.textContent = 'PM свободен — отправьте задачу, чтобы запустить оркестрацию.';
+      if (eta) eta.textContent = 'ETA: —';
+      if (bEl) { bEl.textContent = 'Узких мест нет (Оптимально)'; bEl.className = 'ceo-kpi-val text-emerald'; }
+      if (dirEl && !dirEl.dataset.userPinned) dirEl.textContent = '—';
+      this.resetCeoActiveAgent('—');
+    }
+  }
+
   pmFeedError(feed, title, message) {
     if (!feed) return;
     const errItem = document.createElement('div');
@@ -2258,10 +2306,18 @@ class AntColonyApp {
       if (el) el.className = 'wf-step';
     });
 
-    // Avvalgi cancel'dan qolgan "to'xtagan" rangini tozalaymiz — yangi vazifa
-    // boshlanganda CEO progress paneli yana yashil (ishlayapti) holatga qaytadi.
-    const ceoFillReset = document.getElementById('ceo-meter-fill');
-    if (ceoFillReset) ceoFillReset.classList.remove('is-stopped');
+    // Avvalgi cancel/completed'dan qolgan progresni tozalaymiz — yangi vazifa
+    // boshlanganda CEO paneli 0% dan boshlanadi va matnlar reset qilinadi.
+    // Ilgari faqat rang tozalanardi — natijada eski 10%/100% qiymati birinchi
+    // ceo_briefing eventigacha ekranda turardi.
+    this._resetCeoBriefing('idle');
+    const ceoFillStart = document.getElementById('ceo-meter-fill');
+    if (ceoFillStart) {
+      const pTitle = document.getElementById('ceo-phase-title');
+      if (pTitle) pTitle.textContent = '0% — Приём задачи';
+      const sMsg = document.getElementById('ceo-status-msg');
+      if (sMsg) sMsg.textContent = 'Задача принята, PM подключается…';
+    }
 
     try {
       const response = await fetch('/api/orchestrator/dispatch', {
@@ -2715,6 +2771,12 @@ class AntColonyApp {
       if (this.liveWorkspace) {
         this.liveWorkspace.setLive(false, type === 'orchestration_completed' ? 'Готово' : 'Остановлено');
         this.liveWorkspace.refreshTree();
+      }
+      // CEO Briefing paneli endi ishlamayotgan holatga o'tsin — aks holda
+      // panel eski progresda (masalan "10% — Analysis требований") qotib qoladi
+      // va foydalanuvchi hech qanday ish yo'q bo'lsa ham davom etayotgandek ko'radi.
+      if (!this._isReplay) {
+        this._resetCeoBriefing(type === 'orchestration_completed' ? 'completed' : 'failed', event);
       }
       // Toast faqat LIVE event uchun — replay/reload'da qayta chiqmasin.
       // Bundan tashqari conversational (0 fayl + immediate) uchun ham chiqmasin.
@@ -3307,6 +3369,12 @@ class AntColonyApp {
     // Ilgari oyna faqat ochilardi — ma'lumot keyingi poll'gacha eskirgan holda turardi.
     this.fetchRealStats();
     this.loadCEOInsights(false);
+    // Agar hozir hech qanday vazifa ishlamayotgan bo'lsa (PM idle), panel eski
+    // % qiymatida qotib turmasin — foydalanuvchi noto'g'ri "davom etyapti"
+    // signalini olmasligi kerak.
+    if (!this.isRunning) {
+      this._resetCeoBriefing('idle');
+    }
   }
 
   closeCEOBriefingModal() {

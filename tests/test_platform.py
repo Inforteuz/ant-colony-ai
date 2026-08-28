@@ -363,10 +363,25 @@ def test_orchestration_helpers():
           select_specialist_role("Graf algoritmi murakkabligini optimallashtir") == "algorithm_solver")
     check("noma'lum vazifa uchun zaxira rol bor",
           select_specialist_role("qwerty zxcvb") == "backend_engineer")
-    check("HTML/CSS va localhost so'rovi execution oqimiga tushadi",
+    check("UZ: HTML/CSS va localhost so'rovi execution oqimiga tushadi",
           is_code_creation_intent("HTML + CSS da svetafor animatsiyasini tayyorlab ber va localhostda run qil"))
-    check("oddiy savol execution oqimiga tushmaydi",
+    check("UZ: oddiy savol execution oqimiga tushmaydi",
           not is_code_creation_intent("Qanday qilib HTML yozaman?"))
+    # Ko'p tilli regressiya: shu vazifa uch tilda ham kod loyihasi sifatida tanilishi shart.
+    check("RU: 'сделай светофор на html/css и запусти на localhost' → code_project",
+          is_code_creation_intent("Сделай мне анимацию светофора на HTML/CSS и запусти на localhost, дай ссылку"))
+    check("RU: 'нужен лендинг на React' → code_project",
+          is_code_creation_intent("Нужен лендинг на React с анимацией"))
+    check("RU: 'что такое html?' → suhbat",
+          not is_code_creation_intent("Что такое html?"))
+    check("EN: 'build me a traffic light animation in html/css, run on localhost' → code_project",
+          is_code_creation_intent("Build me a traffic light animation in HTML/CSS and run on localhost, give me the link"))
+    check("EN: 'create a react landing page' → code_project",
+          is_code_creation_intent("Create a React landing page with dark mode"))
+    check("EN: 'what is css?' → suhbat",
+          not is_code_creation_intent("What is CSS?"))
+    check("UZ_CYR: 'HTML да светофор ярат' → code_project",
+          is_code_creation_intent("HTML да светофор анимациясини ярат ва localhost да ишга тушир"))
 
     spec = extract_json_block('Reja...\n```json\n{"specialist_role": "ui_designer", "files": ["a.css"]}\n```')
     check("PM JSON rejasi ajratiladi", spec and spec["specialist_role"] == "ui_designer", str(spec))
