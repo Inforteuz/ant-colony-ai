@@ -603,6 +603,27 @@ def _format_subtasks(subtasks: List[Dict[str, str]]) -> str:
     )
 
 
+def plan_quality_issues(spec: Dict[str, Any]) -> List[str]:
+    """Returns missing verifiable parts of a code-project plan."""
+    if spec.get("task_type") not in (None, "code_project"):
+        return []
+    issues: List[str] = []
+    files = spec.get("files") if isinstance(spec.get("files"), list) else []
+    criteria = spec.get("acceptance_criteria") if isinstance(spec.get("acceptance_criteria"), list) else []
+    subtasks = _clean_subtasks(spec.get("subtasks"))
+    if not files:
+        issues.append("yaratiladigan fayllar ko'rsatilmagan")
+    if not criteria:
+        issues.append("qabul mezonlari ko'rsatilmagan")
+    if not 3 <= len(subtasks) <= 8:
+        issues.append("subtasklar soni 3–8 oralig'ida emas")
+    if subtasks and any(not item["done_when"] for item in subtasks):
+        issues.append("subtasklarda tekshiriladigan done_when maydoni yo'q")
+    if not str(spec.get("verification_command") or "").strip():
+        issues.append("tekshiruv buyrug'i ko'rsatilmagan")
+    return issues
+
+
 class AgentEngine:
     def __init__(self):
         pass
@@ -812,6 +833,30 @@ class AgentEngine:
             task_type = "conversational"
         else:
             task_type = spec.get("task_type") or "code_project"
+        spec["task_type"] = task_type
+
+        plan_issues = plan_quality_issues(spec)
+        if plan_issues:
+            repair_prompt = (
+                f"{prompt}\n\n"
+                "Sizning avvalgi rejangiz tekshiruvdan o'tmadi. Quyidagi kamchiliklarni to'ldiring: "
+                + "; ".join(plan_issues)
+                + "\nFaqat yaxshilangan qisqa reja va to'liq JSON blok qaytaring."
+            )
+            with usage_ledger.agent_scope("Project Manager", role="pm_orchestrator", phase="plan_repair"):
+                repair_res = await llm_client.complete(
+                    pm_model,
+                    [{"role": "system", "content": pm_md}, {"role": "user", "content": repair_prompt}],
+                    temperature=0.1, max_tokens=3000, custom_keys=custom_keys,
+                )
+            if repair_res.get("success"):
+                repaired_text = repair_res.get("text") or ""
+                repaired_spec = extract_json_block(repaired_text) or {}
+                repaired_spec["task_type"] = repaired_spec.get("task_type") or task_type
+                if len(plan_quality_issues(repaired_spec)) < len(plan_issues):
+                    spec = repaired_spec
+                    text = repaired_text
+                    plan_issues = plan_quality_issues(spec)
         role = spec.get("specialist_role")
         valid_roles = {r["id"] for r in DEFAULT_ROLE_DEFINITIONS}
 
@@ -849,6 +894,10 @@ class AgentEngine:
                 "subtasks": _clean_subtasks(spec.get("subtasks")),
                 "role_reason": str(spec.get("role_reason") or "").strip(),
                 "verification_command": spec.get("verification_command") or "",
+                "plan_quality": {
+                    "complete": not plan_issues,
+                    "issues": plan_issues,
+                },
             },
         }
 
@@ -1034,6 +1083,7 @@ class AgentEngine:
             # noto'g'ri taqsimot darhol sezilsin.
             "role_reason": spec.get("role_reason") or "",
             "subtasks_count": len(spec.get("subtasks") or []),
+            "plan_quality": spec.get("plan_quality") or {},
             "project_dir": str(project_dir),
         }
 

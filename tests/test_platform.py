@@ -31,11 +31,12 @@ from ant_colony.runtime.tools import (
 from ant_colony.core.agent_loop import parse_text_tool_calls, split_reasoning
 from ant_colony.llm.client import _to_openai_messages, _to_gemini_payload, build_fallback_chain
 from ant_colony.core.agent_engine import (
-    sanitize_slug, select_specialist_role, extract_json_block, extract_score,
+    sanitize_slug, select_specialist_role, extract_json_block, extract_score, plan_quality_issues,
 )
 from ant_colony.core.skill_matrix import skill_matrix
 from ant_colony.llm.models_hub import models_hub
 from ant_colony.llm.prompt_cache import prompt_cache
+from ant_colony.runtime.run_history import RunHistory
 
 PASSED = 0
 FAILED = []
@@ -327,6 +328,21 @@ def test_orchestration_helpers():
     check("Score formati ham ajratiladi", extract_score("Score: 42") == 42.0)
     check("ball topilmasa default qaytadi", extract_score("ballsiz matn", default=None) is None)
 
+    incomplete = {"task_type": "code_project", "files": ["index.html"], "subtasks": []}
+    check("PM rejasidagi tekshirilmaydigan bo'shliqlar aniqlanadi",
+          len(plan_quality_issues(incomplete)) >= 3, str(plan_quality_issues(incomplete)))
+    complete = {
+        "task_type": "code_project", "files": ["index.html"],
+        "acceptance_criteria": ["Sahifa brauzerda ochiladi"],
+        "verification_command": "node --check app.js",
+        "subtasks": [
+            {"title": "Tuzilma", "file": "index.html", "detail": "", "done_when": "element bor"},
+            {"title": "Stil", "file": "index.html", "detail": "", "done_when": "klass bor"},
+            {"title": "Tekshiruv", "file": "index.html", "detail": "", "done_when": "buyruq o'tadi"},
+        ],
+    }
+    check("to'liq PM reja contractdan o'tadi", not plan_quality_issues(complete), str(plan_quality_issues(complete)))
+
 
 def test_cache():
     print("\n=== 9. Prompt kesh ===")
@@ -461,6 +477,38 @@ def test_monitor_config():
     check("orkestratsiyadan keyin monitoring tiklanadi", models_hub.busy_until == 0)
 
 
+def test_run_history():
+    print("\n=== 12. Local run tarixi (SQLite) ===")
+    with tempfile.TemporaryDirectory() as tmp:
+        history = RunHistory(Path(tmp) / "runs.sqlite3")
+        history.start_run("run-1", "Portfolio sahifasi yaratish", "uz", 100.0)
+        history.record_event("run-1", {
+            "type": "pm_plan_ready",
+            "plan_content": "3 qadamli reja",
+            "assigned_role": "frontend_architect",
+        })
+        history.record_event("run-1", {
+            "type": "qa_verified",
+            "qa_score": 93,
+            "feedback": "Tekshiruvdan o'tdi",
+        })
+        history.finish_run("run-1", "completed", 125.0, {
+            "project_dir": "/tmp/portfolio",
+            "final_score": 91,
+            "created_files": ["index.html"],
+        })
+
+        rows = history.list_runs()
+        check("run tarixi SQLite'ga yoziladi",
+              len(rows) == 1 and rows[0]["status"] == "completed", str(rows))
+        detail = history.get_run("run-1")
+        check("run rejasi va yakuniy natijasi o'qiladi",
+              detail and detail["plan"]["assigned_role"] == "frontend_architect"
+              and detail["final"]["final_score"] == 91, str(detail))
+        check("faqat foydali dalillar event sifatida saqlanadi",
+              detail and [e["type"] for e in detail["events"]] == ["pm_plan_ready", "qa_verified"], str(detail))
+
+
 # ---------------------------------------------------------------- ONLINE
 
 async def run_online_checks():
@@ -539,6 +587,7 @@ def main():
     test_cache()
     test_usage_ledger()
     test_monitor_config()
+    test_run_history()
 
     if online:
         asyncio.run(run_online_checks())

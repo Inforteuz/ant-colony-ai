@@ -33,6 +33,7 @@ from ant_colony.core.agent_engine import agent_engine
 from ant_colony.core.skill_matrix import skill_matrix
 from ant_colony.llm.prompt_cache import prompt_cache
 from ant_colony.runtime.workspace_janitor import WorkspaceJanitor
+from ant_colony.runtime.run_history import RunHistory
 from ant_colony.core.pm_memory import PMMemory, init_memory, get_memory
 from ant_colony.runtime.tools import (
     AVAILABLE_TOOLS, get_tool_schemas, list_files, read_file, run_shell_command,
@@ -82,6 +83,7 @@ AGENTS_STORE: Dict[str, Dict[str, Any]] = {a["id"]: a.copy() for a in WORKSTATIO
 # (PROVIDERS[...]["default_key"] -> .env) olamiz, shunda UI "faol provayderlar"
 # ro'yxati github/groq kabi .env orqali sozlangan provayderlarni ham ko'rsatadi.
 CUSTOM_KEYS: Dict[str, str] = {pid: PROVIDERS[pid]["default_key"] for pid in PROVIDERS}
+run_history = RunHistory(DATA_DIR / "run_history.sqlite3")
 
 # --- Roles & Skill Matrix Endpoints ---
 
@@ -1264,9 +1266,14 @@ class OrchestrationJob:
         self.asyncio_task: Optional[asyncio.Task] = None
         # Token hisobi doirasi — `run()` da ochiladi, `finally` da yopiladi.
         self._usage_scope: Any = None
+        run_history.start_run(job_id, task, language, self.created_at)
 
     def add_event(self, event: Dict[str, Any]):
         self.events.append(event)
+        try:
+            run_history.record_event(self.job_id, event)
+        except Exception:
+            pass
         for q in list(self.subscribers):
             try:
                 q.put_nowait(event)
@@ -1401,6 +1408,10 @@ class OrchestrationJob:
             except Exception:
                 pass
             self.finished_at = time.time()
+            try:
+                run_history.finish_run(self.job_id, self.status, self.finished_at, self.final_event)
+            except Exception:
+                pass
             # Send completion signal to all queues
             for q in list(self.subscribers):
                 try:
@@ -1418,6 +1429,19 @@ class OrchestratorRequest(BaseModel):
     # Javob tili: "en" / "uz" / "uz_cyr" / "ru" / "auto". Bo'sh bo'lsa
     # saqlangan preferensiya (DEFAULT_LANGUAGE) ishlatiladi.
     language: Optional[str] = None
+
+
+@app.get("/api/orchestrator/runs")
+async def list_orchestration_runs(limit: int = 20):
+    return {"runs": run_history.list_runs(limit)}
+
+
+@app.get("/api/orchestrator/runs/{job_id}")
+async def get_orchestration_run(job_id: str):
+    run = run_history.get_run(job_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Vazifa tarixi topilmadi")
+    return run
 
 @app.get("/api/orchestrator/latest")
 async def get_latest_orchestration():

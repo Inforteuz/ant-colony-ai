@@ -1040,6 +1040,59 @@ class AntColonyApp {
 
     // Clear Chat History
     on('btn-clear-pm-feed', 'click', () => this.clearChatHistory());
+    on('btn-pm-run-history', 'click', () => this.showRunHistory());
+  }
+
+  async showRunHistory() {
+    const feed = document.getElementById('pm-feed-list');
+    if (!feed) return;
+
+    try {
+      const res = await fetch('/api/orchestrator/runs?limit=12');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const runs = data.runs || [];
+      const placeholder = document.getElementById('pm-empty-placeholder');
+      if (placeholder) placeholder.style.display = 'none';
+
+      const card = document.createElement('div');
+      card.className = 'pm-feed-item';
+      const rows = runs.length ? runs.map(run => {
+        const score = run.final_score == null ? '—' : `${Math.round(run.final_score)}/100`;
+        const status = run.status === 'completed' ? 'Tayyor' : this.esc(run.status);
+        return `<button class="btn-drawer-action pm-run-history-item" data-run-id="${this.esc(run.job_id)}" type="button" style="width:100%;justify-content:space-between;margin-top:6px">
+          <span>${this.esc((run.task || '').slice(0, 90))}</span><span>${status} · ${score}</span>
+        </button>`;
+      }).join('') : '<div>Hali saqlangan vazifalar yo‘q.</div>';
+      card.innerHTML = `<div class="pm-feed-title" style="color:#8b5cf6">So‘nggi vazifalar</div>${rows}`;
+      feed.appendChild(card);
+      card.querySelectorAll('.pm-run-history-item').forEach(btn => {
+        btn.addEventListener('click', () => this.showRunDetail(btn.dataset.runId, feed));
+      });
+      feed.scrollTop = feed.scrollHeight;
+    } catch (error) {
+      this.pmFeedError(feed, 'Tarix yuklanmadi', error.message);
+    }
+  }
+
+  async showRunDetail(jobId, feed) {
+    try {
+      const res = await fetch(`/api/orchestrator/runs/${encodeURIComponent(jobId)}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const run = await res.json();
+      const plan = run.plan?.plan_content || 'Reja saqlanmagan.';
+      const final = run.final || {};
+      const evidence = (run.events || []).filter(event => event.type !== 'pm_plan_ready')
+        .map(event => `- ${event.type}`).join('\n') || '- Qo‘shimcha dalillar yo‘q.';
+      this.appendFeedItem(feed, {
+        title: `Vazifa tarixi: ${run.task}`,
+        titleColor: '#8b5cf6', borderColor: '#8b5cf6',
+        body: `**Holat:** ${run.status}\n\n**PM rejasi:**\n${plan}\n\n**Natija bahosi:** ${run.final_score ?? '—'}\n\n**Saqlangan dalillar:**\n${evidence}\n\n**Loyiha:** \`${final.project_dir || run.project_dir || '—'}\``,
+        isMarkdown: true,
+      });
+    } catch (error) {
+      this.pmFeedError(feed, 'Vazifa ochilmadi', error.message);
+    }
   }
 
   // Telefon rejimi bitta joydan aniqlanadi: CSS ham, JS ham AYNAN bir xil
@@ -2854,6 +2907,8 @@ class AntColonyApp {
       // taqsimot darhol ko'rinsin (ilgari faqat rol nomi ko'rsatilardi).
       if (roleLine && event.role_reason) roleLine += `\n_${event.role_reason}_`;
       if (roleLine && event.subtasks_count) roleLine += `\n\n**Подзадач в плане:** ${event.subtasks_count}`;
+      const planIssues = event.plan_quality?.issues || [];
+      if (planIssues.length) roleLine += `\n\n**PM tekshiruv eslatmasi:** ${planIssues.map(issue => this.esc(issue)).join('; ')}`;
       this.canvas.updateStationModel('pm', cleanModelLabel(event.assigned_model), 'План составлен');
       this.canvas.updateStationModel('coder', cleanModelLabel(event.assigned_model), 'Подготовка');
       this.appendFeedItem(feed, {
