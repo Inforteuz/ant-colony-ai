@@ -255,6 +255,9 @@ def test_alibaba_model_studio_provider():
           provider and provider["driver"] == "openai_chat")
     check("Alibaba Token Plan endpointi rasmiy URLga bog'langan",
           provider and provider["base_url"].endswith("/compatible-mode/v1"))
+    check("Alibaba Token Plan haqiqiy Chat Completions so'rovi bilan tekshiriladi",
+          provider and provider.get("test_path") == "/chat/completions"
+          and provider.get("test_method") == "POST")
     check("Alibaba Token Plan env provideri runtimega ulangan",
           "alibaba_token_plan" in PROVIDERS)
 

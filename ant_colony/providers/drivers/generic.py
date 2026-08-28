@@ -38,7 +38,7 @@ class _HttpDriver(ProviderDriver):
         status, body, headers = await request_json(
             self.provider_id, method, url,
             headers=self._headers(conn),
-            payload={} if method == "POST" else None,
+            payload=self.definition.get("test_payload", {}) if method == "POST" else None,
             timeout_s=TEST_TIMEOUT_S,
         )
         if status >= 400:
