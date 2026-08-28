@@ -32,6 +32,7 @@ from ant_colony.core.agent_loop import parse_text_tool_calls, split_reasoning, _
 from ant_colony.llm.client import _to_openai_messages, _to_gemini_payload, build_fallback_chain
 from ant_colony.core.agent_engine import (
     sanitize_slug, select_specialist_role, extract_json_block, extract_score, plan_quality_issues,
+    is_code_creation_intent,
 )
 from ant_colony.core.skill_matrix import skill_matrix
 from ant_colony.llm.models_hub import models_hub
@@ -362,6 +363,10 @@ def test_orchestration_helpers():
           select_specialist_role("Graf algoritmi murakkabligini optimallashtir") == "algorithm_solver")
     check("noma'lum vazifa uchun zaxira rol bor",
           select_specialist_role("qwerty zxcvb") == "backend_engineer")
+    check("HTML/CSS va localhost so'rovi execution oqimiga tushadi",
+          is_code_creation_intent("HTML + CSS da svetafor animatsiyasini tayyorlab ber va localhostda run qil"))
+    check("oddiy savol execution oqimiga tushmaydi",
+          not is_code_creation_intent("Qanday qilib HTML yozaman?"))
 
     spec = extract_json_block('Reja...\n```json\n{"specialist_role": "ui_designer", "files": ["a.css"]}\n```')
     check("PM JSON rejasi ajratiladi", spec and spec["specialist_role"] == "ui_designer", str(spec))

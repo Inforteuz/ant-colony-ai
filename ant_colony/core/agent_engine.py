@@ -182,7 +182,8 @@ def is_code_creation_intent(text: str) -> bool:
     # 2. Kod va loyiha yaratish/yozish buyruqlari
     creation_verbs = [
         "yarat", "yoz", "tuz", "yasa", "qur", "ishlab chiq", "dasturla", "kodini yoz", "generatsiya qil",
-        "ochib ber", "tayyorla", "loyihasini tuz", "script yoz", "sayt yarat", "bot yoz", "api yoz",
+        "ochib ber", "tayyorla", "tayyorlab", "tayyorlab ber", "ishga tushir", "run qil", "link ber",
+        "loyihasini tuz", "script yoz", "sayt yarat", "bot yoz", "api yoz",
         "создай", "напиши", "разработай", "сделай", "построй", "запрограммируй", "собери", "сгенерируй",
         "подготовь", "создать", "написать", "разработать", "сделать", "построить", "собрать",
         "create", "build", "write", "develop", "make", "code", "generate", "implement", "scaffold"
@@ -190,13 +191,18 @@ def is_code_creation_intent(text: str) -> bool:
 
     has_creation_verb = any(_keyword_matches(v, t) for v in creation_verbs)
     has_question_word = any(q in t for q in question_indicators) or t.endswith("?")
+    code_artifact_indicators = [
+        "html", "css", "javascript", "typescript", "react", "vue", "python", "fastapi", "django",
+        "api", "sql", "sqlite", "website", "web sahifa", "localhost", "frontend", "backend",
+    ]
+    has_code_artifact = any(_keyword_matches(indicator, t) for indicator in code_artifact_indicators)
 
     # Agar savol so'zi bo'lsa va to'g'ridan-to'g'ri yaratish buyrug'i bo'lmasa -> 100% suhbat/savol
     if has_question_word and not has_creation_verb:
         return False
 
-    # Agar yaratish buyrug'i bo'lsa -> kod loyihasi
-    if has_creation_verb:
+    # Kod artefakti bilan birga bajarish talabi ham bo'lsa bu suhbat emas.
+    if has_creation_verb or has_code_artifact:
         return True
 
     return False
