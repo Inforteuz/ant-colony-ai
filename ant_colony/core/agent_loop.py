@@ -168,16 +168,42 @@ def _compact_message_history(messages: List[Dict[str, Any]], max_chars: int) -> 
 
 
 def _project_snapshot(project_dir: Path) -> str:
-    """Give an agent a small map of an existing project before it chooses tools."""
+    """Give an agent a compact project map before it chooses tools."""
     files, truncated = walk_project_files(project_dir, limit=80, max_depth=4)
     paths = [relative for _path, relative in files]
     if not paths:
         return ""
+
+    path_set = set(paths)
+    runtime_hints: List[str] = []
+    package_path = next((path for path, relative in files if relative == "package.json"), None)
+    if package_path:
+        try:
+            package = json.loads(package_path.read_text(encoding="utf-8")[:32768])
+            scripts = package.get("scripts", {})
+            if isinstance(scripts, dict) and scripts:
+                runtime_hints.append("Node.js scripts: " + ", ".join(sorted(scripts)[:6]))
+            else:
+                runtime_hints.append("Node.js (package.json)")
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            runtime_hints.append("Node.js (package.json)")
+    if "pyproject.toml" in path_set:
+        runtime_hints.append("Python package (pyproject.toml)")
+    elif "requirements.txt" in path_set:
+        runtime_hints.append("Python dependencies (requirements.txt)")
+    if "manage.py" in path_set:
+        runtime_hints.append("Django")
+    if "docker-compose.yml" in path_set or "compose.yaml" in path_set:
+        runtime_hints.append("Docker Compose")
+    if "Makefile" in path_set:
+        runtime_hints.append("Make targets (Makefile)")
+
     important_names = {"README.md", "package.json", "pyproject.toml", "requirements.txt", "docker-compose.yml", "Makefile"}
     important = [path for path in paths if Path(path).name in important_names]
     listed = (important + [path for path in paths if path not in important])[:45]
     suffix = "\nFayllar ro'yxati cheklangan; kerak bo'lsa `list_dir` bilan kengaytiring." if truncated else ""
-    return "Mavjud loyiha fayllari:\n" + "\n".join(f"- {path}" for path in listed) + suffix
+    hints = "\nAniqlangan muhit: " + "; ".join(runtime_hints) if runtime_hints else ""
+    return "Mavjud loyiha fayllari:" + hints + "\n" + "\n".join(f"- {path}" for path in listed) + suffix
 
 
 class AgentRunResult:

@@ -144,6 +144,25 @@ PROVIDER_DEFINITIONS: Dict[str, Dict[str, Any]] = {
         "optional_headers": {"HTTP-Referer": "app_url", "X-OpenRouter-Title": "app_title"},
         "notes": "Ko'p provayderni bitta OpenAI-mos sxemaga normallashtiradi.",
     },
+    "alibaba_model_studio": {
+        "label": "Alibaba Cloud Model Studio",
+        "driver": DRIVER_OPENAI_CHAT,
+        "base_url": "",
+        "models_path": "/models",
+        "generate_path": "/chat/completions",
+        "test_path": "/models",
+        "auth": AUTH_BEARER,
+        "key_required": True,
+        "key_hint": "Pay-as-you-go Workspace API key",
+        "requires_base_url": True,
+        "console_url": "",
+        "docs_url": "https://help.aliyun.com/en/model-studio/base-url",
+        "notes": (
+            "OpenAI-mos pay-as-you-go Workspace endpointini kiriting. Token Plan "
+            "endpointi va uning kaliti backend/server uchun emas, faqat interaktiv "
+            "coding tool'lari uchun; bu ulanishda ishlatilmaydi."
+        ),
+    },
     "mistral": {
         "label": "Mistral AI",
         "driver": DRIVER_OPENAI_CHAT,
@@ -271,7 +290,7 @@ PROVIDER_DEFINITIONS: Dict[str, Dict[str, Any]] = {
 
 # UI ro'yxatida ko'rsatiladigan tartib (mashhurlik/qulaylik bo'yicha).
 PROVIDER_ORDER: List[str] = [
-    "openai", "anthropic", "gemini", "groq", "openrouter", "b_ai", "17_wtf", "mistral",
+    "openai", "anthropic", "gemini", "groq", "openrouter", "alibaba_model_studio", "b_ai", "17_wtf", "mistral",
     "deepseek", "xai", "cerebras", "cohere", "together", "ollama",
     CUSTOM_PROVIDER_ID,
 ]

@@ -22,7 +22,7 @@ from pathlib import Path
 # (`python tests/test_platform.py`). pytest'da bu allaqachon ishlaydi.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from ant_colony.config import MODELS_CATALOG, AGENT_CONFIG
+from ant_colony.config import MODELS_CATALOG, AGENT_CONFIG, PROVIDERS
 from ant_colony.runtime.tools import (
     write_file, read_file, edit_file, list_files, list_dir, execute_python,
     calculate, run_shell_command, execute_tool, get_tool_schemas,
@@ -37,6 +37,7 @@ from ant_colony.core.skill_matrix import skill_matrix
 from ant_colony.llm.models_hub import models_hub
 from ant_colony.llm.prompt_cache import prompt_cache
 from ant_colony.runtime.run_history import RunHistory
+from ant_colony.providers.registry import get_provider, resolve_base_url
 
 PASSED = 0
 FAILED = []
@@ -188,12 +189,14 @@ def test_tool_call_parsing():
           saved > 0 and len(history[2]["content"]) < 800, str(saved))
 
     with tempfile.TemporaryDirectory() as tmp:
-        Path(tmp, "package.json").write_text("{}", encoding="utf-8")
+        Path(tmp, "package.json").write_text('{"scripts":{"test":"vitest","build":"vite build"}}', encoding="utf-8")
         Path(tmp, "src").mkdir()
         Path(tmp, "src", "main.py").write_text("print('ok')", encoding="utf-8")
         snapshot = _project_snapshot(Path(tmp))
         check("agent loyiha snapshotini ish boshlashdan oldin oladi",
               "package.json" in snapshot and "src/main.py" in snapshot, snapshot)
+        check("agent loyiha buyruqlarini snapshotda ko'radi",
+              "Node.js scripts: build, test" in snapshot, snapshot)
 
 
 def test_message_conversion():
@@ -242,6 +245,31 @@ def _a_free_model() -> str:
         m["id"] for m in MODELS_CATALOG
         if m.get("is_free") and models_hub.is_provider_configured(m["provider"])
     )
+
+
+def test_alibaba_model_studio_provider():
+    print("\n=== 5. Alibaba Model Studio provideri ===")
+    provider = get_provider("alibaba_model_studio")
+    check("Alibaba provider registryda bor", provider is not None)
+    check("Alibaba OpenAI Chat driveridan foydalanadi",
+          provider and provider["driver"] == "openai_chat")
+    check("Alibaba Workspace URL talab qiladi",
+          provider and provider.get("requires_base_url") is True)
+    check("Alibaba URL foydalanuvchi qiymatidan olinadi",
+          resolve_base_url("alibaba_model_studio", "https://workspace.example/v1") == "https://workspace.example/v1")
+    check("Alibaba env provideri runtimega ulangan",
+          "alibaba_model_studio" in PROVIDERS)
+
+    expected_models = {
+        "qwen3.8-max", "qwen3.7-plus", "qwen3.7-max", "qwen3.6-flash",
+        "deepseek-v4-pro-0813", "deepseek-v4-pro", "deepseek-v4-flash-0731", "glm-5.2",
+    }
+    actual_models = {
+        model["id"] for model in MODELS_CATALOG
+        if model["provider"] == "alibaba_model_studio"
+    }
+    check("Alibaba text/reasoning modellari katalogda", expected_models <= actual_models,
+          str(expected_models - actual_models))
 
 
 def test_fallback_chain():
@@ -594,6 +622,7 @@ def main():
     test_tool_dispatch()
     test_tool_call_parsing()
     test_message_conversion()
+    test_alibaba_model_studio_provider()
     test_fallback_chain()
     test_model_selection()
     test_scoring()
