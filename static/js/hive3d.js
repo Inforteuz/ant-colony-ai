@@ -1650,10 +1650,20 @@ class IsometricHive3D {
     border.position.y = 0.04;
     group.add(border);
 
-    // Xona yuqorisidan mahalliy yorug'lik — mebel qorong'ida yo'qolib ketmasin.
-    const light = new THREE.PointLight(accentHex, isLight ? 0.5 : 0.95, Math.max(width, depth) * 1.4);
-    light.position.set(0, 4.2, 0);
-    group.add(light);
+    // Ilgari har xona uchun tepada bitta PointLight bor edi (3 xona × 1 light = 3 dyn).
+    // FPS optimizatsiyasi: HemisphereLight endi global ambient beradi, mebel
+    // emissive material'lar orqali accentHex'da yorug' bo'ladi. Har xonada
+    // yumshoq additive glow plane pol tepasida — accent hissi qoladi.
+    const glow = new THREE.Mesh(
+      new THREE.PlaneGeometry(width * 0.9, depth * 0.9),
+      new THREE.MeshBasicMaterial({
+        color: accentHex, transparent: true, opacity: 0.14,
+        depthWrite: false, blending: THREE.AdditiveBlending,
+      })
+    );
+    glow.rotation.x = -Math.PI / 2;
+    glow.position.y = 0.08;
+    group.add(glow);
 
     return floor;
   }
