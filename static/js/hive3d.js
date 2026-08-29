@@ -466,22 +466,11 @@ class IsometricHive3D {
       group.add(badge);
       group.badge = badge;
 
-      // Station PointLight faqat PM'da qoldiradi — boshqa 6 ta stansiya
-      // uchun material emissive orqali yorug'lik beriladi (FPS optimizatsiyasi).
-      if (st.id === 'pm') {
-        const pLight = new THREE.PointLight(st.colorHex, 1.4, 8);
-        pLight.position.set(0, 1.8, deskTop.position.z);
-        group.add(pLight);
-        group.pointLight = pLight;
-      }
-
-      // === PM ish joyini VIP qilish — qolgan barcha stansiyalardan ajralib
-      // turadigan bogatroq ko'rinish. Foydalanuvchi so'rovi: "PM ni o'tirgan
-      // joyi ham boshqacharoq va bogatiyroq bo'lsin daje stollari daje
-      // kompyuterlariyam boshqacharoq bo'lsin". ===
-      if (st.id === 'pm') {
-        this._decoratePMWorkstation(group, deskTop.position.z, chairOffsetZ, st.colorHex);
-      }
+      // Station PointLight for realistic local glow
+      const pLight = new THREE.PointLight(st.colorHex, 0.8, 6);
+      pLight.position.set(0, 1.5, deskTop.position.z);
+      group.add(pLight);
+      group.pointLight = pLight;
 
       this.scene.add(group);
       this.stationObjects[st.id] = group;
@@ -498,170 +487,6 @@ class IsometricHive3D {
     this.centralCore = new THREE.Mesh(coreGeo, coreMat);
     this.centralCore.position.set(0, 1.8, 0);
     this.scene.add(this.centralCore);
-  }
-
-  // PM ish joyini bogatroq qilib boyitadi: kengroq stol, 3 monitor, klaviatura+
-  // sichqoncha, kubok, telefon, planshet, kitob to'plami, oltin plyta.
-  _decoratePMWorkstation(group, deskZ, chairZ, accent) {
-    const isLight = this.isLight;
-    const facing = chairZ < deskZ ? 1 : -1;   // stolga qarash yo'nalishi
-
-    // 1. VIP stol usti kengaytmasi — L-shaped bogatroq stol (asosiy stol yonida)
-    const extraDesk = new THREE.Mesh(
-      new THREE.BoxGeometry(1.2, 0.08, 0.9),
-      new THREE.MeshStandardMaterial({
-        color: 0x0f172a, roughness: 0.15, metalness: 0.95,
-        emissive: 0xfbbf24, emissiveIntensity: 0.06,
-      })
-    );
-    extraDesk.position.set(-1.65, 0.95, deskZ + 0.1);
-    extraDesk.castShadow = true;
-    group.add(extraDesk);
-    // Kengaytma oyoqlari
-    const legMat = new THREE.MeshStandardMaterial({ color: 0xfbbf24, metalness: 0.95, roughness: 0.2 });
-    [[-2.15, -0.3], [-1.15, -0.3], [-2.15, 0.4], [-1.15, 0.4]].forEach(([x, z]) => {
-      const lg = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.95, 8), legMat);
-      lg.position.set(x, 0.475, deskZ + z);
-      group.add(lg);
-    });
-
-    // 2. Ikkinchi va uchinchi monitor (PM 3-monitor setup)
-    const monMat = new THREE.MeshBasicMaterial({ color: 0x0891b2 });
-    const bezel = new THREE.MeshStandardMaterial({
-      color: 0x0f172a, metalness: 0.9, roughness: 0.15,
-      emissive: 0xfbbf24, emissiveIntensity: 0.08,
-    });
-    const monSideL = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.55, 0.05), monMat);
-    monSideL.position.set(-1.65, 1.35, deskZ + 0.1);
-    monSideL.rotation.y = 0.35;
-    group.add(monSideL);
-    const bezL = new THREE.Mesh(new THREE.BoxGeometry(1.02, 0.62, 0.06), bezel);
-    bezL.position.copy(monSideL.position);
-    bezL.position.z -= 0.02;
-    bezL.rotation.y = monSideL.rotation.y;
-    group.add(bezL);
-
-    const monSideR = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.55, 0.05), monMat);
-    monSideR.position.set(1.65, 1.35, deskZ + 0.1);
-    monSideR.rotation.y = -0.35;
-    group.add(monSideR);
-    const bezR = new THREE.Mesh(new THREE.BoxGeometry(1.02, 0.62, 0.06), bezel);
-    bezR.position.copy(monSideR.position);
-    bezR.position.z -= 0.02;
-    bezR.rotation.y = monSideR.rotation.y;
-    group.add(bezR);
-
-    // 3. Mexanik klaviatura — oltin RGB pastki chiziq bilan
-    const kbBase = new THREE.Mesh(
-      new THREE.BoxGeometry(0.85, 0.04, 0.28),
-      new THREE.MeshStandardMaterial({ color: 0x0b1224, roughness: 0.4, metalness: 0.7 })
-    );
-    kbBase.position.set(0, 1.02, deskZ + facing * 0.28);
-    group.add(kbBase);
-    const kbRGB = new THREE.Mesh(
-      new THREE.BoxGeometry(0.85, 0.008, 0.28),
-      new THREE.MeshBasicMaterial({ color: 0xfbbf24, transparent: true, opacity: 0.75 })
-    );
-    kbRGB.position.set(0, 0.998, deskZ + facing * 0.28);
-    group.add(kbRGB);
-
-    // 4. Bezakli sichqoncha
-    const mouse = new THREE.Mesh(
-      new THREE.CapsuleGeometry(0.05, 0.10, 4, 8),
-      new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.3, metalness: 0.8 })
-    );
-    mouse.rotation.x = Math.PI / 2;
-    mouse.position.set(0.55, 1.02, deskZ + facing * 0.28);
-    group.add(mouse);
-
-    // 5. Kubok / trophy — CEO ish joyida bo'lishi kerak (BEST PM 2026)
-    const trophyMat = new THREE.MeshStandardMaterial({
-      color: 0xfbbf24, metalness: 0.95, roughness: 0.15,
-      emissive: 0xf59e0b, emissiveIntensity: 0.35,
-    });
-    const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.06, 0.16, 12), trophyMat);
-    cup.position.set(-1.55, 1.12, deskZ - 0.15);
-    group.add(cup);
-    const cupHandleL = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.012, 6, 12), trophyMat);
-    cupHandleL.position.set(-1.65, 1.13, deskZ - 0.15);
-    cupHandleL.rotation.y = Math.PI / 2;
-    group.add(cupHandleL);
-    const cupHandleR = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.012, 6, 12), trophyMat);
-    cupHandleR.position.set(-1.45, 1.13, deskZ - 0.15);
-    cupHandleR.rotation.y = Math.PI / 2;
-    group.add(cupHandleR);
-    const cupBase = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.11, 0.13, 0.06, 12),
-      new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.6 })
-    );
-    cupBase.position.set(-1.55, 1.005, deskZ - 0.15);
-    group.add(cupBase);
-
-    // 6. Kofe kubogi (mustaqil — bogatroq)
-    const coffee = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.06, 0.055, 0.14, 12),
-      new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.3 })
-    );
-    coffee.position.set(-1.35, 1.06, deskZ + 0.25);
-    group.add(coffee);
-    const coffeeInside = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.055, 0.05, 0.02, 12),
-      new THREE.MeshStandardMaterial({ color: 0x451a03, roughness: 0.5 })
-    );
-    coffeeInside.position.set(-1.35, 1.12, deskZ + 0.25);
-    group.add(coffeeInside);
-
-    // 7. Kitob to'plami (leadership books) — PM eng ko'p o'qigan
-    const bookColors = [0xef4444, 0x0891b2, 0xf59e0b];
-    bookColors.forEach((c, i) => {
-      const book = new THREE.Mesh(
-        new THREE.BoxGeometry(0.12, 0.03, 0.18),
-        new THREE.MeshStandardMaterial({ color: c, roughness: 0.7 })
-      );
-      book.position.set(1.55, 1.01 + i * 0.032, deskZ - 0.15);
-      group.add(book);
-    });
-
-    // 8. Telefon (VIP tanish belgisi)
-    const phone = new THREE.Mesh(
-      new THREE.BoxGeometry(0.11, 0.02, 0.22),
-      new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.3, metalness: 0.8 })
-    );
-    phone.position.set(1.35, 1.01, deskZ + 0.25);
-    group.add(phone);
-    const phoneScreen = new THREE.Mesh(
-      new THREE.BoxGeometry(0.09, 0.005, 0.2),
-      new THREE.MeshBasicMaterial({ color: accent, transparent: true, opacity: 0.7 })
-    );
-    phoneScreen.position.set(1.35, 1.022, deskZ + 0.25);
-    group.add(phoneScreen);
-
-    // 9. Stol tepasida SmartLamp (oltin arka)
-    const lampArm = new THREE.Mesh(
-      new THREE.BoxGeometry(0.04, 0.6, 0.04),
-      new THREE.MeshStandardMaterial({ color: 0xfbbf24, metalness: 0.9, roughness: 0.2 })
-    );
-    lampArm.position.set(-1.85, 1.3, deskZ - 0.3);
-    group.add(lampArm);
-    const lampHead = new THREE.Mesh(
-      new THREE.ConeGeometry(0.12, 0.15, 12, 1, true),
-      new THREE.MeshStandardMaterial({
-        color: 0xfbbf24, metalness: 0.85, roughness: 0.25,
-        side: THREE.DoubleSide,
-      })
-    );
-    lampHead.position.set(-1.85, 1.6, deskZ - 0.3);
-    lampHead.rotation.z = 0.3;
-    group.add(lampHead);
-
-    // 10. PM stansiyasining pedestal accent (oltin ring atrofida)
-    const goldRing = new THREE.Mesh(
-      new THREE.TorusGeometry(2.7, 0.05, 8, 40),
-      new THREE.MeshBasicMaterial({ color: 0xfbbf24, transparent: true, opacity: 0.75 })
-    );
-    goldRing.rotation.x = -Math.PI / 2;
-    goldRing.position.y = 0.15;
-    group.add(goldRing);
   }
 
   // --- Overhead Holographic 3D Billboard Badge ---
@@ -1219,9 +1044,11 @@ class IsometricHive3D {
     mesh.add(glowRing);
     mesh.userData.pmGlowRing = glowRing;
 
-    // 5. Mayoq nur olib tashlandi (FPS shishirar edi) — o'rniga
-    //    crown gem'ning emissiveIntensity pulsatsiyasi va halo aylanishi
-    //    yetarli darajada leader effekti beradi.
+    // 5. Yumshoq oltin PointLight — PM atrofidan chiqadigan mayoq nur
+    const light = new THREE.PointLight(0xfbbf24, this.isLight ? 0.4 : 0.85, 6);
+    light.position.set(0, 2.5, 0);
+    mesh.add(light);
+    mesh.userData.pmBeacon = light;
 
     // 6. Sal kattaroq (haqiqiy leader effekti)
     mesh.scale.setScalar(1.08);
@@ -1811,9 +1638,10 @@ class IsometricHive3D {
     border.position.y = 0.04;
     group.add(border);
 
-    // Xona yorug'ligi PointLight yerida DirectionalLight-emissive orqali beriladi
-    // (FPS optimizatsiyasi — 3 xona × PointLight = fragment narxi 3x oshirar edi).
-    // Xonada mebel accentHex bilan emissive material orqali o'z-o'zidan yorug' bo'ladi.
+    // Xona yuqorisidan mahalliy yorug'lik — mebel qorong'ida yo'qolib ketmasin.
+    const light = new THREE.PointLight(accentHex, isLight ? 0.5 : 0.95, Math.max(width, depth) * 1.4);
+    light.position.set(0, 4.2, 0);
+    group.add(light);
 
     return floor;
   }
@@ -1991,18 +1819,14 @@ class IsometricHive3D {
     handle.position.set(width / 2 - 0.18, height / 2, 0.06);
     door.add(handle);
 
-    // Ilgari har eshikka PointLight edi (3 dyn nur → -20 FPS). Endi shaffof
-    // emissive plane orqali fake glow — vizual jihatdan bir xil, ammo bepul.
-    const fakeGlow = new THREE.Mesh(
-      new THREE.PlaneGeometry(opts.width ?? 1.6, 0.6),
-      new THREE.MeshBasicMaterial({
-        color: accentHex, transparent: true, opacity: 0.35,
-        depthWrite: false, blending: THREE.AdditiveBlending,
-      })
-    );
-    fakeGlow.position.set(0, 0.25, 0.15);
-    door.add(fakeGlow);
-    door.userData = { doorPulse: fakeGlow, accentHex };
+    // Yumshoq ostki nur — kimdir yaqinlashganda "avtoeshik" hissi
+    const glow = new THREE.PointLight(accentHex, isLight ? 0.35 : 0.85, 4.5);
+    glow.position.set(0, 0.6, 0.4);
+    door.add(glow);
+    // Har bir dinamik nur SAHNADAGI BARCHA yoritilgan materiallarning
+    // fragment narxini oshiradi — past rejimda o'chiriladi.
+    (this._doorLights || (this._doorLights = [])).push(glow);
+    door.userData = { doorPulse: glow, accentHex };
     return door;
   }
 
@@ -2755,11 +2579,7 @@ class IsometricHive3D {
       this.scene.add(box);
     }
 
-    // Chirog' panellari (LED downlights) — sirtga tekislangan yorug' kvadratlar.
-    // MUHIM PERFORMANCE: ilgari 9 ta PointLight qo'shilardi. Three.js har
-    // fragmentga hamma dynamic light ta'sirini hisoblaydi → mid-tier GPU'da
-    // FPS 60→12'ga tushib ketardi. Endi VIZUAL LED PANELLAR qoladi, lekin
-    // dynamic PointLight faqat 1 TA — markazda (butun sahnaga umumiy iliqlik).
+    // Chirog' panellari (LED downlights) — sirtga tekislangan yorug' kvadratlar
     const lightGrid = [
       { x: -12, z: -8 }, { x: 0, z: -8 }, { x: 12, z: -8 },
       { x: -12, z: 4 },  { x: 0, z: 4 },  { x: 12, z: 4 },
@@ -2773,15 +2593,11 @@ class IsometricHive3D {
       led.rotation.x = Math.PI / 2;
       led.position.set(l.x, soffitY + 0.02, l.z);
       this.scene.add(led);
+      // Yumshoq downlight
+      const dl = new THREE.PointLight(isLight ? 0xfef3c7 : 0xe0f2fe, 0.35, 6.5);
+      dl.position.set(l.x, soffitY - 0.4, l.z);
+      this.scene.add(dl);
     }
-    // Butun shipdan tarqaladigan bitta yumshoq nur (PointLight fleet o'rniga)
-    const ceilingLight = new THREE.PointLight(isLight ? 0xfef3c7 : 0xe0f2fe, 0.75, 30);
-    ceilingLight.position.set(0, soffitY - 0.5, 3);
-    this.scene.add(ceilingLight);
-    // Ikkinchi kichik nur — orqa qismni yoritadi
-    const backLight = new THREE.PointLight(isLight ? 0xfef3c7 : 0xe0f2fe, 0.4, 22);
-    backLight.position.set(0, soffitY - 0.5, -10);
-    this.scene.add(backLight);
   }
 
   // ============================================================
@@ -4801,14 +4617,10 @@ class IsometricHive3D {
 
     this.updateAgents(delta);
     this.updateVisuals(delta);
-    // PM leader animatsiyasi va eshiklar — har 2-frame'da yetadi (60 → 30 FPS anim,
-    // vizual jihatdan farqi bilinmaydi lekin CPU/GPU vaqtini yarim tejaydi).
-    if ((this.quality.frameIndex & 1) === 0) {
-      this.updateDoors(nowMs);
-      this.updatePMLeader(nowMs, delta);
-    }
-    // Devor soati — millarni real vaqtga sinxronlashtiradi (har 8-frame yetadi).
-    if ((this.quality.frameIndex & 7) === 0) this.updateWallClock();
+    this.updateDoors(nowMs);
+    this.updatePMLeader(nowMs, delta);
+    // Devor soati — millarni real vaqtga sinxronlashtiradi (har 4-frame yetadi).
+    if ((this.quality.frameIndex & 3) === 0) this.updateWallClock();
 
     this.renderer.render(this.scene, this.camera);
   }
@@ -4837,7 +4649,11 @@ class IsometricHive3D {
       ud.pmGlowRing.scale.set(s, s, 1);
       ud.pmGlowRing.material.opacity = 0.28 + Math.sin(t * 1.8) * 0.14;
     }
-    // pmBeacon PointLight'i FPS optimizatsiyasi uchun olib tashlandi.
+    if (ud.pmBeacon) {
+      // Mayoq nur intensitesi
+      const base = this.isLight ? 0.4 : 0.85;
+      ud.pmBeacon.intensity = base + Math.sin(t * 2.2) * 0.15;
+    }
   }
 
   // ============================================================
@@ -4899,13 +4715,7 @@ class IsometricHive3D {
       const door = g.userData.entranceDoor;
       if (!door || !door.userData || !door.userData.doorPulse) continue;
       const base = this.isLight ? 0.35 : 0.85;
-      // fakeGlow endi Mesh — opacity bilan pulsatsiya (PointLight o'rniga)
-      const pulse = door.userData.doorPulse;
-      if (pulse.material && 'opacity' in pulse.material) {
-        pulse.material.opacity = 0.25 + Math.sin(t * 1.6) * 0.12;
-      } else if ('intensity' in pulse) {
-        pulse.intensity = base + Math.sin(t * 1.6) * 0.18;
-      }
+      door.userData.doorPulse.intensity = base + Math.sin(t * 1.6) * 0.18;
     }
   }
 

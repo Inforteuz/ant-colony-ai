@@ -2716,34 +2716,6 @@ class AntColonyApp {
         </div>
       ` : ''}
 
-      ${(event.screenshots && event.screenshots.length) ? `
-        <div class="exec-section-card">
-          <div class="exec-section-header">
-            <svg style="width:14px; height:14px; color:#22c55e" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M9 4l1-2h4l1 2"/></svg>
-            <span>Тестовые скриншоты (${event.screenshots.length})</span>
-          </div>
-          <div class="exec-section-body">
-            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:10px;">
-              ${event.screenshots.map(p => `
-                <a href="/api/screenshot?path=${encodeURIComponent(p)}" target="_blank" rel="noopener"
-                   style="display:block; border-radius:10px; overflow:hidden; border:1px solid var(--border-subtle); background:var(--bg-card-elevated); text-decoration:none;">
-                  <img src="/api/screenshot?path=${encodeURIComponent(p)}"
-                       alt="Screenshot" loading="lazy"
-                       style="display:block; width:100%; height:auto; max-height:280px; object-fit:contain; background:#0f172a;"
-                       onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                  <div style="display:none; padding:14px; text-align:center; color:var(--text-muted); font-size:12px;">
-                    Изображение не удалось загрузить
-                  </div>
-                  <div style="padding:6px 10px; font-size:11px; color:var(--text-muted); font-family:var(--font-mono); border-top:1px solid var(--border-subtle); word-break:break-all;">
-                    ${this.esc(p.split('/').pop() || p)}
-                  </div>
-                </a>
-              `).join('')}
-            </div>
-          </div>
-        </div>
-      ` : ''}
-
       ${event.qa_text ? `
         <div class="exec-section-card">
           <div class="exec-section-header">
