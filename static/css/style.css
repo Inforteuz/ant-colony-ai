@@ -7603,8 +7603,19 @@ body.light-theme .hud-kpi-pill::before {
   100% { opacity: 0; transform: translate(var(--dx, 40px), var(--dy, 200px)) rotate(var(--dr, 720deg)); }
 }
 
-/* Yumshoq issiq accent variant — foydalanuvchi sozlashi mumkin (opt-in class) */
+/* Yumshoq issiq accent variant — opt-in class.
+   MUHIM: ilgari --brand-* o'zgaruvchilari qo'yilardi, lekin ular kodda
+   hech qayerda ishlatilmasdi → palette toggle vizual jihatdan hech narsa
+   o'zgartirmasdi. Endi haqiqiy `--color-purple`, `--border-active`,
+   `--border-glow` o'zgaruvchilarini override qilamiz — bu butun UI ni
+   binafshadan apelsin-pushti gradient tomon almashtiradi. */
 body.theme-warm {
+  --color-purple: #f97316;
+  --color-purple-subtle: rgba(249, 115, 22, 0.15);
+  --border-active: #f97316;
+  --border-glow: rgba(249, 115, 22, 0.45);
+  --color-pink: #f472b6;
+  --color-pink-subtle: rgba(244, 114, 182, 0.16);
   --brand-1: #f97316;
   --brand-2: #ec4899;
   --accent-3: #f59e0b;
@@ -7659,8 +7670,15 @@ body.theme-warm .glass-card:hover {
 #btn-palette-toggle:active {
   transform: rotate(180deg) scale(0.95);
 }
-body.theme-warm #btn-palette-toggle {
+body.theme-warm #btn-palette-toggle,
+#btn-palette-toggle.is-warm-on {
   box-shadow: 0 0 12px rgba(249, 115, 22, 0.5);
+  border-color: rgba(249, 115, 22, 0.6) !important;
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.18), rgba(236, 72, 153, 0.14)) !important;
+}
+/* Ilk holatda inactive bo'lganda ham ko'zga tashlansin */
+#btn-palette-toggle {
+  border-color: rgba(139, 92, 246, 0.35) !important;
 }
 
 /* Warm palette — gradient aksent barcha topbar tugmalarida */

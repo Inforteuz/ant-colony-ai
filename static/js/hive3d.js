@@ -994,11 +994,25 @@ class IsometricHive3D {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('PM', 64, 34);
-    // Kichik yulduz
-    ctx.fillStyle = 'rgba(255,255,255,0.85)';
-    ctx.font = 'bold 18px sans-serif';
-    ctx.fillText('★', 30, 32);
-    ctx.fillText('★', 98, 32);
+    // Kichik yulduzlar — 5 uchli path (emoji o'rniga, kross-platforma toza chiziladi)
+    const drawStar = (cx, cy, r) => {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.beginPath();
+      for (let i = 0; i < 10; i++) {
+        const rad = i % 2 === 0 ? r : r * 0.45;
+        const ang = (Math.PI / 5) * i - Math.PI / 2;
+        const px = Math.cos(ang) * rad;
+        const py = Math.sin(ang) * rad;
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      ctx.fill();
+      ctx.restore();
+    };
+    drawStar(30, 32, 8);
+    drawStar(98, 32, 8);
     const badgeTex = new THREE.CanvasTexture(cvs);
     const badge = new THREE.Sprite(new THREE.SpriteMaterial({
       map: badgeTex, transparent: true, depthTest: true,
@@ -4670,7 +4684,7 @@ class IsometricHive3D {
       this._pixelModeOn = true;
       // Toast (agar app bo'lsa)
       if (window.antApp && typeof window.antApp.toast === 'function') {
-        window.antApp.toast('🎮 Pixel Retro rejimi', 'Chunky pixel-art ko\'rinishi yoqildi', 'info', 3000);
+        window.antApp.toast('Pixel Retro rejimi', 'Chunky pixel-art ko\'rinishi yoqildi', 'info', 3000);
       }
       return true;
     } else {

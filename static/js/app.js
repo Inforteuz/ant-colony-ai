@@ -891,15 +891,22 @@ class AntColonyApp {
     on('btn-palette-toggle', 'click', () => {
       const isWarm = document.body.classList.toggle('theme-warm');
       try { localStorage.setItem('ant.warm', isWarm ? '1' : '0'); } catch (e) {}
+      // Tugmaning o'zi ham active class oladi — foydalanuvchi bosgani ko'rinsin
+      const btn = document.getElementById('btn-palette-toggle');
+      if (btn) btn.classList.toggle('is-warm-on', isWarm);
       this.toast(
-        isWarm ? '🎨 Warm palette' : '🧊 Cool palette',
+        isWarm ? 'Warm palette' : 'Cool palette',
         isWarm ? 'Iliqroq apelsin/pushti/amber ranglar' : 'Salqin binafsha/cyan ranglar',
         'info', 2500
       );
     });
     // Reload'da saqlangan palette holatini tiklaymiz.
     try {
-      if (localStorage.getItem('ant.warm') === '1') document.body.classList.add('theme-warm');
+      if (localStorage.getItem('ant.warm') === '1') {
+        document.body.classList.add('theme-warm');
+        const btn = document.getElementById('btn-palette-toggle');
+        if (btn) btn.classList.add('is-warm-on');
+      }
     } catch (e) {}
 
     // Drawer toggles
@@ -1681,7 +1688,10 @@ class AntColonyApp {
       bodyHtml = `
         <p><strong>${pmGreetingT('ceo_greeting_ready')}</strong></p>
         <p>${pmGreetingT('ceo_greeting_intro')}</p>
-        <p style="opacity:0.75;font-size:11.5px;">💡 ${pmGreetingT('ceo_greeting_tip')}</p>
+        <p style="opacity:0.75;font-size:11.5px;display:flex;align-items:center;gap:6px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:#f59e0b;"><path d="M9 21h6M12 3a6 6 0 0 0-4 10.7c.6.6 1 1.4 1 2.3v1h6v-1c0-.9.4-1.7 1-2.3A6 6 0 0 0 12 3z"/></svg>
+          <span>${pmGreetingT('ceo_greeting_tip')}</span>
+        </p>
       `;
     }
 
@@ -3569,7 +3579,7 @@ class AntColonyApp {
           </div>
           <div class="role-card-sub">${this.esc(r.description || '')}</div>
           <div style="font-size:10px; color:var(--color-purple); font-family:var(--font-mono); margin-top:2px;">
-            Ведущая модель: <strong>${this.esc(r.model_name || r.assigned_model || 'Auto')}</strong>${r.pinned ? ' 📌' : ''}
+            Ведущая модель: <strong>${this.esc(r.model_name || r.assigned_model || 'Auto')}</strong>${r.pinned ? ' <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;color:#f59e0b;"><path d="M12 17v5M9 3h6l-1 6c2 1 3 3 3 5H7c0-2 1-4 3-5L9 3z"/></svg>' : ''}
           </div>
         `;
         card.addEventListener('click', () => {
