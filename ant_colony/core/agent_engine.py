@@ -1202,6 +1202,29 @@ class AgentEngine:
                 + (f"Yaratilishi kerak bo'lgan fayllar: {', '.join(spec['files'])}\n" if spec["files"] else "")
                 + (f"Qadamlar:\n" + "\n".join(f"{i+1}. {s}" for i, s in enumerate(spec["steps"])) + "\n" if spec["steps"] else "")
                 + (f"Qabul shartlari:\n" + "\n".join(f"- {c}" for c in spec["acceptance_criteria"]) + "\n" if spec["acceptance_criteria"] else "")
+                + "\n**BAJARISH QOIDASI (MAJBURIY):** Foydalanuvchi CEO — natija kutmoqda, ko'rsatma emas.\n"
+                + "  * Har qanday shell buyrug'i (`rm`, `mkdir`, `cp`, `npm install`, `pytest` va h.k.)\n"
+                + "    darhol `run_shell_command` orqali BAJARILISHI kerak.\n"
+                + "  * Buyruqni oddiy matn qilib chiqarib «выполните это», «run this» deb yozish\n"
+                + "    — vazifa muvaffaqiyatsizligi hisoblanadi.\n"
+                + "  * O'chirish/tozalash vazifalarida: avval `list_dir` bilan tekshiring, keyin\n"
+                + "    ANIQ nomlar bilan `rm -rf <nom1> <nom2>` chaqiring (yulduzcha yoki `/`, `~`,\n"
+                + "    `..` ishlatmang), oxirida yana `list_dir` bilan natijani tasdiqlang.\n\n"
+                + "**TEST + SCREENSHOT (MAJBURIY YAKUNIY QADAM):**\n"
+                + "Vazifani tugatgach, natijani O'ZINGIZ tekshirasiz va foydalanuvchiga isbot beriladi.\n"
+                + "1. Test/pytest fayl bo'lsa → `run_shell_command('pytest -q')` yoki `npm test`.\n"
+                + "   Xato bo'lsa tuzating va qayta ishga tushiring.\n"
+                + "2. Sayt / veb-loyiha (index.html, React, Flask, FastAPI):\n"
+                + "   * `run_shell_command_background` bilan lokal server chiqaring\n"
+                + "     (uvicorn / `python -m http.server` / `npm run dev`)\n"
+                + "   * `browser_screenshot(url='http://127.0.0.1:PORT', full_page=True)` chaqiring\n"
+                + "   * Qaytgan `path` ni yakuniy javobingizga ALOHIDA QATORDA yozing:\n"
+                + "         SCREENSHOT: /full/path/to/shot.png\n"
+                + "     Bu marker PM Console'da avtomatik rasm sifatida ko'rsatiladi.\n"
+                + "3. Konsol/skript loyiha bo'lsa — `execute_python` yoki `run_shell_command`\n"
+                + "   bilan bir marta ishga tushiring va stdout natijasini yakunda yozing.\n"
+                + "4. API/endpoint bo'lsa — `http_get` yoki `browser_execute_js` bilan chaqiring.\n"
+                + "Bu qadam O'TKAZIB YUBORILMAYDI. Test va screenshot yo'q → vazifa yakunlanmagan.\n"
             )
 
         coder_result: Optional[AgentRunResult] = None
