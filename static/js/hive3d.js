@@ -1050,6 +1050,46 @@ class IsometricHive3D {
     );
     phoneScreen.position.set(0.6, 1.023, deskZ + 0.15);
     group.add(phoneScreen);
+
+    // Pedestal atrofida oltin torus ring (VIP belgisi — CEO markazi)
+    const pedestalRing = new THREE.Mesh(
+      new THREE.TorusGeometry(2.72, 0.05, 8, 40),
+      new THREE.MeshBasicMaterial({ color: 0xfbbf24, transparent: true, opacity: 0.7 })
+    );
+    pedestalRing.rotation.x = -Math.PI / 2;
+    pedestalRing.position.y = 0.16;
+    group.add(pedestalRing);
+
+    // SmartLamp stol chap-orqasida — oltin arka
+    const lampArm = new THREE.Mesh(
+      new THREE.BoxGeometry(0.04, 0.55, 0.04),
+      new THREE.MeshStandardMaterial({
+        color: 0xfbbf24, metalness: 0.9, roughness: 0.2,
+      })
+    );
+    lampArm.position.set(-1.15, 1.28, deskZ - 0.28);
+    group.add(lampArm);
+    const lampHead = new THREE.Mesh(
+      new THREE.ConeGeometry(0.11, 0.14, 12, 1, true),
+      new THREE.MeshStandardMaterial({
+        color: 0xfbbf24, metalness: 0.85, roughness: 0.25,
+        side: THREE.DoubleSide,
+      })
+    );
+    lampHead.position.set(-1.15, 1.56, deskZ - 0.28);
+    lampHead.rotation.z = 0.25;
+    group.add(lampHead);
+    // Lampa ostidan yumshoq nur (additive) — issiq mayoq
+    const lampGlow = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.4, 0.4),
+      new THREE.MeshBasicMaterial({
+        color: 0xfef3c7, transparent: true, opacity: 0.32,
+        depthWrite: false, blending: THREE.AdditiveBlending,
+      })
+    );
+    lampGlow.rotation.x = -Math.PI / 2;
+    lampGlow.position.set(-1.05, 0.99, deskZ - 0.15);
+    group.add(lampGlow);
   }
 
   // PM ga "leader" ko'rinishini beradi: oltin halo, toj, katta badge.
