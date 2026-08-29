@@ -1778,6 +1778,32 @@ async def list_running_projects():
     return _list_running()
 
 
+@app.get("/api/screenshot")
+async def serve_agent_screenshot(path: str):
+    """
+    Agentlar tomonidan olingan test screenshot faylini serve qiladi.
+    Faqat PROJECTS_BASE_DIR ostidagi `.ant_colony_shots/` papkasidagi PNG'lar.
+    Xavfsizlik: path traversal himoyasi + faqat PNG kengaytmasi.
+    """
+    from fastapi.responses import FileResponse
+    from ant_colony.config import PROJECTS_BASE_DIR
+    try:
+        target = Path(path).resolve()
+        base = PROJECTS_BASE_DIR.resolve()
+        target.relative_to(base)  # ValueError agar tashqarida bo'lsa
+        if ".ant_colony_shots" not in target.parts:
+            raise HTTPException(status_code=403, detail="Faqat .ant_colony_shots papkasi ruxsat etilgan")
+        if target.suffix.lower() != ".png":
+            raise HTTPException(status_code=403, detail="Faqat PNG fayllar ruxsat etilgan")
+        if not target.exists() or not target.is_file():
+            raise HTTPException(status_code=404, detail="Screenshot topilmadi")
+        return FileResponse(str(target), media_type="image/png")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Noto'g'ri yo'l: {e}")
+
+
 @app.on_event("shutdown")
 async def _shutdown_launcher():
     _stop_all_projects()

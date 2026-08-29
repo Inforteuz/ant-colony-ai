@@ -1449,6 +1449,20 @@ class AgentEngine:
 
         files_block = "\n".join(f"- `{f}`" for f in created_files) or "- (файлы не были созданы)"
         coder_summary = coder_result.final_text or "(xulosa yo'q)"
+
+        # Coder xulosasida "SCREENSHOT: <yo'l>" marker'larini topamiz — bularni
+        # PM Console'da rasm sifatida ko'rsatish uchun alohida ajratamiz.
+        # Marker qoidasi (coder promptida keyingi commit'da qo'shiladi):
+        # vazifadan keyin browser_screenshot chaqiring va yakuniga
+        # "SCREENSHOT: <path>" yozing.
+        screenshots: List[str] = []
+        try:
+            for m in re.finditer(r"(?im)^\s*SCREENSHOT[:\s]+([^\n\r]+\.png)\s*$", coder_summary):
+                p = m.group(1).strip()
+                if p and p not in screenshots:
+                    screenshots.append(p)
+        except Exception:
+            pass
         total_tokens = coder_result.usage["prompt_tokens"] + coder_result.usage["completion_tokens"]
         repair_block = ("\n\n**Tuzatish sikllari:** " + str(repair_rounds) + "\n"
                         + "\n".join(f"- {n}" for n in repair_notes)) if repair_rounds else ""
@@ -1484,6 +1498,7 @@ class AgentEngine:
             "coder_role": coder_role_id,
             "coder_model": coder_model,
             "coder_summary": coder_summary,
+            "screenshots": screenshots,
             "tester_model": tester_model,
             "qa_score": qa_score,
             "qa_text": qa_text,
