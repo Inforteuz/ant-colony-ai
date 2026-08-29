@@ -383,6 +383,24 @@ def test_orchestration_helpers():
     check("UZ_CYR: 'HTML да светофор ярат' → code_project",
           is_code_creation_intent("HTML да светофор анимациясини ярат ва localhost да ишга тушир"))
 
+    # Regressiya: split_reasoning meta-analysis leak'ni ushlashi shart.
+    # PM ba'zi modellar (masalan Nemotron) ichki tahlilni javob sifatida
+    # chiqarib qo'yardi — foydalanuvchi shikoyati.
+    leaked_en = 'The user wants me to act as PM.\nLet me analyze this task.\n\nSalom, bajaramiz.\n```json\n{"task_type":"code_project"}\n```'
+    r_en, c_en = split_reasoning(leaked_en)
+    check("EN: 'The user wants me to...' meta-leak reasoning'ga ajratiladi",
+          "The user wants me" in r_en and "Salom" in c_en and "The user wants me" not in c_en,
+          f"reasoning={r_en[:80]!r} clean={c_en[:80]!r}")
+    leaked_ru = 'Пользователь хочет удалить проекты.\n\nЗдравствуйте, приступаю.\n```json\n{"task_type":"code_project"}\n```'
+    r_ru, c_ru = split_reasoning(leaked_ru)
+    check("RU: 'Пользователь хочет...' meta-leak reasoning'ga ajratiladi",
+          "Пользователь хочет" in r_ru and "Здравствуйте" in c_ru and "Пользователь хочет" not in c_ru,
+          f"reasoning={r_ru[:80]!r} clean={c_ru[:80]!r}")
+    # Sof javob buzilmasin
+    plain = 'Salom!\n```json\n{"task_type":"conversational"}\n```'
+    r_p, c_p = split_reasoning(plain)
+    check("Sof javob (meta-leak yo'q) tegilmaydi", not r_p and c_p == plain.strip())
+
     spec = extract_json_block('Reja...\n```json\n{"specialist_role": "ui_designer", "files": ["a.css"]}\n```')
     check("PM JSON rejasi ajratiladi", spec and spec["specialist_role"] == "ui_designer", str(spec))
     check("JSON bo'lmasa None qaytadi", extract_json_block("oddiy matn") is None)

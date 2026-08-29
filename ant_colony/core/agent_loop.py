@@ -60,6 +60,31 @@ def split_reasoning(text: str) -> tuple[str, str]:
         thoughts.append(extracted)
         clean = clean.replace(extracted, "").strip()
 
+    # Meta-analysis leakage — ba'zi modellar (Nemotron va h.k.) hech qanday
+    # sarlavhasiz xom "chain of thought"ni to'g'ridan-to'g'ri chiqarib qo'yadi.
+    # Klassik boshlanish qoliplari:
+    #   "The user wants me to..."
+    #   "The user is asking..."
+    #   "Let me analyze..."
+    #   "Looking at the..."
+    #   "Foydalanuvchi so'ramoqda..." / "Foydalanuvchining niyati..."
+    #   "Пользователь хочет..." / "Пользователь просит..."
+    # Bu qoliplar TOPILGAN bo'lsa — ular reasoning'ga o'tkaziladi.
+    # `clean` ni JSON blok yoki sof javob bilan boshlashga majbur qilamiz.
+    meta_leak_patterns = [
+        r"^The user (wants|is asking|is telling|needs?)\s+me\s+to\b[\s\S]*?(?=\n\s*```(?:json|tool_call)\b|\n\s*\{[\s\S]*?\"task_type\"|\n\s*(?:Здравствуйте|Assalomu|Hello|Salom|Привет|##)|$)",
+        r"^(Looking at|Let me analyze|Let's (analyze|look at|check|see))\b[\s\S]*?(?=\n\s*```(?:json|tool_call)\b|\n\s*\{[\s\S]*?\"task_type\"|\n\s*(?:Здравствуйте|Assalomu|Hello|Salom|Привет|##)|$)",
+        r"^(Foydalanuvchi\s+(so'ramoqda|xohlamoqda|niyati)|Пользователь\s+(хочет|просит|запрашивает))\b[\s\S]*?(?=\n\s*```(?:json|tool_call)\b|\n\s*\{[\s\S]*?\"task_type\"|\n\s*(?:Здравствуйте|Assalomu|Hello|Salom|Привет|##)|$)",
+    ]
+    for pat in meta_leak_patterns:
+        m = re.match(pat, clean, re.IGNORECASE)
+        if m:
+            leaked = m.group(0).strip()
+            if leaked:
+                thoughts.append(leaked)
+                clean = clean[len(leaked):].lstrip()
+                break
+
     return "\n\n".join(thoughts).strip(), clean
 
 
