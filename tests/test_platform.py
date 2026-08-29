@@ -564,10 +564,14 @@ def test_run_history():
         rows = history.list_runs()
         check("run tarixi SQLite'ga yoziladi",
               len(rows) == 1 and rows[0]["status"] == "completed", str(rows))
+        check("run tarixi davomiylikni qaytaradi",
+              rows[0]["duration_s"] == 25.0, str(rows))
         detail = history.get_run("run-1")
         check("run rejasi va yakuniy natijasi o'qiladi",
               detail and detail["plan"]["assigned_role"] == "frontend_architect"
               and detail["final"]["final_score"] == 91, str(detail))
+        check("run tafsiloti davomiylikni qaytaradi",
+              detail and detail["duration_s"] == 25.0, str(detail))
         check("faqat foydali dalillar event sifatida saqlanadi",
               detail and [e["type"] for e in detail["events"]] == ["pm_plan_ready", "qa_verified"], str(detail))
 

@@ -118,7 +118,11 @@ class RunHistory:
             rows = conn.execute(
                 """
                 SELECT job_id, task, language, status, created_at, finished_at,
-                       project_dir, final_score
+                       project_dir, final_score,
+                       CASE
+                           WHEN finished_at IS NOT NULL THEN ROUND(MAX(0, finished_at - created_at), 2)
+                           ELSE NULL
+                       END AS duration_s
                 FROM runs ORDER BY created_at DESC LIMIT ?
                 """,
                 (limit,),
@@ -135,6 +139,10 @@ class RunHistory:
                 (job_id,),
             ).fetchall()
         result = dict(run)
+        if result.get("finished_at") is not None:
+            result["duration_s"] = round(max(0, result["finished_at"] - result["created_at"]), 2)
+        else:
+            result["duration_s"] = None
         for key in ("plan_json", "final_json"):
             if result.get(key):
                 result[key[:-5]] = json.loads(result.pop(key))

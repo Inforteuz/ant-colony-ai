@@ -2374,6 +2374,7 @@ class AntColonyApp {
         body: JSON.stringify({
           task: taskText,
           attachment_id: this._pmAttachment ? this._pmAttachment.id : null,
+          language: 'auto',
         })
       });
 
@@ -2436,46 +2437,57 @@ class AntColonyApp {
            .replace(/[\u{1F300}-\u{1F5FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1F1E0}-\u{1F1FF}]/gu, '')
            .trim();
 
+    const codeBlocks = [];
+    md = md.replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g, (match, lang, code) => {
+      const token = `@@CODE_BLOCK_${codeBlocks.length}@@`;
+      const safeLang = lang || 'code';
+      codeBlocks.push(`<div class="code-block-wrapper">
+        <div class="code-block-header">
+          <span class="code-lang-label">${safeLang}</span>
+          <button class="btn-copy-code" onclick="navigator.clipboard.writeText(this.closest('.code-block-wrapper').querySelector('code').innerText); this.textContent='${I18N.t('done')}'; setTimeout(()=>this.textContent='${I18N.t('toast_copy_btn')}', 2000);">${I18N.t('toast_copy_btn')}</button>
+        </div>
+        <pre><code class="language-${safeLang}">${this.esc(code.trim())}</code></pre>
+      </div>`);
+      return token;
+    });
+
     // 2. Escape HTML
     md = this.esc(md);
 
-    // 3. Code blocks: ```lang ... ```
-    md = md.replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g, (match, lang, code) => {
-      const safeLang = lang || 'code';
-      const cleanCode = code.trim();
-      return `<div class="code-block-wrapper">
-        <div class="code-block-header">
-          <span class="code-lang-label">${safeLang}</span>
-          <button class="btn-copy-code" onclick="navigator.clipboard.writeText(this.closest('.code-block-wrapper').querySelector('code').innerText); this.textContent='Скопировано!'; setTimeout(()=>this.textContent='Копировать', 2000);">Копировать</button>
-        </div>
-        <pre><code class="language-${safeLang}">${cleanCode}</code></pre>
-      </div>`;
-    });
-
-    // 4. Inline code: `code`
+    // 3. Inline code and safe links
     md = md.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
+    md = md.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+      '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
 
-    // 5. Headings
+    // 4. Headings
     md = md.replace(/^####\s+(.+)$/gm, '<h4 class="md-h4">$1</h4>')
            .replace(/^###\s+(.+)$/gm, '<h3 class="md-h3">$1</h3>')
            .replace(/^##\s+(.+)$/gm, '<h2 class="md-h2">$1</h2>')
            .replace(/^#\s+(.+)$/gm, '<h1 class="md-h1">$1</h1>');
 
-    // 6. Bold & Italic
+    // 5. Bold & Italic
     md = md.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
     md = md.replace(/\*([^*]+)\*/g, '<em>$1</em>');
 
-    // 7. Checklists & Lists
+    // 6. Checklists & Lists
     md = md.replace(/^[\*\-]\s+\[x\]\s+(.+)$/gm, '<li class="md-li md-checked"><span class="check-box checked">✓</span> $1</li>');
     md = md.replace(/^[\*\-]\s+\[ \]\s+(.+)$/gm, '<li class="md-li"><span class="check-box">○</span> $1</li>');
     md = md.replace(/^[\*\-]\s+(.+)$/gm, '<li class="md-li">• $1</li>');
+    md = md.replace(/^\d+\.\s+(.+)$/gm, '<li class="md-li">$1</li>');
     md = md.replace(/(<li class="md-li[\s\S]*?<\/li>)/g, '<ul class="md-ul">$1</ul>');
     md = md.replace(/<\/ul>\s*<ul class="md-ul">/g, '');
 
-    // 8. Paragraphs
+    // 7. Paragraphs
     md = md.replace(/\n\n/g, '<p class="md-p"></p>').replace(/\n/g, '<br>');
+    md = md.replace(/@@CODE_BLOCK_(\d+)@@/g, (match, index) => codeBlocks[Number(index)] || '');
 
     return md;
+  }
+
+  formatTaskDuration(event) {
+    const seconds = Number(event.duration_seconds ?? event.total_duration_sec);
+    if (!Number.isFinite(seconds) || seconds < 0) return '—';
+    return `${Math.max(1, Math.round(seconds))}s`;
   }
 
   renderToolCard(event, feed) {
@@ -2634,7 +2646,7 @@ class AntColonyApp {
       compact.innerHTML = `
         <div style="display:flex; align-items:center; gap:10px; font-size:12px; color:var(--text-muted);">
           <svg style="width:16px; height:16px; color:#22d3ee;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-          <span>Ответ дан · ${event.total_duration_sec || 0}s</span>
+          <span>${I18N.t('pm_answer_given')} · ${this.formatTaskDuration(event)}</span>
         </div>
       `;
       feed.appendChild(compact);
@@ -2651,7 +2663,7 @@ class AntColonyApp {
         </button>
       `).join('');
     } else {
-      filesHtml = '<span style="font-size:11px; color:var(--text-muted)">Созданные файлы yo‘q</span>';
+      filesHtml = `<span style="font-size:11px; color:var(--text-muted)">${I18N.t('pm_no_created_files')}</span>`;
     }
 
     let scorecardHtml = '';
@@ -2679,18 +2691,18 @@ class AntColonyApp {
         <div class="exec-title-group">
           <div class="exec-badge-status">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-            <span>ВЫПОЛНЕНО</span>
+            <span>${I18N.t('pm_run_status_completed')}</span>
           </div>
           <div>
-            <div class="exec-title-text">Задача успешно выполнена</div>
-            <div style="font-size:11px; color:var(--text-muted)">Папка проекта: <code>${event.project_dir || '04_Loyihalar'}</code></div>
+            <div class="exec-title-text">${I18N.t('pm_task_completed')}</div>
+            <div style="font-size:11px; color:var(--text-muted)">${I18N.t('pm_project_folder')}: <code>${event.project_dir || '04_Loyihalar'}</code></div>
           </div>
         </div>
-        <div class="exec-meta-duration">${event.total_duration_sec || 12}s</div>
+        <div class="exec-meta-duration">${this.formatTaskDuration(event)}</div>
       </div>
 
       <div class="exec-files-block">
-        <div class="exec-files-title">Созданные файлы (${createdFiles.length}):</div>
+        <div class="exec-files-title">${I18N.t('pm_created_files', { n: createdFiles.length })}</div>
         <div class="exec-files-pills">${filesHtml}</div>
       </div>
 
@@ -2698,7 +2710,7 @@ class AntColonyApp {
         <div class="exec-launch-row">
           <button class="btn-exec-launch" onclick="window.antApp.launchProjectLocalhost('${this.esc(event.project_dir)}', this)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-            <span>Открыть на localhost</span>
+            <span>${I18N.t('pm_open_localhost')}</span>
           </button>
           <span class="exec-launch-status" id="exec-launch-status-${(event.project_dir || '').replace(/[^a-z0-9]/gi,'-')}"></span>
         </div>
@@ -3017,18 +3029,18 @@ class AntColonyApp {
       }
 
       let roleLine = event.assigned_role
-        ? `\n\n**Назначенный специалист:** ${event.assigned_role} (${cleanModelLabel(event.assigned_model)})`
+        ? `\n\n**${I18N.t('pm_assigned_specialist')}:** ${event.assigned_role} (${cleanModelLabel(event.assigned_model)})`
         : '';
       // PM nega shu rolni tanlagani va nechta qadamga bo'lgani — noto'g'ri
       // taqsimot darhol ko'rinsin (ilgari faqat rol nomi ko'rsatilardi).
       if (roleLine && event.role_reason) roleLine += `\n_${event.role_reason}_`;
-      if (roleLine && event.subtasks_count) roleLine += `\n\n**Подзадач в плане:** ${event.subtasks_count}`;
+      if (roleLine && event.subtasks_count) roleLine += `\n\n**${I18N.t('pm_subtasks_count')}:** ${event.subtasks_count}`;
       const planIssues = event.plan_quality?.issues || [];
-      if (planIssues.length) roleLine += `\n\n**Замечания PM по плану:** ${planIssues.map(issue => this.esc(issue)).join('; ')}`;
+      if (planIssues.length) roleLine += `\n\n**${I18N.t('pm_plan_issues')}:** ${planIssues.map(issue => this.esc(issue)).join('; ')}`;
       this.canvas.updateStationModel('pm', cleanModelLabel(event.assigned_model), 'План составлен');
       this.canvas.updateStationModel('coder', cleanModelLabel(event.assigned_model), 'Подготовка');
       this.appendFeedItem(feed, {
-        title: 'Архитектурный план Project Manager',
+        title: I18N.t('pm_arch_plan'),
         titleColor: '#8b5cf6', borderColor: '#8b5cf6',
         body: (event.plan_content || '') + roleLine,
         model: cleanModelLabel(event.assigned_model),
