@@ -188,6 +188,10 @@ def is_code_creation_intent(text: str) -> bool:
         "sayt qil", "sayt yasab", "ilova yasab", "ilova qil", "ilova yarat", "web sayt",
         "loyiha ochib", "loyiha yaratib", "loyiha tuz", "deploy qil", "publish qil",
         "test yoz", "avtomatlashtir", "integratsiya qil", "installatsiya qil",
+        # Ish muhitini boshqarish (workspace admin) — o'chirish, tozalash, tartibga solish
+        "o'chir", "o'chirib tashla", "o'chirib yubor", "olib tashla", "olib tashlab",
+        "tozala", "bo'shat", "poklab tashla", "toza qil", "arxivla", "arxivlab qo'y",
+        "yig'ib qo'y", "tartibga sol", "papkalar", "workspace tozala",
         # O'zbek (Kirill)
         "ярат", "ёз", "туз", "яса", "қур", "ишлаб чиқ", "дастурла", "тайёрла", "тайёрлаб",
         "тайёрлаб бер", "ишга тушир", "линк бер", "ойлаб бер", "лойиҳа туз",
@@ -201,10 +205,17 @@ def is_code_creation_intent(text: str) -> bool:
         "напиши код", "сделай проект", "сделай приложение", "сделай сайт", "сделай страницу",
         "нужен код", "нужна страница", "нужен сайт", "нужен проект", "нужно приложение",
         "хочу проект", "хочу сайт", "хочу приложение", "хочу страницу",
+        # Ish muhitini boshqarish (RU)
+        "удали", "удалить", "убери", "убрать", "снеси", "снести", "почисти", "очисти",
+        "очистить", "почистить", "стереть", "сотри", "вычисти", "прибери", "приберись",
+        "заархивируй", "разложи", "рабочий стол очисти", "воркспейс очисти",
         # English — imperative + noun-phrase intent
         "create", "build", "write", "develop", "make", "code", "generate", "implement", "scaffold",
         "run it", "deploy", "publish", "launch", "host", "spin up", "give me a link",
         "i want", "i need", "please build", "please make", "please create",
+        # Ish muhitini boshqarish (EN)
+        "delete", "remove", "wipe", "clean up", "clean workspace", "clear all", "purge",
+        "archive", "tidy up", "organize", "reset workspace",
     ]
 
     has_creation_verb = any(_keyword_matches(v, t) for v in creation_verbs)
@@ -770,6 +781,25 @@ class AgentEngine:
             "Mavjud mutaxassis rollar:\n"
             f"{role_menu}\n\n"
             "TALABLAR / ТРЕБОВАНИЯ:\n"
+            "0. **task_type NI AQL BILAN TANLASH (eng muhim qadam):**\n"
+            "   Ushbu tanlov butun oqimni belgilaydi — noto'g'ri bo'lsa siz shunchaki matn qaytarasiz\n"
+            "   va agent hech qachon ishga tushmaydi (bu foydalanuvchi shikoyati manbai bo'lgan).\n"
+            "   * `code_project` — foydalanuvchi HAR QANDAY haqiqiy amalni so'ragan bo'lsa:\n"
+            "       - Fayl yaratish, o'zgartirish, o'chirish (masalan «удали проекты», «tozala workspace»,\n"
+            "         «delete all folders», «rename this», «переименуй», «arxivla»);\n"
+            "       - Shell buyrug'ini bajarish (o'rnatish, run, deploy, test);\n"
+            "       - Brauzerda sahifa ochish / JS ishga tushirish / screenshot olish;\n"
+            "       - HTTP so'rov, API tekshirish;\n"
+            "       - Ish muhitini ko'rish/tahlil qilish (list_dir, read_file) + xulosa yozish;\n"
+            "       - Loyihani yaratish yoki lokalda ishga tushirish.\n"
+            "     TEST SAVOLI: «Buni bajarish uchun kamida bitta tool chaqirilishi kerakmi?» — HA bo'lsa `code_project`.\n"
+            "   * `conversational` — FAQAT sof suhbat: salomlashish, imkoniyat so'rash,\n"
+            "     platforma haqida umumiy savol, ta'rif, tushuntirish. Hech qanday fayl/shell/network\n"
+            "     harakati talab qilinmaydigan holatlar.\n"
+            "   KALIT SO'ZLARGA ISHONMANG — MA'NOGA QARANG. Foydalanuvchi «удали» yozmagan bo'lsa ham\n"
+            "   («убери мои проекты», «no more clutter please»), niyat aniq bo'lsa `code_project` tanlang.\n"
+            "   YO'L QO'YILMAYDI: buyruq matnini foydalanuvchiga printerga chiqarib «выполните эту команду»\n"
+            "   deb aytish. Agar `code_project` bo'lsa — mutaxassis agent shell'ni O'ZI chaqiradi.\n\n"
             "1. MUHIM TIL QOIDASI / ЯЗЫКОВОЕ ПРАВИЛО (CRITICAL):\n"
             "   Foydalanuvchi xabarida qaysi tildan foydalangan bo'lsa (ruscha, o'zbekcha, inglizcha va h.k.), "
             "rejangizni, tahlilingizni va javobingizni AYNAN O'SHA TILDA yozing. "
@@ -884,11 +914,20 @@ class AgentEngine:
         reasoning = (res.get("reasoning") or "") + ("\n" + inline_reasoning if inline_reasoning else "")
         spec = extract_json_block(text) or {}
 
-        # If user did not ask to create/write code, strictly force conversational task_type
-        if is_conv:
-            task_type = "conversational"
+        # MUHIM: ilgari bu yerda regex `is_conv` PM'ning o'z qarorini majburan
+        # bekor qilardi — natijada foydalanuvchi "проекты удали" desa (regex'da
+        # yo'q so'z), PM to'g'ri "code_project" desa ham, biz uni "conversational"
+        # ga o'tkazib PM shell command bermay matn yozib qo'yardi (CEO shikoyati).
+        #
+        # Yangi qoida: PM'ning o'zi ancha aqlliroq. Ishonamiz:
+        #   * Agar PM o'z JSON spec'ida `task_type` ni to'g'ridan aytgan bo'lsa —
+        #     shu qoladi (regex hech qanaqa vetos qo'ymaydi).
+        #   * Agar PM `task_type` chiqarmagan bo'lsa — regex faqat DEFAULT ishlaydi.
+        pm_declared = spec.get("task_type")
+        if pm_declared in ("conversational", "code_project"):
+            task_type = pm_declared
         else:
-            task_type = spec.get("task_type") or "code_project"
+            task_type = "conversational" if is_conv else "code_project"
         spec["task_type"] = task_type
 
         plan_issues = plan_quality_issues(spec)
@@ -1171,6 +1210,27 @@ class AgentEngine:
                 + (f"Yaratilishi kerak bo'lgan fayllar: {', '.join(spec['files'])}\n" if spec["files"] else "")
                 + (f"Qadamlar:\n" + "\n".join(f"{i+1}. {s}" for i, s in enumerate(spec["steps"])) + "\n" if spec["steps"] else "")
                 + (f"Qabul shartlari:\n" + "\n".join(f"- {c}" for c in spec["acceptance_criteria"]) + "\n" if spec["acceptance_criteria"] else "")
+                + "\n**BAJARISH QOIDASI (MAJBURIY):** Foydalanuvchi CEO — natija kutmoqda, ko'rsatma emas.\n"
+                + "  * Har qanday shell buyrug'i (`rm`, `mkdir`, `cp`, `npm install`, `pytest` va h.k.)\n"
+                + "    darhol `run_shell_command` orqali BAJARILISHI kerak.\n"
+                + "  * Buyruqni oddiy matn sifatida chiqarib «выполните это», «run this» deb yozish\n"
+                + "    — vazifa muvaffaqiyatsizligi hisoblanadi.\n"
+                + "  * O'chirish/tozalash vazifalarida: avval `list_dir` bilan tekshiring, keyin\n"
+                + "    ANIQ nomlar bilan `rm -rf <nom1> <nom2> ...` chaqiring (yulduzcha yoki\n"
+                + "    `/`, `~`, `..` ishlatmang), oxirida yana `list_dir` bilan natijani tasdiqlang.\n\n"
+                + "**TEST + SCREENSHOT QOIDASI (MAJBURIY YAKUNIY QADAM):**\n"
+                + "Vazifani tugatgach, natijani O'ZINGIZ tekshirasiz va foydalanuvchiga isbot beriladi.\n"
+                + "1. Agar sizda test/pytest fayl bo'lsa — `run_shell_command('pytest -q')` yoki\n"
+                + "   `run_shell_command('npm test')` chaqiring. Xato bo'lsa, tuzating va qayta ishga tushiring.\n"
+                + "2. Agar sayt / veb-loyiha bo'lsa (index.html, React, Flask, FastAPI):\n"
+                + "   * `run_shell_command_background` bilan lokal server chiqaring (uvicorn / http.server / npm run dev)\n"
+                + "   * `browser_screenshot(url='http://127.0.0.1:PORT', full_page=True)` chaqiring\n"
+                + "   * Qaytgan `path` ni yakuniy javobingizga `SCREENSHOT: <yo'l>` deb yozing —\n"
+                + "     u PM Console'da avtomatik ko'rsatiladi.\n"
+                + "3. Agar konsol/skript loyiha bo'lsa — `execute_python` yoki\n"
+                + "   `run_shell_command` bilan bir marta ishga tushiring va natijani yakunda yozing.\n"
+                + "4. Agar API / endpoint bo'lsa — `http_get` yoki `browser_execute_js` bilan chaqiring.\n"
+                + "Bu qadam O'TKAZIB YUBORILMAYDI. Test va screenshot yo'q bo'lsa — vazifa yakunlanmagan.\n"
             )
 
         coder_result: Optional[AgentRunResult] = None
@@ -1418,6 +1478,20 @@ class AgentEngine:
 
         files_block = "\n".join(f"- `{f}`" for f in created_files) or "- (файлы не были созданы)"
         coder_summary = coder_result.final_text or "(xulosa yo'q)"
+
+        # Coder xulosasida `SCREENSHOT: <yo'l>` marker'larini topamiz — bularni
+        # frontend PM Console'da rasm sifatida ko'rsatish uchun alohida ajratamiz.
+        # Markazidagi qoida (coder promptida) — vazifadan keyin doim
+        # `browser_screenshot` bilan natijani suratga olib, yakuniga
+        # "SCREENSHOT: <path>" yozish.
+        screenshots: List[str] = []
+        try:
+            for m in re.finditer(r"(?im)^\s*SCREENSHOT[:\s]+([^\n\r]+\.png)\s*$", coder_summary):
+                p = m.group(1).strip()
+                if p and p not in screenshots:
+                    screenshots.append(p)
+        except Exception:
+            pass
         total_tokens = coder_result.usage["prompt_tokens"] + coder_result.usage["completion_tokens"]
         repair_block = ("\n\n**Tuzatish sikllari:** " + str(repair_rounds) + "\n"
                         + "\n".join(f"- {n}" for n in repair_notes)) if repair_rounds else ""
@@ -1453,6 +1527,7 @@ class AgentEngine:
             "coder_role": coder_role_id,
             "coder_model": coder_model,
             "coder_summary": coder_summary,
+            "screenshots": screenshots,
             "tester_model": tester_model,
             "qa_score": qa_score,
             "qa_text": qa_text,
