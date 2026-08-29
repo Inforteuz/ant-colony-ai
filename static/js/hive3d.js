@@ -1009,6 +1009,47 @@ class IsometricHive3D {
       book.castShadow = true;
       group.add(book);
     });
+
+    // Kofe kubogi — stol chap tomonida (ish davomida)
+    const coffeeMug = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.06, 0.055, 0.14, 12),
+      new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.3 })
+    );
+    coffeeMug.position.set(-0.6, 1.06, deskZ + 0.15);
+    coffeeMug.castShadow = true;
+    group.add(coffeeMug);
+    // Kofe ichida (jigar rang) — kichik disk
+    const coffeeIn = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.05, 0.05, 0.015, 12),
+      new THREE.MeshStandardMaterial({ color: 0x451a03, roughness: 0.5 })
+    );
+    coffeeIn.position.set(-0.6, 1.128, deskZ + 0.15);
+    group.add(coffeeIn);
+    // Kubok yonida "bug'" (yumshoq oq plane)
+    const steam = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.16, 0.22),
+      new THREE.MeshBasicMaterial({
+        color: 0xf1f5f9, transparent: true, opacity: 0.28,
+        depthWrite: false, blending: THREE.AdditiveBlending,
+      })
+    );
+    steam.position.set(-0.6, 1.28, deskZ + 0.15);
+    group.add(steam);
+
+    // Telefon (VIP tanish belgi) — stol o'ng oldida
+    const phone = new THREE.Mesh(
+      new THREE.BoxGeometry(0.11, 0.018, 0.22),
+      new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.3, metalness: 0.8 })
+    );
+    phone.position.set(0.6, 1.01, deskZ + 0.15);
+    group.add(phone);
+    // Telefon ekrani yorug' qoladi
+    const phoneScreen = new THREE.Mesh(
+      new THREE.BoxGeometry(0.09, 0.006, 0.2),
+      new THREE.MeshBasicMaterial({ color: 0x8b5cf6, transparent: true, opacity: 0.75 })
+    );
+    phoneScreen.position.set(0.6, 1.023, deskZ + 0.15);
+    group.add(phoneScreen);
   }
 
   // PM ga "leader" ko'rinishini beradi: oltin halo, toj, katta badge.
