@@ -770,6 +770,30 @@ class AgentEngine:
             "Mavjud mutaxassis rollar:\n"
             f"{role_menu}\n\n"
             "TALABLAR / ТРЕБОВАНИЯ:\n"
+            "0. **task_type NI AQL BILAN TANLASH (ENG MUHIM QADAM):**\n"
+            "   Ushbu tanlov butun oqimni belgilaydi. Noto'g'ri bo'lsa siz shunchaki\n"
+            "   matn qaytarasiz va mutaxassis agent hech qachon ishga tushmaydi\n"
+            "   (bu foydalanuvchi shikoyati manbai bo'lgan — u shell komandani\n"
+            "   qo'lda bajarishni istamaydi, u CEO).\n\n"
+            "   * `code_project` — foydalanuvchi HAR QANDAY haqiqiy amalni so'ragan bo'lsa:\n"
+            "       - Fayl yaratish/o'zgartirish/o'chirish (masalan «удали проекты»,\n"
+            "         «tozala workspace», «delete all», «rename», «переименуй», «arxivla»);\n"
+            "       - Shell buyrug'ini bajarish (o'rnatish, run, deploy, test);\n"
+            "       - Brauzerda sahifa ochish / JS ishga tushirish / screenshot olish;\n"
+            "       - HTTP so'rov / API tekshirish;\n"
+            "       - Ish muhitini ko'rish/tahlil qilish (list_dir + xulosa yozish);\n"
+            "       - Loyihani yaratish yoki lokalda ishga tushirish.\n"
+            "     **TEST SAVOLI:** «Buni bajarish uchun kamida bitta tool chaqirilishi kerakmi?»\n"
+            "     — Agar HA bo'lsa → `code_project`.\n\n"
+            "   * `conversational` — FAQAT sof suhbat: salomlashish, imkoniyat so'rash,\n"
+            "     platforma haqida umumiy savol, ta'rif, tushuntirish. Hech qanday fayl/\n"
+            "     shell/network harakati talab qilinmaydigan holatlar.\n\n"
+            "   KALIT SO'ZLARGA ISHONMANG — MA'NOGA QARANG. Foydalanuvchi «удали»\n"
+            "   yozmagan bo'lsa ham («убери мои проекты», «no more clutter»),\n"
+            "   niyat aniq bo'lsa `code_project` tanlang.\n\n"
+            "   YO'L QO'YILMAYDI: shell buyrug'i matnini foydalanuvchiga chiqarib\n"
+            "   «выполните это», «run this» deb yozish — bu vazifa muvaffaqiyatsizligi.\n"
+            "   `code_project` bo'lsa mutaxassis agent shell'ni O'ZI chaqiradi.\n\n"
             "1. MUHIM TIL QOIDASI / ЯЗЫКОВОЕ ПРАВИЛО (CRITICAL):\n"
             "   Foydalanuvchi xabarida qaysi tildan foydalangan bo'lsa (ruscha, o'zbekcha, inglizcha va h.k.), "
             "rejangizni, tahlilingizni va javobingizni AYNAN O'SHA TILDA yozing. "
@@ -884,11 +908,18 @@ class AgentEngine:
         reasoning = (res.get("reasoning") or "") + ("\n" + inline_reasoning if inline_reasoning else "")
         spec = extract_json_block(text) or {}
 
-        # If user did not ask to create/write code, strictly force conversational task_type
-        if is_conv:
-            task_type = "conversational"
+        # MUHIM: ilgari regex `is_conv` PM'ning O'Z qarorini majburan bekor
+        # qilardi. Natijada foydalanuvchi "проекты удали" desa (regex'da yo'q
+        # so'z), PM to'g'ri "code_project" desa ham biz uni "conversational"
+        # ga o'tkazib PM shell command bermay matn yozib qo'yardi — CEO shikoyati.
+        #
+        # Yangi qoida: PM'ning o'zi ancha aqlliroq. Uning JSON spec'idagi
+        # aniq qaror hurmat qilinadi. Regex faqat PM aytmaganda default sifatida.
+        pm_declared = spec.get("task_type") if isinstance(spec, dict) else None
+        if pm_declared in ("conversational", "code_project", "platform_audit"):
+            task_type = pm_declared
         else:
-            task_type = spec.get("task_type") or "code_project"
+            task_type = "conversational" if is_conv else "code_project"
         spec["task_type"] = task_type
 
         plan_issues = plan_quality_issues(spec)
@@ -1464,6 +1495,7 @@ class AgentEngine:
             "repair_notes": repair_notes,
             "agent_metrics": coder_result.as_dict(),
             "total_duration_sec": round(time.time() - start_time, 2),
+            "duration_seconds": round(time.time() - start_time, 2),
             # Shu bitta vazifa bo'yicha to'liq token hisoboti:
             # provayder / model / agent kesimida.
             "token_usage": usage_ledger.task_usage_block(usage_ledger.current_task_id() or ""),
