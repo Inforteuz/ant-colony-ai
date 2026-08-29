@@ -3024,7 +3024,7 @@ class AntColonyApp {
       if (roleLine && event.role_reason) roleLine += `\n_${event.role_reason}_`;
       if (roleLine && event.subtasks_count) roleLine += `\n\n**Подзадач в плане:** ${event.subtasks_count}`;
       const planIssues = event.plan_quality?.issues || [];
-      if (planIssues.length) roleLine += `\n\n**PM tekshiruv eslatmasi:** ${planIssues.map(issue => this.esc(issue)).join('; ')}`;
+      if (planIssues.length) roleLine += `\n\n**Замечания PM по плану:** ${planIssues.map(issue => this.esc(issue)).join('; ')}`;
       this.canvas.updateStationModel('pm', cleanModelLabel(event.assigned_model), 'План составлен');
       this.canvas.updateStationModel('coder', cleanModelLabel(event.assigned_model), 'Подготовка');
       this.appendFeedItem(feed, {
@@ -4630,12 +4630,12 @@ class AntColonyApp {
 
   _modelsHubBucketMeta() {
     return {
-      all: { label: 'Barchasi', color: 'var(--text-main)' },
-      online: { label: 'Ishlayapti', color: '#10b981' },
-      down: { label: 'Down (xato)', color: '#ef4444' },
+      all: { label: 'Все', color: 'var(--text-main)' },
+      online: { label: 'Онлайн', color: '#10b981' },
+      down: { label: 'Ошибка', color: '#ef4444' },
       rate_limited: { label: 'Rate-limit', color: '#f59e0b' },
-      not_configured: { label: 'Kalit yo’q', color: '#94a3b8' },
-      unchecked: { label: 'Sinalmagan', color: '#64748b' },
+      not_configured: { label: 'Нет ключа', color: '#94a3b8' },
+      unchecked: { label: 'Не проверено', color: '#64748b' },
     };
   }
 
@@ -4705,7 +4705,7 @@ class AntColonyApp {
       `).join('') + `
         <div class="models-hub-summary-tile models-hub-summary-total">
           <span class="models-hub-summary-n">${counts.all}</span>
-          <span class="models-hub-summary-l">Jami model</span>
+          <span class="models-hub-summary-l">Всего моделей</span>
         </div>
       `;
     }
@@ -4745,7 +4745,7 @@ class AntColonyApp {
     rows = rows.slice().sort(sortFns[this.modelsHubSort] || sortFns.name);
 
     if (rows.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:12px; color:#64748b">Filtrga mos model topilmadi</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:12px; color:#64748b">По фильтру моделей не найдено</td></tr>';
       return;
     }
 
@@ -4754,8 +4754,8 @@ class AntColonyApp {
       const badgeColor = meta[bucket].color;
       const statusLabelMap = {
         online: 'Online (200 OK)', rate_limited: '429 Rate limit',
-        not_configured: 'Kalit yo’q', down: this.esc(m.status || 'error'),
-        unchecked: 'Sinalmagan',
+        not_configured: 'Нет ключа', down: this.esc(m.status || 'error'),
+        unchecked: 'Не проверено',
       };
       const statusLabel = statusLabelMap[bucket];
       return `
@@ -4764,7 +4764,7 @@ class AntColonyApp {
           <td><span style="font-size:11px; background:rgba(139,92,246,0.1); padding:2px 6px; border-radius:4px">${this.esc(m.provider)}</span></td>
           <td><span style="color:${badgeColor}; font-weight:700">● ${statusLabel}</span></td>
           <td>${m.latency_ms ? m.latency_ms + ' ms' : '-'}</td>
-          <td>${m.uptime_pct}% <small style="color:#64748b">(${m.total_checks || 0} tekshiruv)</small></td>
+          <td>${m.uptime_pct}% <small style="color:#64748b">(${m.total_checks || 0} проверок)</small></td>
           <td>${(m.context_window / 1024).toFixed(0)}K</td>
           <td>
             <button class="btn-hive-action" style="padding:3px 8px; font-size:11px" onclick="window.antApp.pingSingleModel('${this.esc(m.id)}')">Ping</button>
