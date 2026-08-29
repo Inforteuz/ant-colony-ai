@@ -499,6 +499,14 @@ class IsometricHive3D {
         group.add(glow);
       }
 
+      // PM stansiyasi — bogatroq stol atributlari (VIP CEO ish joyi)
+      // MUHIM: faqat stol USTIGA yangi meshlar qo'shiladi (position.y > 1.0),
+      // stol/stul/monitor pozitsiyalari sira o'zgartirilmaydi — shu tarzda
+      // boshqa stansiyalarga hech qanday ta'siri bo'lmaydi.
+      if (st.id === 'pm') {
+        this._addPMDeskProps(group, deskTop.position.z);
+      }
+
       this.scene.add(group);
       this.stationObjects[st.id] = group;
     });
@@ -953,6 +961,53 @@ class IsometricHive3D {
 
       this.scene.add(mesh);
       this.agents[st.id] = agentData;
+    });
+  }
+
+  // PM stansiyasi stoli ustiga bogatroq atributlar qo'shadi.
+  // Faqat stol UST'iga qo'shiladi — stol/stul pozitsiyalari o'zgartirilmaydi,
+  // shu tarzda boshqa stansiyalar bilan hech qanday konflikt yo'q.
+  // Bosqich 1: kubok (trophy) + kitob to'plami — eng kichik, xavfsiz.
+  _addPMDeskProps(group, deskZ) {
+    const goldMat = new THREE.MeshStandardMaterial({
+      color: 0xfbbf24, metalness: 0.95, roughness: 0.15,
+      emissive: 0xf59e0b, emissiveIntensity: 0.3,
+    });
+
+    // Kubok/trophy — BEST PM belgi, stol chap-orqasi
+    const cup = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.09, 0.06, 0.16, 12), goldMat
+    );
+    cup.position.set(-0.95, 1.12, deskZ - 0.15);
+    cup.castShadow = true;
+    group.add(cup);
+    // Torusli 2 handle
+    const handleL = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.012, 6, 12), goldMat);
+    handleL.position.set(-1.05, 1.13, deskZ - 0.15);
+    handleL.rotation.y = Math.PI / 2;
+    group.add(handleL);
+    const handleR = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.012, 6, 12), goldMat);
+    handleR.position.set(-0.85, 1.13, deskZ - 0.15);
+    handleR.rotation.y = Math.PI / 2;
+    group.add(handleR);
+    // Bronza baza
+    const base = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.11, 0.13, 0.06, 12),
+      new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.6 })
+    );
+    base.position.set(-0.95, 1.005, deskZ - 0.15);
+    group.add(base);
+
+    // 3 rangli kitob to'plami — stol o'ng-orqa
+    const bookColors = [0xef4444, 0x0891b2, 0xf59e0b];
+    bookColors.forEach((c, i) => {
+      const book = new THREE.Mesh(
+        new THREE.BoxGeometry(0.14, 0.032, 0.2),
+        new THREE.MeshStandardMaterial({ color: c, roughness: 0.7 })
+      );
+      book.position.set(0.95, 1.005 + i * 0.034, deskZ - 0.15);
+      book.castShadow = true;
+      group.add(book);
     });
   }
 
