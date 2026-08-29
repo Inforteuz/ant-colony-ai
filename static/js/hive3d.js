@@ -44,6 +44,8 @@ class IsometricHive3D {
     // Camera preset targets for smooth tweening
     this.cameraPresets = {
       overview: { pos: new THREE.Vector3(0, 20, 22), target: new THREE.Vector3(0, 0, 0) },
+      // Top-down (bird's-eye) — Xitoy pixel-ofisi uslubidagi tik pastga qarash
+      topdown: { pos: new THREE.Vector3(0, 40, 0.0001), target: new THREE.Vector3(0, 0, 0) },
       pm: { pos: new THREE.Vector3(0, 6, 8.5), target: new THREE.Vector3(0, 1.2, 0.5) },
       coder: { pos: new THREE.Vector3(-8.5, 5, 10.5), target: new THREE.Vector3(-8.5, 1.2, 4.2) },
       designer: { pos: new THREE.Vector3(-10.5, 5, 2), target: new THREE.Vector3(-10.5, 1.2, -3.8) },
@@ -79,6 +81,7 @@ class IsometricHive3D {
       'createMarketingAnalyticsWing',
       'createLegalDocsOffice',
       'createOfficeAmbience',
+      'createOfficeShell',
       'createDataStreamSystem',
       'setupInteractions',
       'setupCameraControlsUI'
@@ -2459,6 +2462,127 @@ class IsometricHive3D {
       } catch (e) {
         console.warn('[Hive3D] Pol zonasi yaratilmadi:', e);
       }
+    }
+
+    // Karidorlar (walkways) — zonalar orasidan o'tuvchi tosh naqshli yo'llar.
+    // WELCOME → ENGINEERING → LOUNGE / RESEARCH
+    const walkways = [
+      // Welcome → Engineering (markaz)
+      { x: 0, z: -14, w: 4, d: 8 },
+      // Engineering → Lounge (chapga)
+      { x: -8, z: 8, w: 8, d: 3 },
+      // Engineering → Research (o'ngga)
+      { x: 8, z: 8, w: 8, d: 3 },
+      // Engineering → CAFE (chap-yuqori)
+      { x: -8, z: -12, w: 3, d: 6 },
+      // Engineering → REC (o'ng-yuqori)
+      { x: 8, z: -9, w: 3, d: 6 },
+    ];
+    for (const w of walkways) {
+      try {
+        const walk = this._makeWalkway(w.w, w.d);
+        walk.position.set(w.x, 0, w.z);
+        this.scene.add(walk);
+      } catch (e) { /* karidorsiz ham ish davom etadi */ }
+    }
+  }
+
+  // Karidor plyta — och kul rang, tosh naqshli, tomonlarida yorug' chiziq.
+  _makeWalkway(w, d) {
+    const isLight = this.isLight;
+    const g = new THREE.Group();
+    const tex = this._makeTileTexture('tile', isLight ? '#e5e7eb' : '#1e293b');
+    tex.repeat.set(Math.max(1, w / 3), Math.max(1, d / 3));
+    const mat = new THREE.MeshStandardMaterial({
+      map: tex, roughness: 0.75, metalness: 0.06,
+      polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
+    });
+    const plate = new THREE.Mesh(new THREE.PlaneGeometry(w, d), mat);
+    plate.rotation.x = -Math.PI / 2;
+    plate.position.y = 0.010;
+    plate.receiveShadow = true;
+    g.add(plate);
+    return g;
+  }
+
+  // Ofisning tashqi devor konturi va shipni ko'rsatuvchi elementlar.
+  // Foydalanuvchi ochiq ofis chegarasini vizual ko'rish uchun so'ragan.
+  createOfficeShell() {
+    const isLight = this.isLight;
+    const W = 46, D = 42;  // Butun office plati chegaralari
+    const wallH = 3.5;
+    const wallT = 0.25;
+    const wallMat = new THREE.MeshStandardMaterial({
+      color: isLight ? 0xe2e8f0 : 0x1e293b,
+      roughness: 0.7, metalness: 0.15,
+      transparent: true, opacity: 0.65,   // yarim shaffof — kamera to'siq bo'lmasin
+    });
+
+    const half = (v) => v / 2;
+    const placeWall = (w, x, z, rot = 0) => {
+      const s = new THREE.Mesh(new THREE.BoxGeometry(w, wallH, wallT), wallMat);
+      s.position.set(x, wallH / 2, z);
+      s.rotation.y = rot;
+      s.castShadow = false;
+      s.receiveShadow = true;
+      this.scene.add(s);
+    };
+    // 4 devor
+    placeWall(W, 0, -half(D));     // orqa
+    placeWall(W, 0,  half(D));     // old
+    placeWall(D, -half(W), 0, Math.PI / 2); // chap
+    placeWall(D,  half(W), 0, Math.PI / 2); // o'ng
+
+    // Neon perimetr chizig'i (yuqori chekka)
+    const perimMat = new THREE.LineBasicMaterial({ color: 0x8b5cf6, transparent: true, opacity: 0.8 });
+    const perim = new THREE.BufferGeometry();
+    perim.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
+      -half(W), wallH, -half(D),
+       half(W), wallH, -half(D),
+       half(W), wallH,  half(D),
+      -half(W), wallH,  half(D),
+      -half(W), wallH, -half(D),
+    ]), 3));
+    this.scene.add(new THREE.Line(perim, perimMat));
+
+    // Shift (ceiling soffit) — 4 ta halqa ramka yuqorida
+    const soffitMat = new THREE.MeshStandardMaterial({
+      color: isLight ? 0xf1f5f9 : 0x0f172a, roughness: 0.5, metalness: 0.4,
+      transparent: true, opacity: 0.35,
+    });
+    // Soffit ramka
+    const soffitH = 0.25;
+    const soffitY = wallH + 0.02;
+    const soffitEdges = [
+      { w: W, d: 0.6, x: 0, z: -half(D) + 0.3 },
+      { w: W, d: 0.6, x: 0, z:  half(D) - 0.3 },
+      { w: 0.6, d: D, x: -half(W) + 0.3, z: 0 },
+      { w: 0.6, d: D, x:  half(W) - 0.3, z: 0 },
+    ];
+    for (const s of soffitEdges) {
+      const box = new THREE.Mesh(new THREE.BoxGeometry(s.w, soffitH, s.d), soffitMat);
+      box.position.set(s.x, soffitY, s.z);
+      this.scene.add(box);
+    }
+
+    // Chirog' panellari (LED downlights) — sirtga tekislangan yorug' kvadratlar
+    const lightGrid = [
+      { x: -12, z: -8 }, { x: 0, z: -8 }, { x: 12, z: -8 },
+      { x: -12, z: 4 },  { x: 0, z: 4 },  { x: 12, z: 4 },
+      { x: -12, z: 14 }, { x: 0, z: 14 }, { x: 12, z: 14 },
+    ];
+    const ledMat = new THREE.MeshBasicMaterial({
+      color: isLight ? 0xfef3c7 : 0xe0f2fe, transparent: true, opacity: 0.75,
+    });
+    for (const l of lightGrid) {
+      const led = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 1.4), ledMat);
+      led.rotation.x = Math.PI / 2;
+      led.position.set(l.x, soffitY + 0.02, l.z);
+      this.scene.add(led);
+      // Yumshoq downlight
+      const dl = new THREE.PointLight(isLight ? 0xfef3c7 : 0xe0f2fe, 0.35, 6.5);
+      dl.position.set(l.x, soffitY - 0.4, l.z);
+      this.scene.add(dl);
     }
   }
 

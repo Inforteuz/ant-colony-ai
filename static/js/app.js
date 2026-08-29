@@ -888,6 +888,19 @@ class AntColonyApp {
 
     // Theme toggle
     on('btn-theme-toggle', 'click', () => this.toggleTheme());
+    on('btn-palette-toggle', 'click', () => {
+      const isWarm = document.body.classList.toggle('theme-warm');
+      try { localStorage.setItem('ant.warm', isWarm ? '1' : '0'); } catch (e) {}
+      this.toast(
+        isWarm ? '🎨 Warm palette' : '🧊 Cool palette',
+        isWarm ? 'Iliqroq apelsin/pushti/amber ranglar' : 'Salqin binafsha/cyan ranglar',
+        'info', 2500
+      );
+    });
+    // Reload'da saqlangan palette holatini tiklaymiz.
+    try {
+      if (localStorage.getItem('ant.warm') === '1') document.body.classList.add('theme-warm');
+    } catch (e) {}
 
     // Drawer toggles
     on('btn-pm-console-toggle', 'click', () => this.togglePMDrawer(true));

@@ -7642,3 +7642,207 @@ body.theme-warm .glass-card:hover {
   0%, 100% { box-shadow: 0 0 0 rgba(139, 92, 246, 0); }
   50%      { box-shadow: 0 0 14px rgba(139, 92, 246, 0.4); }
 }
+
+/* ============================================================
+   UI POLISH v5 — topbar / PM Console / Setup Wizard
+   Foydalanuvchi so'radi: creativelik yo'q, chiroyliroq kerak.
+   ============================================================ */
+
+/* Palette toggle tugmasi — 3 nuqtali rangli aylanadigan aylanuvchi */
+#btn-palette-toggle {
+  position: relative;
+  transition: transform 0.4s cubic-bezier(.4, 0, .2, 1);
+}
+#btn-palette-toggle:hover {
+  transform: rotate(30deg) scale(1.08);
+}
+#btn-palette-toggle:active {
+  transform: rotate(180deg) scale(0.95);
+}
+body.theme-warm #btn-palette-toggle {
+  box-shadow: 0 0 12px rgba(249, 115, 22, 0.5);
+}
+
+/* Warm palette — gradient aksent barcha topbar tugmalarida */
+body.theme-warm .topbar-btn-pill,
+body.theme-warm .topbar-btn-pill.btn-glow-purple {
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.12), rgba(236, 72, 153, 0.12));
+  border-color: rgba(249, 115, 22, 0.35);
+}
+body.theme-warm .topbar-btn-pill:hover {
+  box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.2), 0 6px 14px rgba(236, 72, 153, 0.22);
+}
+body.theme-warm .hud-kpi-pill {
+  border-color: rgba(249, 115, 22, 0.28);
+}
+body.theme-warm .hud-kpi-pill:hover {
+  box-shadow: 0 6px 18px rgba(249, 115, 22, 0.24);
+}
+body.theme-warm .ceo-meter-fill:not(.is-stopped) {
+  background: linear-gradient(90deg, #f97316, #ec4899, #f59e0b);
+  box-shadow: 0 0 12px rgba(249, 115, 22, 0.55);
+}
+
+/* Topbar — bugundan boshlab softer, more creative feel */
+.topbar {
+  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+}
+.topbar-btn-pill {
+  border-radius: 999px;
+  transition: transform 0.2s ease, box-shadow 0.25s ease, background 0.25s ease;
+}
+.topbar-btn-pill:hover {
+  transform: translateY(-1px);
+}
+.topbar-btn-pill.btn-glow-purple {
+  position: relative;
+  overflow: hidden;
+}
+.topbar-btn-pill.btn-glow-purple::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%),
+    rgba(139, 92, 246, 0.28), transparent 60%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+.topbar-btn-pill.btn-glow-purple:hover::after {
+  opacity: 1;
+}
+
+/* PM Console kartochka polish */
+.pm-console-drawer {
+  border-radius: 20px;
+  overflow: hidden;
+}
+.pm-console-drawer .pm-console-header {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(99, 102, 241, 0.08));
+}
+body.theme-warm .pm-console-drawer .pm-console-header {
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.15), rgba(236, 72, 153, 0.08));
+}
+
+/* Chat bubble uslubi — yaxshi ko'rinsin uchun */
+.pm-feed-item,
+.chat-user-item {
+  border-radius: 16px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.pm-feed-item:hover,
+.chat-user-item:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+}
+body.light-theme .pm-feed-item:hover {
+  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.10);
+}
+
+/* PM avatar chip — chap tomonda tanib olish uchun kichik yulduz */
+.chat-user-badge {
+  border-radius: 999px;
+  padding: 4px 12px 4px 6px;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(139, 92, 246, 0.05));
+}
+
+/* Setup wizard hero — yumshoq animatsion gradient */
+.setup-wizard,
+.install-wizard,
+#modal-install-wizard {
+  --wizard-accent: #8b5cf6;
+}
+body.theme-warm .setup-wizard,
+body.theme-warm .install-wizard,
+body.theme-warm #modal-install-wizard {
+  --wizard-accent: #f97316;
+}
+.setup-hero,
+.install-hero {
+  position: relative;
+  background: linear-gradient(135deg,
+    rgba(139, 92, 246, 0.12),
+    rgba(99, 102, 241, 0.08),
+    rgba(236, 72, 153, 0.10));
+  background-size: 200% 200%;
+  animation: wizard-hero-drift 12s ease-in-out infinite;
+  border-radius: 16px;
+  padding: 24px;
+}
+body.theme-warm .setup-hero,
+body.theme-warm .install-hero {
+  background: linear-gradient(135deg,
+    rgba(249, 115, 22, 0.14),
+    rgba(236, 72, 153, 0.10),
+    rgba(245, 158, 11, 0.12));
+  background-size: 200% 200%;
+  animation: wizard-hero-drift 12s ease-in-out infinite;
+}
+@keyframes wizard-hero-drift {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+.setup-hero::before,
+.install-hero::before {
+  content: '';
+  position: absolute;
+  top: -30px;
+  right: -20px;
+  width: 140px;
+  height: 140px;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.35), transparent 60%);
+  filter: blur(20px);
+  animation: wizard-orb-drift 8s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes wizard-orb-drift {
+  0%, 100% { transform: translate(0, 0); }
+  50%      { transform: translate(-30px, 20px); }
+}
+
+/* Progress steps ichida yaltiraydigan shimmer */
+.setup-step.active,
+.install-step.active {
+  position: relative;
+  overflow: hidden;
+}
+.setup-step.active::after,
+.install-step.active::after {
+  content: '';
+  position: absolute;
+  top: 0; left: -50%;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+  animation: step-shimmer 2.2s linear infinite;
+  pointer-events: none;
+}
+@keyframes step-shimmer {
+  0%   { left: -50%; }
+  100% { left: 130%; }
+}
+
+/* Yumshoqroq input focus (setup, PM input, terminal input) */
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.18),
+              0 4px 10px rgba(139, 92, 246, 0.08);
+  transition: box-shadow 0.18s ease;
+}
+body.theme-warm input:focus,
+body.theme-warm textarea:focus,
+body.theme-warm select:focus {
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.20),
+              0 4px 10px rgba(249, 115, 22, 0.10);
+}
+
+/* Speech bubble (agent bosh ustidan chiqadigan matn) — chiroyliroq bo'lsin */
+.agent-speech-bubble {
+  border-radius: 14px;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.9));
+  color: #0f172a;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.14);
+  font-weight: 500;
+}
