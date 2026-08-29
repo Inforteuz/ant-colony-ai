@@ -478,11 +478,26 @@ class IsometricHive3D {
       group.add(badge);
       group.badge = badge;
 
-      // Station PointLight for realistic local glow
-      const pLight = new THREE.PointLight(st.colorHex, 0.8, 6);
-      pLight.position.set(0, 1.5, deskTop.position.z);
-      group.add(pLight);
-      group.pointLight = pLight;
+      // Station PointLight — faqat PM va coder'da qoladi (asosiy stansiyalar).
+      // Qolgan 5 stansiya uchun oʻrniga stol tepasidan additive glow plane —
+      // vizual accent hissi qoladi, lekin dyn nurlar soni 7→2 ga tushadi.
+      if (st.id === 'pm' || st.id === 'coder') {
+        const pLight = new THREE.PointLight(st.colorHex, 0.8, 6);
+        pLight.position.set(0, 1.5, deskTop.position.z);
+        group.add(pLight);
+        group.pointLight = pLight;
+      } else {
+        const glow = new THREE.Mesh(
+          new THREE.PlaneGeometry(2.6, 1.6),
+          new THREE.MeshBasicMaterial({
+            color: st.colorHex, transparent: true, opacity: 0.22,
+            depthWrite: false, blending: THREE.AdditiveBlending,
+          })
+        );
+        glow.rotation.x = -Math.PI / 2;
+        glow.position.set(0, 0.16, deskTop.position.z);
+        group.add(glow);
+      }
 
       this.scene.add(group);
       this.stationObjects[st.id] = group;
