@@ -1831,14 +1831,20 @@ class IsometricHive3D {
     handle.position.set(width / 2 - 0.18, height / 2, 0.06);
     door.add(handle);
 
-    // Yumshoq ostki nur — kimdir yaqinlashganda "avtoeshik" hissi
-    const glow = new THREE.PointLight(accentHex, isLight ? 0.35 : 0.85, 4.5);
-    glow.position.set(0, 0.6, 0.4);
-    door.add(glow);
-    // Har bir dinamik nur SAHNADAGI BARCHA yoritilgan materiallarning
-    // fragment narxini oshiradi — past rejimda o'chiriladi.
-    (this._doorLights || (this._doorLights = [])).push(glow);
-    door.userData = { doorPulse: glow, accentHex };
+    // Yumshoq ostki nur — ilgari PointLight edi (3 eshik × dyn light = FPS
+    // narxi katta). Endi additive blending bilan fake glow plane —
+    // vizual jihatdan bir xil "yorug' zona" ta'siri, lekin fragment shader
+    // uchun bepul.
+    const fakeGlow = new THREE.Mesh(
+      new THREE.PlaneGeometry(width, 0.7),
+      new THREE.MeshBasicMaterial({
+        color: accentHex, transparent: true, opacity: 0.35,
+        depthWrite: false, blending: THREE.AdditiveBlending,
+      })
+    );
+    fakeGlow.position.set(0, 0.35, 0.15);
+    door.add(fakeGlow);
+    door.userData = { doorPulse: fakeGlow, accentHex };
     return door;
   }
 
@@ -4733,7 +4739,13 @@ class IsometricHive3D {
       const door = g.userData.entranceDoor;
       if (!door || !door.userData || !door.userData.doorPulse) continue;
       const base = this.isLight ? 0.35 : 0.85;
-      door.userData.doorPulse.intensity = base + Math.sin(t * 1.6) * 0.18;
+      // doorPulse endi Mesh (fake glow plane) — PointLight o'rniga opacity pulse
+      const pulse = door.userData.doorPulse;
+      if (pulse && pulse.material && 'opacity' in pulse.material) {
+        pulse.material.opacity = 0.25 + Math.sin(t * 1.6) * 0.12;
+      } else if (pulse && 'intensity' in pulse) {
+        pulse.intensity = base + Math.sin(t * 1.6) * 0.18;
+      }
     }
   }
 
