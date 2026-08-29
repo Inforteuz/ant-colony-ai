@@ -1071,11 +1071,9 @@ class IsometricHive3D {
     mesh.add(glowRing);
     mesh.userData.pmGlowRing = glowRing;
 
-    // 5. Yumshoq oltin PointLight — PM atrofidan chiqadigan mayoq nur
-    const light = new THREE.PointLight(0xfbbf24, this.isLight ? 0.4 : 0.85, 6);
-    light.position.set(0, 2.5, 0);
-    mesh.add(light);
-    mesh.userData.pmBeacon = light;
+    // 5. PM beacon PointLight FPS optimizatsiyasi uchun olib tashlandi.
+    //    Crown gem'ning emissiveIntensity pulsatsiyasi + halo aylanishi
+    //    +  glowRing "nafas olishi" yetarli darajada leader effekti beradi.
 
     // 6. Sal kattaroq (haqiqiy leader effekti)
     mesh.scale.setScalar(1.08);
@@ -2736,10 +2734,7 @@ class IsometricHive3D {
     carafe.position.set(0.55, 1.03, 0.15);
     g.add(carafe);
 
-    // Yumshoq issiq nur
-    const warm = new THREE.PointLight(0xf59e0b, isLight ? 0.25 : 0.65, 3.5);
-    warm.position.set(-0.55, 1.5, 0.4);
-    g.add(warm);
+    // Kofe warm PointLight olib tashlandi (FPS). LED emissive material o'zi glow beradi.
 
     return g;
   }
@@ -2943,10 +2938,16 @@ class IsometricHive3D {
       new THREE.MeshBasicMaterial({ map: tex }));
     face.position.z = 0.03;
     g.add(face);
-    // Yashil glow
-    const glow = new THREE.PointLight(0x22c55e, 0.7, 2.8);
-    glow.position.set(0, 0, 0.4);
-    g.add(glow);
+    // EXIT sign glow PointLight → additive plane (FPS optimizatsiyasi)
+    const fakeGlow = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.4, 0.6),
+      new THREE.MeshBasicMaterial({
+        color: 0x22c55e, transparent: true, opacity: 0.35,
+        depthWrite: false, blending: THREE.AdditiveBlending,
+      })
+    );
+    fakeGlow.position.z = 0.06;
+    g.add(fakeGlow);
     return g;
   }
 
@@ -4698,11 +4699,7 @@ class IsometricHive3D {
       ud.pmGlowRing.scale.set(s, s, 1);
       ud.pmGlowRing.material.opacity = 0.28 + Math.sin(t * 1.8) * 0.14;
     }
-    if (ud.pmBeacon) {
-      // Mayoq nur intensitesi
-      const base = this.isLight ? 0.4 : 0.85;
-      ud.pmBeacon.intensity = base + Math.sin(t * 2.2) * 0.15;
-    }
+    // pmBeacon FPS uchun olib tashlandi.
   }
 
   // ============================================================
