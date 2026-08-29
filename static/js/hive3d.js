@@ -184,6 +184,18 @@ class IsometricHive3D {
     this.bluePoint = new THREE.PointLight(0x6366f1, isLight ? 1.2 : 2.0, 35);
     this.bluePoint.position.set(0, 8, 0);
     this.scene.add(this.bluePoint);
+
+    // HemisphereLight — arzon global ambient (sky yuqoridan, ground pastdan).
+    // Bir nechta PointLight'ni bitta o'rtacha tekis yorug' bilan almashtiradi.
+    // Fragment shader bo'yicha hemisphere qo'shiladigan qiymat const — dinamik
+    // loop qilmaydi, shuning uchun deyarli bepul.
+    this.hemi = new THREE.HemisphereLight(
+      isLight ? 0xffffff : 0x475569,   // sky
+      isLight ? 0xe2e8f0 : 0x0b1120,   // ground
+      isLight ? 0.55 : 0.35
+    );
+    this.hemi.position.set(0, 12, 0);
+    this.scene.add(this.hemi);
   }
 
   createEnvironment() {
@@ -2588,16 +2600,22 @@ class IsometricHive3D {
     const ledMat = new THREE.MeshBasicMaterial({
       color: isLight ? 0xfef3c7 : 0xe0f2fe, transparent: true, opacity: 0.75,
     });
-    for (const l of lightGrid) {
+    // VIZUAL LED panellar hamma 9 joyda qoladi — kamera uchun ko'rinadi.
+    // Lekin PointLight faqat 3 tasida (chekka+markaz) — FPS uchun.
+    // Ilgari 9 dyn light bor edi → fragment shader har pikselga 9 marta
+    // qo'shimcha ish. Endi 3 ta, HemisphereLight ambient bilan qoplaydi.
+    const litIdx = new Set([0, 4, 8]);  // 3 asosiy nur (dioaganal)
+    lightGrid.forEach((l, i) => {
       const led = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 1.4), ledMat);
       led.rotation.x = Math.PI / 2;
       led.position.set(l.x, soffitY + 0.02, l.z);
       this.scene.add(led);
-      // Yumshoq downlight
-      const dl = new THREE.PointLight(isLight ? 0xfef3c7 : 0xe0f2fe, 0.35, 6.5);
-      dl.position.set(l.x, soffitY - 0.4, l.z);
-      this.scene.add(dl);
-    }
+      if (litIdx.has(i)) {
+        const dl = new THREE.PointLight(isLight ? 0xfef3c7 : 0xe0f2fe, 0.65, 12);
+        dl.position.set(l.x, soffitY - 0.4, l.z);
+        this.scene.add(dl);
+      }
+    });
   }
 
   // ============================================================
